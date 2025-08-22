@@ -10,7 +10,11 @@ main :: proc() {
 	assert(ok, "Failed to parse tokens")
 	defer token_stream_destroy(&token_stream)
 
-	for token in token_stream.tokens {
-		fmt.println(token)
+	ast, err := parse_ast(token_stream)
+	if err != .None {
+		fmt.println("Failed to parse AST", err)
+		return
 	}
+
+	fmt.println(ast.selectors)
 }
