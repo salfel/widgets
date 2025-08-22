@@ -1,0 +1,136 @@
+package main
+
+import "core:fmt"
+import "core:mem/virtual"
+import "core:strings"
+import "core:testing"
+
+Token_Type :: enum {
+	Ident,
+	Number,
+	Dot,
+	Hashtag,
+	Brace_Open,
+	Brace_Close,
+	Colon,
+	Semicolon,
+}
+
+Token :: struct {
+	type:  Token_Type,
+	value: union {
+		string,
+		u32,
+	},
+}
+
+Token_Stream :: struct {
+	tokens: [dynamic]Token,
+	arena:  virtual.Arena,
+}
+
+token_stream_destroy :: proc(token_stream: ^Token_Stream) {
+	delete(token_stream.tokens)
+	virtual.arena_free_all(&token_stream.arena)
+}
+
+is_identifier :: proc(char: u8) -> bool {
+	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char == '_' || char == '-'
+}
+
+parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, ok := false) {
+	context.allocator = virtual.arena_allocator(&token_stream.arena)
+
+	for i := 0; i < len(contents); i += 1 {
+		switch contents[i] {
+		case '0' ..= '9':
+			number: u32 = 0
+			for ; i < len(contents); i += 1 {
+				if contents[i] < '0' || contents[i] > '9' {
+					break
+				}
+
+				number *= 10
+				number += u32(contents[i] - '0')
+			}
+
+			i -= 1
+
+			append(&token_stream.tokens, Token{.Number, number})
+		case 'a' ..= 'z', 'A' ..= 'Z':
+			builder := strings.builder_make_none()
+			for ; i < len(contents); i += 1 {
+				if !is_identifier(contents[i]) {
+					break
+				}
+
+				strings.write_byte(&builder, contents[i])
+			}
+
+			i -= 1
+
+			append(&token_stream.tokens, Token{.Ident, strings.to_string(builder)})
+
+		case '.':
+			append(&token_stream.tokens, Token{.Dot, nil})
+		case '#':
+			append(&token_stream.tokens, Token{.Hashtag, nil})
+		case '{':
+			append(&token_stream.tokens, Token{.Brace_Open, nil})
+		case '}':
+			append(&token_stream.tokens, Token{.Brace_Close, nil})
+		case ':':
+			append(&token_stream.tokens, Token{.Colon, nil})
+		case ';':
+			append(&token_stream.tokens, Token{.Semicolon, nil})
+		case ' ', '\t', '\n', '\r':
+			continue
+		case:
+			fmt.println("Unknown character", rune(contents[i]))
+			return
+		}
+	}
+
+	ok = true
+	return
+}
+
+@(test)
+test_parse_token :: proc(t: ^testing.T) {
+	contents := ".class { width: 100; } #id { height: 100; } selector { test: 100; }"
+	expected_tokens := []Token {
+		Token{.Dot, nil},
+		Token{.Ident, "class"},
+		Token{.Brace_Open, nil},
+		Token{.Ident, "width"},
+		Token{.Colon, nil},
+		Token{.Number, 100},
+		Token{.Semicolon, nil},
+		Token{.Brace_Close, nil},
+		Token{.Hashtag, nil},
+		Token{.Ident, "id"},
+		Token{.Brace_Open, nil},
+		Token{.Ident, "height"},
+		Token{.Colon, nil},
+		Token{.Number, 100},
+		Token{.Semicolon, nil},
+		Token{.Brace_Close, nil},
+		Token{.Ident, "selector"},
+		Token{.Brace_Open, nil},
+		Token{.Ident, "test"},
+		Token{.Colon, nil},
+		Token{.Number, 100},
+		Token{.Semicolon, nil},
+		Token{.Brace_Close, nil},
+	}
+
+	token_stream, ok := parse_tokens(contents)
+	assert(ok, "Failed to parse tokens")
+
+	defer token_stream_destroy(&token_stream)
+
+	for i := 0; i < len(expected_tokens); i += 1 {
+		assert(token_stream.tokens[i].type == expected_tokens[i].type, "Token type mismatch")
+		assert(token_stream.tokens[i].value == expected_tokens[i].value, "Token value mismatch")
+	}
+}
