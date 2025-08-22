@@ -1,20 +1,37 @@
 package main
 
 import "core:fmt"
-import "core:os"
+import gl "vendor:OpenGL"
+import "vendor:glfw"
 
-css_file :: #load("../test.css")
+GL_MAJOR_VERSION :: 3
+GL_MINOR_VERSION :: 3
 
 main :: proc() {
-	token_stream, ok := parse_tokens(string(css_file))
-	assert(ok, "Failed to parse tokens")
-	defer token_stream_destroy(&token_stream)
-
-	ast, err := parse_ast(token_stream)
-	if err != .None {
-		fmt.println("Failed to parse AST", err)
+	if !bool(glfw.Init()) {
+		fmt.eprintln("Failed to initialize GLFW.")
 		return
 	}
 
-	fmt.println(ast.selectors)
+	window_handle := glfw.CreateWindow(800, 600, "Widgets", nil, nil)
+
+	defer glfw.Terminate()
+	defer glfw.DestroyWindow(window_handle)
+
+	if window_handle == nil {
+		fmt.eprintln("Failed to create GLFW window.")
+		return
+	}
+
+	glfw.MakeContextCurrent(window_handle)
+	gl.load_up_to(GL_MAJOR_VERSION, GL_MINOR_VERSION, glfw.gl_set_proc_address)
+
+	for !glfw.WindowShouldClose(window_handle) {
+		glfw.PollEvents()
+
+		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+
+		glfw.SwapBuffers(window_handle)
+	}
 }

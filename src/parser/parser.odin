@@ -1,4 +1,4 @@
-package main
+package parser
 
 import "core:fmt"
 import "core:mem/virtual"
