@@ -15,17 +15,26 @@ main :: proc() {
 
 	defer widgets.window_destroy(window_handle)
 
-	widget, err := widgets.widget_make({200, 200}, {300, 100}, {1, 0, 0, 1})
+	parent, err := widgets.widget_make({200, 200}, {300, 100}, {1, 0, 0, 1})
 	if err != .None {
 		fmt.eprintln("Failed to create widget")
 		return
 	}
 
+	child: widgets.Widget
+	child, err = widgets.widget_make({100, 100}, {50, 50}, {1, 1, 1, 1})
+	if err != .None {
+		fmt.eprintln("Failed to create widget")
+		return
+	}
+
+	widgets.widget_append_child(&parent, child)
+
 	for !glfw.WindowShouldClose(window_handle) {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
-		widgets.widget_draw(&widget)
+		widgets.widget_draw(&parent)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()
