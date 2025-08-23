@@ -1,37 +1,33 @@
 package main
 
 import "core:fmt"
+import "state"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
-
-GL_MAJOR_VERSION :: 3
-GL_MINOR_VERSION :: 3
+import "widgets"
 
 main :: proc() {
-	if !bool(glfw.Init()) {
-		fmt.eprintln("Failed to initialize GLFW.")
+	window_handle, ok := widgets.window_make(800, 600, "widgets")
+	if !ok {
+		fmt.eprintln("Failed to create window")
 		return
 	}
 
-	window_handle := glfw.CreateWindow(800, 600, "Widgets", nil, nil)
+	defer widgets.window_destroy(window_handle)
 
-	defer glfw.Terminate()
-	defer glfw.DestroyWindow(window_handle)
-
-	if window_handle == nil {
-		fmt.eprintln("Failed to create GLFW window.")
+	widget, err := widgets.widget_make({200, 200}, {300, 100})
+	if err != .None {
+		fmt.eprintln("Failed to create widget")
 		return
 	}
-
-	glfw.MakeContextCurrent(window_handle)
-	gl.load_up_to(GL_MAJOR_VERSION, GL_MINOR_VERSION, glfw.gl_set_proc_address)
 
 	for !glfw.WindowShouldClose(window_handle) {
-		glfw.PollEvents()
-
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
+		widgets.widget_draw(&widget)
+
 		glfw.SwapBuffers(window_handle)
+		glfw.PollEvents()
 	}
 }
