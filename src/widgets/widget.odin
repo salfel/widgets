@@ -14,11 +14,14 @@ FRAGMENT_SHADER :: #load("shaders/fragment.glsl")
 
 
 Widget :: struct {
-	size:         [2]f32,
-	position:     [2]f32,
-	color:        [4]f32,
-	program, vao: u32,
-	mvp_location: i32,
+	size:                         [2]f32,
+	position:                     [2]f32,
+	color:                        [4]f32,
+	mp:                           matrix[4, 4]f32,
+
+	// OpenGL stuff
+	program, vao:                 u32,
+	mvp_location, color_location: i32,
 }
 
 Widget_Error :: enum {
@@ -27,9 +30,10 @@ Widget_Error :: enum {
 	Program_Creation_Failed,
 }
 
-widget_make :: proc(size, position: [2]f32) -> (widget: Widget, err: Widget_Error) {
+widget_make :: proc(size, position: [2]f32, color: [4]f32) -> (widget: Widget, err: Widget_Error) {
 	widget.size = size
 	widget.position = position
+	widget.color = color
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -53,6 +57,7 @@ widget_make :: proc(size, position: [2]f32) -> (widget: Widget, err: Widget_Erro
 
 	gl.UseProgram(widget.program)
 	widget.mvp_location = gl.GetUniformLocation(widget.program, "MVP")
+	widget.color_location = gl.GetUniformLocation(widget.program, "color")
 	gl.UseProgram(0)
 
 	return
@@ -61,18 +66,10 @@ widget_make :: proc(size, position: [2]f32) -> (widget: Widget, err: Widget_Erro
 widget_draw :: proc(widget: ^Widget) {
 	gl.UseProgram(widget.program)
 
-	scale := linalg.matrix4_scale_f32({widget.size.x, widget.size.y, 1})
-	translation := linalg.matrix4_translate_f32({widget.position.x, widget.position.y, 0})
-	projection := linalg.matrix_ortho3d_f32(
-		0,
-		state.app_state.window.width,
-		state.app_state.window.height,
-		0,
-		0,
-		1,
-	)
-	mvp := projection * translation * scale
-	gl.UniformMatrix4fv(widget.mvp_location, 1, false, linalg.matrix_to_ptr(&mvp))
+	calculate_mp(widget)
+
+	gl.UniformMatrix4fv(widget.mvp_location, 1, false, linalg.matrix_to_ptr(&widget.mp))
+	gl.Uniform4fv(widget.color_location, 1, linalg.vector_to_ptr(&widget.color))
 
 	gl.BindVertexArray(widget.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
@@ -83,6 +80,14 @@ widget_draw :: proc(widget: ^Widget) {
 	}
 
 	gl.UseProgram(0)
+}
+
+calculate_mp :: proc(widget: ^Widget) {
+	scale := linalg.matrix4_scale_f32({widget.size.x, widget.size.y, 1})
+	translation := linalg.matrix4_translate_f32({widget.position.x, widget.position.y, 0})
+	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window.width, state.app_state.window.height, 0, 0, 1)
+
+	widget.mp = projection * translation * scale
 }
 
 compile_shader :: proc(type: u32, source: string) -> (u32, Widget_Error) {

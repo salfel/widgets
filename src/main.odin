@@ -15,7 +15,7 @@ main :: proc() {
 
 	defer widgets.window_destroy(window_handle)
 
-	widget, err := widgets.widget_make({200, 200}, {300, 100})
+	widget, err := widgets.widget_make({200, 200}, {300, 100}, {1, 0, 0, 1})
 	if err != .None {
 		fmt.eprintln("Failed to create widget")
 		return
