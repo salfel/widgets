@@ -20,7 +20,7 @@
         packages.default = pkgs.stdenv.mkDerivation rec {
           name = "widgets";
 
-          src = ./src;
+          src = ./.;
 
           buildInputs = with pkgs; [
             odin
@@ -28,7 +28,7 @@
           ];
 
           buildPhase = ''
-            odin build . --out:${name}
+            odin build src --out:${name}
           '';
 
           installPhase = ''
