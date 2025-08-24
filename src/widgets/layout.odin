@@ -17,13 +17,13 @@ Layout :: struct {
 	children:  [dynamic]^Layout,
 }
 
-layout_make :: proc(min: f32, preferred: f32, max: f32 = math.INF_F32) -> Layout {
+layout_make :: proc(min: f32, preferred: f32, max: f32 = math.INF_F32, allocator := context.allocator) -> Layout {
 	return Layout {
 		min = min,
 		preferred = preferred,
 		max = max,
 		result = {size = {0, -1}, position = {0, 0}, clip = false},
-		children = [dynamic]^Layout{},
+		children = make([dynamic]^Layout, allocator),
 	}
 }
 
@@ -64,7 +64,7 @@ layout_measure :: proc(layout: ^Layout) {
 	layout.preferred = math.max(preferred, layout.preferred)
 }
 
-layout_compute :: proc(layout: ^Layout, width: f32) {
+layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocator) {
 	layout.result.size.x = width
 
 	for &child in layout.children {
@@ -74,7 +74,7 @@ layout_compute :: proc(layout: ^Layout, width: f32) {
 	// shrink
 	if layout.preferred > width {
 		available := layout.preferred - width
-		available_children: [dynamic]^Layout
+		available_children := make([dynamic]^Layout, allocator)
 		append(&available_children, ..layout.children[:])
 		defer delete(available_children)
 
@@ -104,7 +104,7 @@ layout_compute :: proc(layout: ^Layout, width: f32) {
 	// grow
 	if layout.preferred < width {
 		available := width - layout.preferred
-		available_children: [dynamic]^Layout
+		available_children := make([dynamic]^Layout, allocator)
 		append(&available_children, ..layout.children[:])
 		defer delete(available_children)
 

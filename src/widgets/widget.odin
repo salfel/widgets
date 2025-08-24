@@ -29,8 +29,10 @@ Widget :: struct {
 	mvp_location, color_location: i32,
 }
 
-widget_make :: proc(classes: []string) -> (widget: Widget, ok: bool) #optional_ok {
-	styles: map[css.Property]css.Value
+widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: Widget, ok: bool) #optional_ok {
+	widget.children = make([dynamic]Widget, allocator)
+
+	styles := make(map[css.Property]css.Value, allocator)
 	defer delete(styles)
 	for selector in state.app_state.css.selectors {
 		if selector.type != .Class {continue}
@@ -45,8 +47,6 @@ widget_make :: proc(classes: []string) -> (widget: Widget, ok: bool) #optional_o
 	}
 
 	widget_apply_styles(&widget, styles)
-
-	widget.layout.max = math.INF_F32
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -94,6 +94,8 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 		col := color.([3]f32)
 		widget.color = [4]f32{col[0], col[1], col[2], 1}
 	}
+
+	widget.layout.max = math.INF_F32
 }
 
 widget_draw :: proc(widget: ^Widget) {

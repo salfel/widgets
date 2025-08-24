@@ -17,12 +17,12 @@ window_size_callback :: proc "c" (window: glfw.WindowHandle, width, height: i32)
 	state.app_state.window = {f32(width), f32(height)}
 }
 
-window_make :: proc(width, height: f32, name: string) -> (glfw.WindowHandle, bool) {
+window_make :: proc(width, height: f32, name: string, allocator := context.allocator) -> (glfw.WindowHandle, bool) {
 	if !bool(glfw.Init()) {
 		fmt.eprintln("Failed to initialize GLFW.")
 		return nil, false
 	}
-	csource := strings.clone_to_cstring(name)
+	csource := strings.clone_to_cstring(name, allocator)
 	defer delete(csource)
 	window_handle := glfw.CreateWindow(i32(width), i32(height), csource, nil, nil)
 

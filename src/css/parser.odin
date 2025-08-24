@@ -65,6 +65,7 @@ parse :: proc(contents: string) -> (ast: Ast, err: Parser_Error) {
 }
 
 parse_ast :: proc(token_stream: Token_Stream) -> (ast: Ast, err: Parser_Error) {
+	ast.arena = token_stream.arena
 	context.allocator = virtual.arena_allocator(&ast.arena)
 
 	for i := 0; i < len(token_stream.tokens); i += 1 {
