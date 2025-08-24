@@ -46,7 +46,7 @@ make_property :: proc(property: string) -> (Property, Parser_Error) {
 }
 
 Value :: union {
-	u32,
+	f32,
 	[3]f32,
 }
 
@@ -138,7 +138,7 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 			return
 		}
 	case .Width, .Height:
-		if _, ok := value.(u32); !ok {
+		if _, ok := value.(f32); !ok {
 			err = Parser_Error.Invalid_Value
 			return
 		}
@@ -153,7 +153,7 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Error) {
 	#partial switch tokens[i^].type {
 	case Token_Type.Number:
-		value = tokens[i^].value.(u32)
+		value = tokens[i^].value.(f32)
 		i^ += 1
 		return
 	case Token_Type.Ident:
@@ -166,7 +166,7 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 			color: [3]f32
 			for j := 0; j < 3; j += 1 {
 				expect_token(tokens[i^], .Number) or_return
-				color[j] = f32(tokens[i^].value.(u32)) / 255
+				color[j] = tokens[i^].value.(f32) / 255
 				i^ += 1
 
 				if j != 2 {

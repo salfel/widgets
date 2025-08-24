@@ -83,16 +83,19 @@ widget_destroy :: proc(widget: ^Widget) {
 
 widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
 	if height, ok := styles[.Height]; ok {
-		widget.layout.result.size.y = f32(height.(u32))
+		widget.layout.result.size.y, ok = height.(f32)
+		assert(ok, "Expected height to be a number")
 	}
 
 	if width, ok := styles[.Width]; ok {
-		widget.layout.preferred = f32(width.(u32))
+		widget.layout.preferred, ok = width.(f32)
+		assert(ok, "Expected width to be a number")
 	}
 
 	if color, ok := styles[.Color]; ok {
-		col := color.([3]f32)
+		col, ok := color.([3]f32)
 		widget.color = [4]f32{col[0], col[1], col[2], 1}
+		assert(ok, "Expected color to be a color vec")
 	}
 
 	widget.layout.max = math.INF_F32

@@ -1,6 +1,7 @@
 package css
 
 import "core:fmt"
+import "core:math"
 import "core:mem/virtual"
 import "core:strings"
 import "core:testing"
@@ -23,7 +24,7 @@ Token :: struct {
 	type:  Token_Type,
 	value: union {
 		string,
-		u32,
+		f32,
 	},
 }
 
@@ -53,14 +54,23 @@ parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, err: Pars
 	for i := 0; i < len(contents); i += 1 {
 		switch contents[i] {
 		case '0' ..= '9':
-			number: u32 = 0
+			number: f32 = 0
+			comma_offset := -1
 			for ; i < len(contents); i += 1 {
-				if contents[i] < '0' || contents[i] > '9' {
+				if contents[i] == '.' {
+					comma_offset = i
+					continue
+				} else if contents[i] < '0' || contents[i] > '9' {
 					break
 				}
 
-				number *= 10
-				number += u32(contents[i] - '0')
+				if comma_offset == -1 {
+					number *= 10
+					number += f32(contents[i] - '0')
+				} else {
+					num := f32(contents[i] - '0')
+					number += num * math.pow_f32(10, -f32(i - comma_offset))
+				}
 			}
 
 			i -= 1
@@ -110,14 +120,14 @@ parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, err: Pars
 
 @(test)
 test_parse_token :: proc(t: ^testing.T) {
-	contents := ".class { width: 100; } #id { height: 100; } selector { test: 100; }"
+	contents := ".class { width: 100.5; } #id { height: 100; } selector { test: 100; }"
 	expected_tokens := []Token {
 		Token{.Dot, nil},
 		Token{.Ident, "class"},
 		Token{.Brace_Open, nil},
 		Token{.Ident, "width"},
 		Token{.Colon, nil},
-		Token{.Number, 100},
+		Token{.Number, 100.5},
 		Token{.Semicolon, nil},
 		Token{.Brace_Close, nil},
 		Token{.Hashtag, nil},
@@ -138,7 +148,7 @@ test_parse_token :: proc(t: ^testing.T) {
 	}
 
 	token_stream, err := parse_tokens(contents)
-	assert(err != .None, "Failed to parse tokens")
+	assert(err == .None, "Failed to parse tokens")
 
 	defer token_stream_destroy(&token_stream)
 
