@@ -15,30 +15,23 @@ FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 
 Widget :: struct {
 	// render
-	size:                         [2]f32,
-	position:                     [2]f32,
 	color:                        [4]f32,
 	mp:                           matrix[4, 4]f32,
 
 	// layout
 	children:                     [dynamic]Widget,
 	parent:                       ^Widget,
+	layout:                       Layout,
 
 	// OpenGL stuff
 	program, vao:                 u32,
 	mvp_location, color_location: i32,
 }
 
-Widget_Error :: enum {
-	None,
-	Shader_Compilation_Failed,
-	Program_Creation_Failed,
-}
-
-widget_make :: proc(size, position: [2]f32, color: [4]f32) -> (widget: Widget, err: Widget_Error) {
-	widget.size = size
-	widget.position = position
+widget_make :: proc(height: f32, layout: Layout, color: [4]f32) -> (widget: Widget, ok: bool) #optional_ok {
 	widget.color = color
+	widget.layout = layout
+	widget.layout.result.size.y = height
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -71,11 +64,7 @@ widget_make :: proc(size, position: [2]f32, color: [4]f32) -> (widget: Widget, e
 widget_draw :: proc(widget: ^Widget) {
 	gl.UseProgram(widget.program)
 
-	if widget.parent != nil {
-		calculate_mp(widget, widget.parent.position)
-	} else {
-		calculate_mp(widget, {0, 0})
-	}
+	calculate_mp(widget)
 
 	gl.UniformMatrix4fv(widget.mvp_location, 1, false, linalg.matrix_to_ptr(&widget.mp))
 	gl.Uniform4fv(widget.color_location, 1, linalg.vector_to_ptr(&widget.color))
@@ -90,20 +79,36 @@ widget_draw :: proc(widget: ^Widget) {
 
 	gl.UseProgram(0)
 
+	if widget.layout.result.clip {
+		gl.Enable(gl.SCISSOR_TEST)
+		gl.Scissor(
+			i32(widget.layout.result.position.x),
+			i32(state.app_state.window.height - widget.layout.result.position.y - widget.layout.result.size.y),
+			i32(widget.layout.result.size.x),
+			i32(widget.layout.result.size.y),
+		)
+	}
+
 	for &child in widget.children {
 		widget_draw(&child)
+	}
+
+	if widget.layout.result.clip {
+		gl.Disable(gl.SCISSOR_TEST)
 	}
 }
 
 widget_append_child :: proc(widget: ^Widget, child: Widget) {
 	append(&widget.children, child)
 	widget.children[len(widget.children) - 1].parent = widget
+	append(&widget.layout.children, &widget.children[len(widget.children) - 1].layout)
 }
 
-calculate_mp :: proc(widget: ^Widget, offset: [2]f32 = {0, 0}) {
-	position := widget.position + offset
+calculate_mp :: proc(widget: ^Widget) {
+	size := widget.layout.result.size
+	position := widget.layout.result.position
 
-	scale := linalg.matrix4_scale_f32({widget.size.x, widget.size.y, 1})
+	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
 	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
 	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window.width, state.app_state.window.height, 0, 0, 1)
 
