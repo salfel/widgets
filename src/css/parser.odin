@@ -30,6 +30,10 @@ Property :: enum {
 	Width,
 	Height,
 	Color,
+	Padding_Left,
+	Padding_Right,
+	Padding_Top,
+	Padding_Bottom,
 }
 
 make_property :: proc(property: string) -> (Property, Parser_Error) {
@@ -40,6 +44,14 @@ make_property :: proc(property: string) -> (Property, Parser_Error) {
 		return Property.Height, nil
 	case "color":
 		return Property.Color, nil
+	case "padding-left":
+		return Property.Padding_Left, nil
+	case "padding-right":
+		return Property.Padding_Right, nil
+	case "padding-top":
+		return Property.Padding_Top, nil
+	case "padding-bottom":
+		return Property.Padding_Bottom, nil
 	}
 
 	return nil, .Unknown_Property
@@ -137,7 +149,7 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 			err = Parser_Error.Invalid_Value
 			return
 		}
-	case .Width, .Height:
+	case .Width, .Height, .Padding_Left, .Padding_Right, .Padding_Top, .Padding_Bottom:
 		if _, ok := value.(f32); !ok {
 			err = Parser_Error.Invalid_Value
 			return

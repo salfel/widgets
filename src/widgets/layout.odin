@@ -9,6 +9,12 @@ Layout :: struct {
 	min:       f32,
 	preferred: f32,
 	max:       f32,
+	padding:   struct {
+		left:   f32,
+		right:  f32,
+		top:    f32,
+		bottom: f32,
+	},
 	result:    struct {
 		size:     [2]f32,
 		position: [2]f32,
@@ -22,6 +28,7 @@ layout_make :: proc(min: f32, preferred: f32, max: f32 = math.INF_F32, allocator
 		min = min,
 		preferred = preferred,
 		max = max,
+		padding = {left = 0, right = 0, top = 0, bottom = 0},
 		result = {size = {0, -1}, position = {0, 0}, clip = false},
 		children = make([dynamic]^Layout, allocator),
 	}
@@ -56,12 +63,12 @@ layout_measure :: proc(layout: ^Layout) {
 
 	if layout.result.size.y == -1 {
 		layout.result.size.y = height
-	} else if height > layout.result.size.y {
+	} else if height > layout.result.size.y - layout.padding.top - layout.padding.bottom {
 		layout.result.clip = true
 	}
 
-	layout.min = math.max(min, layout.min)
-	layout.preferred = math.max(preferred, layout.preferred)
+	layout.min = math.max(min + layout.padding.left + layout.padding.right, layout.min)
+	layout.preferred = math.max(preferred + layout.padding.left + layout.padding.right, layout.preferred)
 }
 
 layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocator) {
@@ -141,7 +148,8 @@ layout_arrange :: proc(layout: ^Layout) {
 	offset: f32 = layout.result.position.x
 
 	for &child in layout.children {
-		child.result.position.x = offset
+		child.result.position.x = layout.padding.left + offset
+		child.result.position.y = layout.result.position.y + layout.padding.top
 		offset += child.result.size.x
 
 		layout_arrange(child)
@@ -202,6 +210,7 @@ test_layout_compute_grow :: proc(t: ^testing.T) {
 @(test)
 test_layout_arrange :: proc(t: ^testing.T) {
 	layout := layout_make(0, 0)
+	layout.padding.left = 100
 	defer layout_destroy(&layout)
 
 	child1 := layout_make(100, 200, 220)
@@ -213,6 +222,6 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	layout_compute(&layout, 500)
 	layout_arrange(&layout)
 
-	testing.expect(t, child1.result.position == 0)
-	testing.expect(t, child2.result.position == 220)
+	testing.expect(t, child1.result.position.x == 100)
+	testing.expect(t, child2.result.position.x == 300)
 }

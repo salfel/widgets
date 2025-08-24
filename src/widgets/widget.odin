@@ -32,6 +32,7 @@ Widget :: struct {
 
 widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: Widget, ok: bool) #optional_ok {
 	widget.children = make([dynamic]Widget, allocator)
+	widget.layout = layout_make(0, 0)
 
 	styles := make(map[css.Property]css.Value, allocator)
 	defer delete(styles)
@@ -99,6 +100,26 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 		assert(ok, "Expected color to be a color vec")
 	}
 
+	if padding_left, ok := styles[.Padding_Left]; ok {
+		widget.layout.padding.left, ok = padding_left.(f32)
+		assert(ok, "Expected padding-left to be a number")
+	}
+
+	if padding_right, ok := styles[.Padding_Right]; ok {
+		widget.layout.padding.right, ok = padding_right.(f32)
+		assert(ok, "Expected padding-right to be a number")
+	}
+
+	if padding_top, ok := styles[.Padding_Top]; ok {
+		widget.layout.padding.top, ok = padding_top.(f32)
+		assert(ok, "Expected padding-top to be a number")
+	}
+
+	if padding_bottom, ok := styles[.Padding_Bottom]; ok {
+		widget.layout.padding.bottom, ok = padding_bottom.(f32)
+		assert(ok, "Expected padding-bottom to be a number")
+	}
+
 	widget.layout.max = math.INF_F32
 }
 
@@ -123,10 +144,15 @@ widget_draw :: proc(widget: ^Widget) {
 	if widget.layout.result.clip {
 		gl.Enable(gl.SCISSOR_TEST)
 		gl.Scissor(
-			i32(widget.layout.result.position.x),
-			i32(state.app_state.window_size.y - widget.layout.result.position.y - widget.layout.result.size.y),
-			i32(widget.layout.result.size.x),
-			i32(widget.layout.result.size.y),
+			i32(widget.layout.result.position.x + widget.layout.padding.left),
+			i32(
+				state.app_state.window_size.y -
+				widget.layout.result.position.y -
+				widget.layout.result.size.y +
+				widget.layout.padding.bottom,
+			),
+			i32(widget.layout.result.size.x - widget.layout.padding.left - widget.layout.padding.right),
+			i32(widget.layout.result.size.y - widget.layout.padding.bottom - widget.layout.padding.top),
 		)
 	}
 
