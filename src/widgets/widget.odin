@@ -18,6 +18,7 @@ Widget :: struct {
 	// render
 	color:                        [4]f32,
 	mp:                           matrix[4, 4]f32,
+	last_window_size:             [2]f32,
 
 	// layout
 	children:                     [dynamic]Widget,
@@ -123,7 +124,7 @@ widget_draw :: proc(widget: ^Widget) {
 		gl.Enable(gl.SCISSOR_TEST)
 		gl.Scissor(
 			i32(widget.layout.result.position.x),
-			i32(state.app_state.window.height - widget.layout.result.position.y - widget.layout.result.size.y),
+			i32(state.app_state.window_size.y - widget.layout.result.position.y - widget.layout.result.size.y),
 			i32(widget.layout.result.size.x),
 			i32(widget.layout.result.size.y),
 		)
@@ -145,12 +146,18 @@ widget_append_child :: proc(widget: ^Widget, child: Widget) {
 }
 
 calculate_mp :: proc(widget: ^Widget) {
+	if state.app_state.window_size == widget.last_window_size {
+		return
+	}
+
 	size := widget.layout.result.size
 	position := widget.layout.result.position
 
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
 	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
-	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window.width, state.app_state.window.height, 0, 0, 1)
+	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window_size.x, state.app_state.window_size.y, 0, 0, 1)
 
 	widget.mp = projection * translation * scale
+
+	widget.last_window_size = state.app_state.window_size
 }

@@ -61,7 +61,7 @@ main :: proc() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
 		widgets.layout_measure(&parent.layout)
-		widgets.layout_compute(&parent.layout, state.app_state.window.width)
+		widgets.layout_compute(&parent.layout, state.app_state.window_size.x)
 		widgets.layout_arrange(&parent.layout)
 
 		widgets.widget_draw(&parent)
