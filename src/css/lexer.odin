@@ -38,10 +38,16 @@ token_stream_destroy :: proc(token_stream: ^Token_Stream) {
 }
 
 is_identifier :: proc(char: u8) -> bool {
-	return char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char == '_' || char == '-'
+	return(
+		char >= 'a' && char <= 'z' ||
+		char >= 'A' && char <= 'Z' ||
+		char == '_' ||
+		char == '-' ||
+		char >= '0' && char <= '9' \
+	)
 }
 
-parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, ok := false) {
+parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, err: Parser_Error) {
 	context.allocator = virtual.arena_allocator(&token_stream.arena)
 
 	for i := 0; i < len(contents); i += 1 {
@@ -95,13 +101,11 @@ parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, ok := fal
 		case ' ', '\t', '\n', '\r':
 			continue
 		case:
-			fmt.println("Unknown character", rune(contents[i]))
-			return
+			return {}, .Unexpected_Token
 		}
 	}
 
-	ok = true
-	return
+	return token_stream, nil
 }
 
 @(test)
@@ -133,8 +137,8 @@ test_parse_token :: proc(t: ^testing.T) {
 		Token{.Brace_Close, nil},
 	}
 
-	token_stream, ok := parse_tokens(contents)
-	assert(ok, "Failed to parse tokens")
+	token_stream, err := parse_tokens(contents)
+	assert(err != .None, "Failed to parse tokens")
 
 	defer token_stream_destroy(&token_stream)
 

@@ -57,6 +57,13 @@ Parser_Error :: enum {
 	Invalid_Value,
 }
 
+parse :: proc(contents: string) -> (ast: Ast, err: Parser_Error) {
+	token_stream := parse_tokens(contents) or_return
+	ast, err = parse_ast(token_stream)
+
+	return
+}
+
 parse_ast :: proc(token_stream: Token_Stream) -> (ast: Ast, err: Parser_Error) {
 	context.allocator = virtual.arena_allocator(&ast.arena)
 
@@ -186,11 +193,12 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 test_parse_ast :: proc(t: ^testing.T) {
 	contents := ".class { width: 100; height: 200; } #id { height: 100; } element { color: rgb(255, 0, 0); }"
 
-	token_stream, ok := parse_tokens(contents)
-	testing.expect(t, ok, "Failed to parse tokens")
+	token_stream, err := parse_tokens(contents)
+	testing.expect(t, err == .None, "Failed to parse tokens")
 	defer token_stream_destroy(&token_stream)
 
-	ast, err := parse_ast(token_stream)
+	ast: Ast
+	ast, err = parse_ast(token_stream)
 	testing.expect(t, err == .None)
 	defer ast_destroy(&ast)
 

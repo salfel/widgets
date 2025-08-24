@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:os"
 import "css"
 import "state"
 import gl "vendor:OpenGL"
@@ -16,23 +17,20 @@ main :: proc() {
 
 	defer widgets.window_destroy(window_handle)
 
-	parent_styles := map[css.Property]css.Value{}
-	parent_styles[.Height] = 200
-	parent_styles[.Color] = [3]f32{1, .5, 1}
+	file, _ := os.read_entire_file_from_filename("styles.css")
 
-	child_styles := map[css.Property]css.Value{}
-	child_styles[.Width] = 100
-	child_styles[.Height] = 200
-	child_styles[.Color] = [3]f32{1, 1, 1}
+	err: css.Parser_Error
+	state.app_state.css, err = css.parse(string(file))
+	if err != .None {
+		fmt.println("Failed to parse CSS", err)
+		return
+	}
 
-	child2_styles := map[css.Property]css.Value{}
-	child2_styles[.Width] = 600
-	child2_styles[.Height] = 100
-	child2_styles[.Color] = [3]f32{0.2, 0.5, 0.5}
+	delete(file)
 
-	parent := widgets.widget_make(parent_styles)
-	child := widgets.widget_make(child_styles)
-	child2 := widgets.widget_make(child2_styles)
+	parent := widgets.widget_make([]string{"parent"})
+	child := widgets.widget_make([]string{"child"})
+	child2 := widgets.widget_make([]string{"child2"})
 
 	widgets.widget_append_child(&parent, child)
 	widgets.widget_append_child(&parent, child2)

@@ -29,7 +29,19 @@ Widget :: struct {
 	mvp_location, color_location: i32,
 }
 
-widget_make :: proc(styles: map[css.Property]css.Value) -> (widget: Widget, ok: bool) #optional_ok {
+widget_make :: proc(classes: []string) -> (widget: Widget, ok: bool) #optional_ok {
+	styles: map[css.Property]css.Value
+	for selector in state.app_state.css.selectors {
+		if selector.type != .Class {continue}
+
+		for class in classes {
+			if selector.name == class {
+				for property, value in selector.declarations {
+					styles[property] = value
+				}
+			}
+		}
+	}
 	if height, ok := styles[.Height]; ok {
 		widget.layout.result.size.y = f32(height.(u32))
 	}
