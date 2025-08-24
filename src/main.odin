@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "css"
 import "state"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
@@ -15,9 +16,20 @@ main :: proc() {
 
 	defer widgets.window_destroy(window_handle)
 
-	parent := widgets.widget_make(200, {}, {1, 0, 0, 1})
-	child := widgets.widget_make(100, widgets.layout_make(0, 200, 250), {1, 1, 1, 1})
-	child2 := widgets.widget_make(300, widgets.layout_make(0, 200), {.2, .5, 0.5, 1})
+	parent_styles := map[css.Property]css.Value{}
+	parent_styles[.Height] = 200
+
+	child_styles := map[css.Property]css.Value{}
+	child_styles[.Width] = 100
+	child_styles[.Height] = 200
+
+	child2_styles := map[css.Property]css.Value{}
+	child2_styles[.Width] = 600
+	child2_styles[.Height] = 100
+
+	parent := widgets.widget_make(parent_styles, {1, 0, 0, 1})
+	child := widgets.widget_make(child_styles, {1, 1, 1, 1})
+	child2 := widgets.widget_make(child2_styles, {.2, .5, 0.5, 1})
 
 	widgets.widget_append_child(&parent, child)
 	widgets.widget_append_child(&parent, child2)

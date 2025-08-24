@@ -1,4 +1,4 @@
-package parser
+package css
 
 import "core:fmt"
 import "core:mem/virtual"
@@ -86,14 +86,7 @@ expect_token :: proc(token: Token, expected: Token_Type) -> (err: Parser_Error) 
 	return
 }
 
-parse_declaration :: proc(
-	tokens: []Token,
-	i: ^int,
-) -> (
-	property: Property,
-	value: Value,
-	err: Parser_Error,
-) {
+parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, value: Value, err: Parser_Error) {
 	expect_token(tokens[i^], Token_Type.Ident) or_return
 	property = make_property(tokens[i^].value.(string)) or_return
 	i^ += 1
@@ -111,14 +104,7 @@ parse_declaration :: proc(
 	return
 }
 
-parse_rule :: proc(
-	tokens: []Token,
-	i: ^int,
-) -> (
-	name: string,
-	declarations: map[Property]Value,
-	err: Parser_Error,
-) {
+parse_rule :: proc(tokens: []Token, i: ^int) -> (name: string, declarations: map[Property]Value, err: Parser_Error) {
 	expect_token(tokens[i^], Token_Type.Ident) or_return
 	name = tokens[i^].value.(string)
 	i^ += 1

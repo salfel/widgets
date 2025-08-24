@@ -1,4 +1,4 @@
-package parser
+package css
 
 import "core:fmt"
 import "core:mem/virtual"

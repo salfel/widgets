@@ -1,5 +1,6 @@
 package widgets
 
+import "../css"
 import "../state"
 import "core:fmt"
 import "core:math"
@@ -28,10 +29,18 @@ Widget :: struct {
 	mvp_location, color_location: i32,
 }
 
-widget_make :: proc(height: f32, layout: Layout, color: [4]f32) -> (widget: Widget, ok: bool) #optional_ok {
+widget_make :: proc(styles: map[css.Property]css.Value, color: [4]f32) -> (widget: Widget, ok: bool) #optional_ok {
 	widget.color = color
-	widget.layout = layout
-	widget.layout.result.size.y = height
+
+	if height, ok := styles[.Height]; ok {
+		widget.layout.result.size.y = f32(height.(u32))
+	}
+
+	if width, ok := styles[.Width]; ok {
+		widget.layout.preferred = f32(width.(u32))
+	}
+
+	widget.layout.max = math.INF_F32
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
