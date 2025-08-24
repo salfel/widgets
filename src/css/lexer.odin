@@ -12,8 +12,11 @@ Token_Type :: enum {
 	Hashtag,
 	Brace_Open,
 	Brace_Close,
+	Paranthesis_Open,
+	Paranthesis_Close,
 	Colon,
 	Semicolon,
+	Comma,
 }
 
 Token :: struct {
@@ -79,10 +82,16 @@ parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, ok := fal
 			append(&token_stream.tokens, Token{.Brace_Open, nil})
 		case '}':
 			append(&token_stream.tokens, Token{.Brace_Close, nil})
+		case '(':
+			append(&token_stream.tokens, Token{.Paranthesis_Open, nil})
+		case ')':
+			append(&token_stream.tokens, Token{.Paranthesis_Close, nil})
 		case ':':
 			append(&token_stream.tokens, Token{.Colon, nil})
 		case ';':
 			append(&token_stream.tokens, Token{.Semicolon, nil})
+		case ',':
+			append(&token_stream.tokens, Token{.Comma, nil})
 		case ' ', '\t', '\n', '\r':
 			continue
 		case:

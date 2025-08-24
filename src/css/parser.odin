@@ -29,6 +29,7 @@ Rule :: struct {
 Property :: enum {
 	Width,
 	Height,
+	Color,
 }
 
 make_property :: proc(property: string) -> (Property, Parser_Error) {
@@ -37,6 +38,8 @@ make_property :: proc(property: string) -> (Property, Parser_Error) {
 		return Property.Width, nil
 	case "height":
 		return Property.Height, nil
+	case "color":
+		return Property.Color, nil
 	}
 
 	return nil, .Unknown_Property
@@ -44,12 +47,14 @@ make_property :: proc(property: string) -> (Property, Parser_Error) {
 
 Value :: union {
 	u32,
+	[3]f32,
 }
 
 Parser_Error :: enum {
 	None,
 	Unexpected_Token,
 	Unknown_Property,
+	Invalid_Value,
 }
 
 parse_ast :: proc(token_stream: Token_Stream) -> (ast: Ast, err: Parser_Error) {
@@ -86,24 +91,6 @@ expect_token :: proc(token: Token, expected: Token_Type) -> (err: Parser_Error) 
 	return
 }
 
-parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, value: Value, err: Parser_Error) {
-	expect_token(tokens[i^], Token_Type.Ident) or_return
-	property = make_property(tokens[i^].value.(string)) or_return
-	i^ += 1
-
-	expect_token(tokens[i^], Token_Type.Colon) or_return
-	i^ += 1
-
-	expect_token(tokens[i^], Token_Type.Number) or_return
-	value = tokens[i^].value.(u32)
-	i^ += 1
-
-	expect_token(tokens[i^], Token_Type.Semicolon) or_return
-	i^ += 1
-
-	return
-}
-
 parse_rule :: proc(tokens: []Token, i: ^int) -> (name: string, declarations: map[Property]Value, err: Parser_Error) {
 	expect_token(tokens[i^], Token_Type.Ident) or_return
 	name = tokens[i^].value.(string)
@@ -126,26 +113,99 @@ parse_rule :: proc(tokens: []Token, i: ^int) -> (name: string, declarations: map
 	return
 }
 
+parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, value: Value, err: Parser_Error) {
+	expect_token(tokens[i^], Token_Type.Ident) or_return
+	property = make_property(tokens[i^].value.(string)) or_return
+	i^ += 1
+
+	expect_token(tokens[i^], Token_Type.Colon) or_return
+	i^ += 1
+
+	value = parse_value(tokens, &i^) or_return
+
+	switch property {
+	case .Color:
+		if _, ok := value.([3]f32); !ok {
+			err = Parser_Error.Invalid_Value
+			return
+		}
+	case .Width, .Height:
+		if _, ok := value.(u32); !ok {
+			err = Parser_Error.Invalid_Value
+			return
+		}
+	}
+
+	expect_token(tokens[i^], Token_Type.Semicolon) or_return
+	i^ += 1
+
+	return
+}
+
+parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Error) {
+	#partial switch tokens[i^].type {
+	case Token_Type.Number:
+		value = tokens[i^].value.(u32)
+		i^ += 1
+		return
+	case Token_Type.Ident:
+		ident := tokens[i^].value.(string)
+		i^ += 1
+		if ident == "rgb" {
+			expect_token(tokens[i^], .Paranthesis_Open) or_return
+			i^ += 1
+
+			color: [3]f32
+			for j := 0; j < 3; j += 1 {
+				expect_token(tokens[i^], .Number) or_return
+				color[j] = f32(tokens[i^].value.(u32)) / 255
+				i^ += 1
+
+				if j != 2 {
+					expect_token(tokens[i^], .Comma) or_return
+					i^ += 1
+				}
+			}
+
+			value = color
+
+			expect_token(tokens[i^], .Paranthesis_Close) or_return
+			i^ += 1
+		}
+
+		return
+	case:
+		err = Parser_Error.Unexpected_Token
+		return
+	}
+
+	return
+}
+
 @(test)
 test_parse_ast :: proc(t: ^testing.T) {
-	contents := ".class { width: 100; height: 200; } #id { height: 100; }"
+	contents := ".class { width: 100; height: 200; } #id { height: 100; } element { color: rgb(255, 0, 0); }"
 
 	token_stream, ok := parse_tokens(contents)
 	testing.expect(t, ok, "Failed to parse tokens")
 	defer token_stream_destroy(&token_stream)
 
 	ast, err := parse_ast(token_stream)
-	testing.expect(t, err == .None, "Failed to parse AST")
+	testing.expect(t, err == .None)
 	defer ast_destroy(&ast)
 
-	testing.expect(t, len(ast.selectors) == 2, "Failed to parse AST")
-	testing.expect(t, ast.selectors[0].type == .Class, "Failed to parse AST")
-	testing.expect(t, ast.selectors[0].name == "class", "Failed to parse AST")
-	testing.expect(t, len(ast.selectors[0].declarations) == 2, "Failed to parse AST")
-	testing.expect(t, ast.selectors[0].declarations[.Width] == 100, "Failed to parse AST")
-	testing.expect(t, ast.selectors[0].declarations[.Height] == 200, "Failed to parse AST")
-	testing.expect(t, ast.selectors[1].type == .Id, "Failed to parse AST")
-	testing.expect(t, ast.selectors[1].name == "id", "Failed to parse AST")
-	testing.expect(t, len(ast.selectors[1].declarations) == 1, "Failed to parse AST")
-	testing.expect(t, ast.selectors[1].declarations[.Height] == 100, "Failed to parse AST")
+	testing.expect(t, len(ast.selectors) == 3)
+	testing.expect(t, ast.selectors[0].type == .Class)
+	testing.expect(t, ast.selectors[0].name == "class")
+	testing.expect(t, len(ast.selectors[0].declarations) == 2)
+	testing.expect(t, ast.selectors[0].declarations[.Width] == 100)
+	testing.expect(t, ast.selectors[0].declarations[.Height] == 200)
+	testing.expect(t, ast.selectors[1].type == .Id)
+	testing.expect(t, ast.selectors[1].name == "id")
+	testing.expect(t, len(ast.selectors[1].declarations) == 1)
+	testing.expect(t, ast.selectors[1].declarations[.Height] == 100)
+	testing.expect(t, ast.selectors[2].type == .Element)
+	testing.expect(t, ast.selectors[2].name == "element")
+	testing.expect(t, len(ast.selectors[2].declarations) == 1)
+	testing.expect(t, ast.selectors[2].declarations[.Color] == [3]f32{1, 0, 0})
 }

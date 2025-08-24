@@ -29,15 +29,18 @@ Widget :: struct {
 	mvp_location, color_location: i32,
 }
 
-widget_make :: proc(styles: map[css.Property]css.Value, color: [4]f32) -> (widget: Widget, ok: bool) #optional_ok {
-	widget.color = color
-
+widget_make :: proc(styles: map[css.Property]css.Value) -> (widget: Widget, ok: bool) #optional_ok {
 	if height, ok := styles[.Height]; ok {
 		widget.layout.result.size.y = f32(height.(u32))
 	}
 
 	if width, ok := styles[.Width]; ok {
 		widget.layout.preferred = f32(width.(u32))
+	}
+
+	if color, ok := styles[.Color]; ok {
+		col := color.([3]f32)
+		widget.color = [4]f32{col[0], col[1], col[2], 1}
 	}
 
 	widget.layout.max = math.INF_F32

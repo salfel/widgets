@@ -18,18 +18,21 @@ main :: proc() {
 
 	parent_styles := map[css.Property]css.Value{}
 	parent_styles[.Height] = 200
+	parent_styles[.Color] = [3]f32{1, .5, 1}
 
 	child_styles := map[css.Property]css.Value{}
 	child_styles[.Width] = 100
 	child_styles[.Height] = 200
+	child_styles[.Color] = [3]f32{1, 1, 1}
 
 	child2_styles := map[css.Property]css.Value{}
 	child2_styles[.Width] = 600
 	child2_styles[.Height] = 100
+	child2_styles[.Color] = [3]f32{0.2, 0.5, 0.5}
 
-	parent := widgets.widget_make(parent_styles, {1, 0, 0, 1})
-	child := widgets.widget_make(child_styles, {1, 1, 1, 1})
-	child2 := widgets.widget_make(child2_styles, {.2, .5, 0.5, 1})
+	parent := widgets.widget_make(parent_styles)
+	child := widgets.widget_make(child_styles)
+	child2 := widgets.widget_make(child2_styles)
 
 	widgets.widget_append_child(&parent, child)
 	widgets.widget_append_child(&parent, child2)
