@@ -120,6 +120,26 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 		assert(ok, "Expected padding-bottom to be a number")
 	}
 
+	if margin_left, ok := styles[.Margin_Left]; ok {
+		widget.layout.margin.left, ok = margin_left.(f32)
+		assert(ok, "Expected margin-left to be a number")
+	}
+
+	if margin_right, ok := styles[.Margin_Right]; ok {
+		widget.layout.margin.right, ok = margin_right.(f32)
+		assert(ok, "Expected margin-right to be a number")
+	}
+
+	if margin_top, ok := styles[.Margin_Top]; ok {
+		widget.layout.margin.top, ok = margin_top.(f32)
+		assert(ok, "Expected margin-top to be a number")
+	}
+
+	if margin_bottom, ok := styles[.Margin_Bottom]; ok {
+		widget.layout.margin.bottom, ok = margin_bottom.(f32)
+		assert(ok, "Expected margin-bottom to be a number")
+	}
+
 	widget.layout.max = math.INF_F32
 }
 
@@ -156,6 +176,7 @@ widget_draw :: proc(widget: ^Widget) {
 		)
 	}
 
+
 	for &child in widget.children {
 		widget_draw(&child)
 	}
@@ -180,7 +201,9 @@ calculate_mp :: proc(widget: ^Widget) {
 	position := widget.layout.result.position
 
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
-	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
+	translation := linalg.matrix4_translate_f32(
+		{position.x + widget.layout.margin.left, position.y + widget.layout.margin.top, 0},
+	)
 	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window_size.x, state.app_state.window_size.y, 0, 0, 1)
 
 	widget.mp = projection * translation * scale

@@ -15,6 +15,12 @@ Layout :: struct {
 		top:    f32,
 		bottom: f32,
 	},
+	margin:    struct {
+		left:   f32,
+		right:  f32,
+		top:    f32,
+		bottom: f32,
+	},
 	result:    struct {
 		size:     [2]f32,
 		position: [2]f32,
@@ -29,6 +35,7 @@ layout_make :: proc(min: f32, preferred: f32, max: f32 = math.INF_F32, allocator
 		preferred = preferred,
 		max = max,
 		padding = {left = 0, right = 0, top = 0, bottom = 0},
+		margin = {left = 0, right = 0, top = 0, bottom = 0},
 		result = {size = {0, -1}, position = {0, 0}, clip = false},
 		children = make([dynamic]^Layout, allocator),
 	}
@@ -71,6 +78,18 @@ layout_measure :: proc(layout: ^Layout) {
 	layout.preferred = math.max(preferred + layout.padding.left + layout.padding.right, layout.preferred)
 }
 
+layout_min :: proc(layout: ^Layout) -> f32 {
+	return layout.min + layout.margin.left + layout.margin.right
+}
+
+layout_preferred :: proc(layout: ^Layout) -> f32 {
+	return layout.preferred + layout.margin.left + layout.margin.right
+}
+
+layout_max :: proc(layout: ^Layout) -> f32 {
+	return layout.max + layout.margin.left + layout.margin.right
+}
+
 layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocator) {
 	layout.result.size.x = width
 
@@ -79,8 +98,8 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 	}
 
 	// shrink
-	if layout.preferred > width {
-		available := layout.preferred - width
+	if layout_preferred(layout) > width {
+		available := layout_preferred(layout) - width
 		available_children := make([dynamic]^Layout, allocator)
 		append(&available_children, ..layout.children[:])
 		defer delete(available_children)
@@ -88,13 +107,13 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 		for len(available_children) > 0 && available > 0 {
 			min_distance := math.INF_F32
 			#reverse for child, i in available_children {
-				if child.result.size.x - child.min <= 0 {
-					assert(child.result.size.x == child.min, "expected child width to be equal to min")
+				if child.result.size.x - layout_min(child) <= 0 {
+					assert(child.result.size.x == layout_min(child), "expected child width to be equal to min")
 					unordered_remove(&available_children, i)
 					continue
 				}
 
-				distance := child.result.size.x - child.min
+				distance := child.result.size.x - layout_min(child)
 				min_distance = math.min(min_distance, distance)
 			}
 
@@ -109,8 +128,8 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 	}
 
 	// grow
-	if layout.preferred < width {
-		available := width - layout.preferred
+	if layout_preferred(layout) < width {
+		available := width - layout_preferred(layout)
 		available_children := make([dynamic]^Layout, allocator)
 		append(&available_children, ..layout.children[:])
 		defer delete(available_children)
@@ -119,8 +138,8 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 			min_distance := math.INF_F32
 
 			#reverse for child, i in available_children {
-				if child.result.size.x - child.max >= 0 {
-					assert(child.result.size.x == child.max, "expected child width to be equal to max")
+				if child.result.size.x - layout_max(child) >= 0 {
+					assert(child.result.size.x == layout_max(child), "expected child width to be equal to max")
 					unordered_remove(&available_children, i)
 					continue
 				}
@@ -142,15 +161,17 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 	for &child in layout.children {
 		layout_compute(child, child.result.size.x)
 	}
+
+	layout.result.size.x -= layout.margin.left + layout.margin.right
 }
 
 layout_arrange :: proc(layout: ^Layout) {
 	offset: f32 = layout.result.position.x
 
 	for &child in layout.children {
-		child.result.position.x = layout.padding.left + offset
-		child.result.position.y = layout.result.position.y + layout.padding.top
-		offset += child.result.size.x
+		child.result.position.x = layout.padding.left + child.margin.left + offset
+		child.result.position.y = layout.result.position.y + child.margin.top + layout.padding.top
+		offset += child.result.size.x + child.margin.left + child.margin.right
 
 		layout_arrange(child)
 	}
@@ -215,6 +236,7 @@ test_layout_arrange :: proc(t: ^testing.T) {
 
 	child1 := layout_make(100, 200, 220)
 	child2 := layout_make(100, 200)
+	child2.margin.left = 100
 	append(&layout.children, &child1)
 	append(&layout.children, &child2)
 
@@ -223,5 +245,5 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	layout_arrange(&layout)
 
 	testing.expect(t, child1.result.position.x == 100)
-	testing.expect(t, child2.result.position.x == 300)
+	testing.expect(t, child2.result.position.x == 200)
 }

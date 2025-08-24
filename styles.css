@@ -1,20 +1,22 @@
 .parent {
     height: 200;
     color: rgb(50, 50, 200);
-    padding-top: 50;
+    padding-top: 20;
     padding-left: 20;
-    padding-right: 200;
+    padding-right: 20;
     padding-bottom: 20;
 }
 
 .child {
-    width: 100;
+    width: 200;
     height: 200;
     color: rgb(255, 255, 255);
+    margin-right: 100;
 }
 
 .child2 {
-    width: 600;
+    width: 300;
     height: 200;
     color: rgb(200, 0, 230);
+    margin-left: 100;
 }
