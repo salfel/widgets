@@ -31,6 +31,7 @@ Widget :: struct {
 
 widget_make :: proc(classes: []string) -> (widget: Widget, ok: bool) #optional_ok {
 	styles: map[css.Property]css.Value
+	defer delete(styles)
 	for selector in state.app_state.css.selectors {
 		if selector.type != .Class {continue}
 
@@ -42,18 +43,8 @@ widget_make :: proc(classes: []string) -> (widget: Widget, ok: bool) #optional_o
 			}
 		}
 	}
-	if height, ok := styles[.Height]; ok {
-		widget.layout.result.size.y = f32(height.(u32))
-	}
 
-	if width, ok := styles[.Width]; ok {
-		widget.layout.preferred = f32(width.(u32))
-	}
-
-	if color, ok := styles[.Color]; ok {
-		col := color.([3]f32)
-		widget.color = [4]f32{col[0], col[1], col[2], 1}
-	}
+	widget_apply_styles(&widget, styles)
 
 	widget.layout.max = math.INF_F32
 
@@ -83,6 +74,26 @@ widget_make :: proc(classes: []string) -> (widget: Widget, ok: bool) #optional_o
 	gl.UseProgram(0)
 
 	return
+}
+
+widget_destroy :: proc(widget: ^Widget) {
+	delete(widget.children)
+	layout_destroy(&widget.layout)
+}
+
+widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
+	if height, ok := styles[.Height]; ok {
+		widget.layout.result.size.y = f32(height.(u32))
+	}
+
+	if width, ok := styles[.Width]; ok {
+		widget.layout.preferred = f32(width.(u32))
+	}
+
+	if color, ok := styles[.Color]; ok {
+		col := color.([3]f32)
+		widget.color = [4]f32{col[0], col[1], col[2], 1}
+	}
 }
 
 widget_draw :: proc(widget: ^Widget) {
