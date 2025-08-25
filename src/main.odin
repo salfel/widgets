@@ -7,7 +7,6 @@ import "css"
 import "state"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
-import "widgets"
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -26,13 +25,13 @@ main :: proc() {
 		}
 	}
 
-	window_handle, ok := widgets.window_make(800, 600, "widgets")
+	window_handle, ok := window_make(800, 600, "widgets")
 	if !ok {
 		fmt.eprintln("Failed to create window")
 		return
 	}
 
-	defer widgets.window_destroy(window_handle)
+	defer window_destroy(window_handle)
 
 	file, _ := os.read_entire_file_from_filename("styles.css")
 
@@ -45,26 +44,26 @@ main :: proc() {
 
 	delete(file)
 
-	parent := widgets.widget_make([]string{"parent"})
-	child := widgets.widget_make([]string{"child"})
-	child2 := widgets.widget_make([]string{"child2"})
+	parent := widget_make([]string{"parent"})
+	child := widget_make([]string{"child"})
+	child2 := widget_make([]string{"child2"})
 
-	defer widgets.widget_destroy(&parent)
-	defer widgets.widget_destroy(&child)
-	defer widgets.widget_destroy(&child2)
+	defer widget_destroy(&parent)
+	defer widget_destroy(&child)
+	defer widget_destroy(&child2)
 
-	widgets.widget_append_child(&parent, child)
-	widgets.widget_append_child(&parent, child2)
+	widget_append_child(&parent, child)
+	widget_append_child(&parent, child2)
 
 	for !glfw.WindowShouldClose(window_handle) {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
-		widgets.layout_measure(&parent.layout)
-		widgets.layout_compute(&parent.layout, state.app_state.window_size.x)
-		widgets.layout_arrange(&parent.layout)
+		layout_measure(&parent.layout)
+		layout_compute(&parent.layout, state.app_state.window_size.x)
+		layout_arrange(&parent.layout)
 
-		widgets.widget_draw(&parent)
+		widget_draw(&parent)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()

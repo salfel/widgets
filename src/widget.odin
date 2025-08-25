@@ -1,13 +1,13 @@
-package widgets
+package main
 
-import "../css"
-import "../state"
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:strings"
 import "core:testing"
 import "core:time"
+import "css"
+import "state"
 import gl "vendor:OpenGL"
 
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)

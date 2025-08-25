@@ -1,9 +1,9 @@
-package widgets
+package main
 
-import "../state"
 import "base:runtime"
 import "core:fmt"
 import "core:strings"
+import "state"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
 
