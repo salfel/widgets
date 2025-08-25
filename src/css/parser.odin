@@ -38,40 +38,18 @@ Property :: enum {
 	Margin_Right,
 	Margin_Top,
 	Margin_Bottom,
-}
-
-make_property :: proc(property: string) -> (Property, Parser_Error) {
-	switch property {
-	case "width":
-		return Property.Width, nil
-	case "height":
-		return Property.Height, nil
-	case "color":
-		return Property.Color, nil
-	case "padding-left":
-		return Property.Padding_Left, nil
-	case "padding-right":
-		return Property.Padding_Right, nil
-	case "padding-top":
-		return Property.Padding_Top, nil
-	case "padding-bottom":
-		return Property.Padding_Bottom, nil
-	case "margin-left":
-		return Property.Margin_Left, nil
-	case "margin-right":
-		return Property.Margin_Right, nil
-	case "margin-top":
-		return Property.Margin_Top, nil
-	case "margin-bottom":
-		return Property.Margin_Bottom, nil
-	}
-
-	return nil, .Unknown_Property
+	Border,
 }
 
 Value :: union {
 	f32,
 	[3]f32,
+	Border,
+}
+
+Border :: struct {
+	color: [3]f32,
+	width: f32,
 }
 
 Parser_Error :: enum {
@@ -80,6 +58,38 @@ Parser_Error :: enum {
 	Unknown_Property,
 	Invalid_Value,
 }
+
+make_property :: proc(property: string) -> (Property, Parser_Error) {
+	switch property {
+	case "width":
+		return .Width, nil
+	case "height":
+		return .Height, nil
+	case "color":
+		return .Color, nil
+	case "padding-left":
+		return .Padding_Left, nil
+	case "padding-right":
+		return .Padding_Right, nil
+	case "padding-top":
+		return .Padding_Top, nil
+	case "padding-bottom":
+		return .Padding_Bottom, nil
+	case "margin-left":
+		return .Margin_Left, nil
+	case "margin-right":
+		return .Margin_Right, nil
+	case "margin-top":
+		return .Margin_Top, nil
+	case "margin-bottom":
+		return .Margin_Bottom, nil
+	case "border":
+		return .Border, nil
+	}
+
+	return nil, .Unknown_Property
+}
+
 
 parse :: proc(contents: string) -> (ast: Ast, err: Parser_Error) {
 	token_stream := parse_tokens(contents) or_return
@@ -94,15 +104,15 @@ parse_ast :: proc(token_stream: Token_Stream) -> (ast: Ast, err: Parser_Error) {
 
 	for i := 0; i < len(token_stream.tokens); i += 1 {
 		#partial switch token_stream.tokens[i].type {
-		case Token_Type.Dot:
+		case .Dot:
 			i += 1
 			name, declarations := parse_rule(token_stream.tokens[:], &i) or_return
 			append(&ast.selectors, Rule{.Class, name, declarations})
-		case Token_Type.Hashtag:
+		case .Hashtag:
 			i += 1
 			name, declarations := parse_rule(token_stream.tokens[:], &i) or_return
 			append(&ast.selectors, Rule{.Id, name, declarations})
-		case Token_Type.Ident:
+		case .Ident:
 			name, declarations := parse_rule(token_stream.tokens[:], &i) or_return
 			append(&ast.selectors, Rule{.Element, name, declarations})
 		case:
@@ -124,33 +134,33 @@ expect_token :: proc(token: Token, expected: Token_Type) -> (err: Parser_Error) 
 }
 
 parse_rule :: proc(tokens: []Token, i: ^int) -> (name: string, declarations: map[Property]Value, err: Parser_Error) {
-	expect_token(tokens[i^], Token_Type.Ident) or_return
+	expect_token(tokens[i^], .Ident) or_return
 	name = tokens[i^].value.(string)
 	i^ += 1
 
-	expect_token(tokens[i^], Token_Type.Brace_Open) or_return
+	expect_token(tokens[i^], .Brace_Open) or_return
 	i^ += 1
 
 	for i^ < len(tokens) {
 		property, value := parse_declaration(tokens, &i^) or_return
 		declarations[property] = value
 
-		if tokens[i^].type == Token_Type.Brace_Close {
+		if tokens[i^].type == .Brace_Close {
 			break
 		}
 	}
 
-	expect_token(tokens[i^], Token_Type.Brace_Close) or_return
+	expect_token(tokens[i^], .Brace_Close) or_return
 
 	return
 }
 
 parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, value: Value, err: Parser_Error) {
-	expect_token(tokens[i^], Token_Type.Ident) or_return
+	expect_token(tokens[i^], .Ident) or_return
 	property = make_property(tokens[i^].value.(string)) or_return
 	i^ += 1
 
-	expect_token(tokens[i^], Token_Type.Colon) or_return
+	expect_token(tokens[i^], .Colon) or_return
 	i^ += 1
 
 	value = parse_value(tokens, &i^) or_return
@@ -175,9 +185,14 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 			err = Parser_Error.Invalid_Value
 			return
 		}
+	case .Border:
+		if _, ok := value.(Border); !ok {
+			err = Parser_Error.Invalid_Value
+			return
+		}
 	}
 
-	expect_token(tokens[i^], Token_Type.Semicolon) or_return
+	expect_token(tokens[i^], .Semicolon) or_return
 	i^ += 1
 
 	return
@@ -185,33 +200,24 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 
 parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Error) {
 	#partial switch tokens[i^].type {
-	case Token_Type.Number:
+	case .Number:
 		value = tokens[i^].value.(f32)
 		i^ += 1
+
+		if tokens[i^].type == .Comma {
+			i^ += 1
+
+			color := parse_color(tokens, &i^) or_return
+			value = Border{color, value.(f32)}
+		}
+
 		return
-	case Token_Type.Ident:
+	case .Ident:
 		ident := tokens[i^].value.(string)
-		i^ += 1
 		if ident == "rgb" {
-			expect_token(tokens[i^], .Paranthesis_Open) or_return
-			i^ += 1
-
-			color: [3]f32
-			for j := 0; j < 3; j += 1 {
-				expect_token(tokens[i^], .Number) or_return
-				color[j] = tokens[i^].value.(f32) / 255
-				i^ += 1
-
-				if j != 2 {
-					expect_token(tokens[i^], .Comma) or_return
-					i^ += 1
-				}
-			}
-
-			value = color
-
-			expect_token(tokens[i^], .Paranthesis_Close) or_return
-			i^ += 1
+			value = parse_color(tokens, &i^) or_return
+		} else {
+			err = Parser_Error.Unexpected_Token
 		}
 
 		return
@@ -223,9 +229,37 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 	return
 }
 
+parse_color :: proc(tokens: []Token, i: ^int) -> (color: [3]f32, err: Parser_Error) {
+	expect_token(tokens[i^], .Ident) or_return
+	if tokens[i^].value.(string) != "rgb" {
+		err = Parser_Error.Invalid_Value
+		return
+	}
+	i^ += 1
+
+	expect_token(tokens[i^], .Paranthesis_Open) or_return
+	i^ += 1
+
+	for j := 0; j < 3; j += 1 {
+		expect_token(tokens[i^], .Number) or_return
+		color[j] = tokens[i^].value.(f32) / 255
+		i^ += 1
+
+		if j != 2 {
+			expect_token(tokens[i^], .Comma) or_return
+			i^ += 1
+		}
+	}
+
+	expect_token(tokens[i^], .Paranthesis_Close) or_return
+	i^ += 1
+
+	return
+}
+
 @(test)
 test_parse_ast :: proc(t: ^testing.T) {
-	contents := ".class { width: 100; height: 200; } #id { height: 100; } element { color: rgb(255, 0, 0); }"
+	contents := ".class { width: 100; height: 200; } #id { height: 100; } element { color: rgb(255, 0, 0); border: 2, rgb(255, 0, 0); }"
 
 	token_stream, err := parse_tokens(contents)
 	testing.expect(t, err == .None, "Failed to parse tokens")
@@ -248,6 +282,6 @@ test_parse_ast :: proc(t: ^testing.T) {
 	testing.expect(t, ast.selectors[1].declarations[.Height] == 100)
 	testing.expect(t, ast.selectors[2].type == .Element)
 	testing.expect(t, ast.selectors[2].name == "element")
-	testing.expect(t, len(ast.selectors[2].declarations) == 1)
+	testing.expect(t, len(ast.selectors[2].declarations) == 2)
 	testing.expect(t, ast.selectors[2].declarations[.Color] == [3]f32{1, 0, 0})
 }

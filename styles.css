@@ -9,14 +9,14 @@
 
 .child {
     width: 200;
-    height: 200;
+    height: 100;
     color: rgb(255, 255, 255);
     margin-right: 100;
+    border: 10, rgb(0, 0, 0);
 }
 
 .child2 {
     width: 300;
     height: 200;
     color: rgb(200, 0, 230);
-    margin-left: 100;
 }

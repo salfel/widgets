@@ -13,21 +13,25 @@ import gl "vendor:OpenGL"
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
 FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 
+Border :: css.Border
+
 
 Widget :: struct {
 	// render
-	color:                        [4]f32,
-	mp:                           matrix[4, 4]f32,
-	last_window_size:             [2]f32,
+	color:                                        [4]f32,
+	border:                                       Border,
+	mp:                                           matrix[4, 4]f32,
+	last_window_size:                             [2]f32,
 
 	// layout
-	children:                     [dynamic]Widget,
-	parent:                       ^Widget,
-	layout:                       Layout,
+	children:                                     [dynamic]Widget,
+	parent:                                       ^Widget,
+	layout:                                       Layout,
 
 	// OpenGL stuff
-	program, vao:                 u32,
-	mvp_location, color_location: i32,
+	program, vao:                                 u32,
+	mvp_location, size_location, color_location:  i32,
+	border_width_location, border_color_location: i32,
 }
 
 widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: Widget, ok: bool) #optional_ok {
@@ -73,6 +77,9 @@ widget_make :: proc(classes: []string, allocator := context.allocator) -> (widge
 	gl.UseProgram(widget.program)
 	widget.mvp_location = gl.GetUniformLocation(widget.program, "MVP")
 	widget.color_location = gl.GetUniformLocation(widget.program, "color")
+	widget.border_width_location = gl.GetUniformLocation(widget.program, "border_width")
+	widget.border_color_location = gl.GetUniformLocation(widget.program, "border_color")
+	widget.size_location = gl.GetUniformLocation(widget.program, "size")
 	gl.UseProgram(0)
 
 	return
@@ -83,65 +90,6 @@ widget_destroy :: proc(widget: ^Widget) {
 	layout_destroy(&widget.layout)
 }
 
-widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
-	if height, ok := styles[.Height]; ok {
-		widget.layout.result.size.y, ok = height.(f32)
-		assert(ok, "Expected height to be a number")
-	}
-
-	if width, ok := styles[.Width]; ok {
-		widget.layout.preferred, ok = width.(f32)
-		assert(ok, "Expected width to be a number")
-	}
-
-	if color, ok := styles[.Color]; ok {
-		col, ok := color.([3]f32)
-		widget.color = [4]f32{col[0], col[1], col[2], 1}
-		assert(ok, "Expected color to be a color vec")
-	}
-
-	if padding_left, ok := styles[.Padding_Left]; ok {
-		widget.layout.padding.left, ok = padding_left.(f32)
-		assert(ok, "Expected padding-left to be a number")
-	}
-
-	if padding_right, ok := styles[.Padding_Right]; ok {
-		widget.layout.padding.right, ok = padding_right.(f32)
-		assert(ok, "Expected padding-right to be a number")
-	}
-
-	if padding_top, ok := styles[.Padding_Top]; ok {
-		widget.layout.padding.top, ok = padding_top.(f32)
-		assert(ok, "Expected padding-top to be a number")
-	}
-
-	if padding_bottom, ok := styles[.Padding_Bottom]; ok {
-		widget.layout.padding.bottom, ok = padding_bottom.(f32)
-		assert(ok, "Expected padding-bottom to be a number")
-	}
-
-	if margin_left, ok := styles[.Margin_Left]; ok {
-		widget.layout.margin.left, ok = margin_left.(f32)
-		assert(ok, "Expected margin-left to be a number")
-	}
-
-	if margin_right, ok := styles[.Margin_Right]; ok {
-		widget.layout.margin.right, ok = margin_right.(f32)
-		assert(ok, "Expected margin-right to be a number")
-	}
-
-	if margin_top, ok := styles[.Margin_Top]; ok {
-		widget.layout.margin.top, ok = margin_top.(f32)
-		assert(ok, "Expected margin-top to be a number")
-	}
-
-	if margin_bottom, ok := styles[.Margin_Bottom]; ok {
-		widget.layout.margin.bottom, ok = margin_bottom.(f32)
-		assert(ok, "Expected margin-bottom to be a number")
-	}
-
-	widget.layout.max = math.INF_F32
-}
 
 widget_draw :: proc(widget: ^Widget) {
 	gl.UseProgram(widget.program)
@@ -150,6 +98,9 @@ widget_draw :: proc(widget: ^Widget) {
 
 	gl.UniformMatrix4fv(widget.mvp_location, 1, false, linalg.matrix_to_ptr(&widget.mp))
 	gl.Uniform4fv(widget.color_location, 1, linalg.vector_to_ptr(&widget.color))
+	gl.Uniform1f(widget.border_width_location, widget.border.width)
+	gl.Uniform3fv(widget.border_color_location, 1, linalg.vector_to_ptr(&widget.border.color))
+	gl.Uniform2fv(widget.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
 
 	gl.BindVertexArray(widget.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
@@ -209,4 +160,69 @@ calculate_mp :: proc(widget: ^Widget) {
 	widget.mp = projection * translation * scale
 
 	widget.last_window_size = state.app_state.window_size
+}
+
+widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
+	if height, ok := styles[.Height]; ok {
+		widget.layout.result.size.y, ok = height.(f32)
+		assert(ok, "Expected height to be a number")
+	}
+
+	if width, ok := styles[.Width]; ok {
+		widget.layout.preferred, ok = width.(f32)
+		assert(ok, "Expected width to be a number")
+	}
+
+	if color, ok := styles[.Color]; ok {
+		col, ok := color.([3]f32)
+		widget.color = [4]f32{col[0], col[1], col[2], 1}
+		assert(ok, "Expected color to be a color vec")
+	}
+
+	if padding_left, ok := styles[.Padding_Left]; ok {
+		widget.layout.padding.left, ok = padding_left.(f32)
+		assert(ok, "Expected padding-left to be a number")
+	}
+
+	if padding_right, ok := styles[.Padding_Right]; ok {
+		widget.layout.padding.right, ok = padding_right.(f32)
+		assert(ok, "Expected padding-right to be a number")
+	}
+
+	if padding_top, ok := styles[.Padding_Top]; ok {
+		widget.layout.padding.top, ok = padding_top.(f32)
+		assert(ok, "Expected padding-top to be a number")
+	}
+
+	if padding_bottom, ok := styles[.Padding_Bottom]; ok {
+		widget.layout.padding.bottom, ok = padding_bottom.(f32)
+		assert(ok, "Expected padding-bottom to be a number")
+	}
+
+	if margin_left, ok := styles[.Margin_Left]; ok {
+		widget.layout.margin.left, ok = margin_left.(f32)
+		assert(ok, "Expected margin-left to be a number")
+	}
+
+	if margin_right, ok := styles[.Margin_Right]; ok {
+		widget.layout.margin.right, ok = margin_right.(f32)
+		assert(ok, "Expected margin-right to be a number")
+	}
+
+	if margin_top, ok := styles[.Margin_Top]; ok {
+		widget.layout.margin.top, ok = margin_top.(f32)
+		assert(ok, "Expected margin-top to be a number")
+	}
+
+	if margin_bottom, ok := styles[.Margin_Bottom]; ok {
+		widget.layout.margin.bottom, ok = margin_bottom.(f32)
+		assert(ok, "Expected margin-bottom to be a number")
+	}
+
+	if border, ok := styles[.Border]; ok {
+		widget.border, ok = border.(Border)
+		assert(ok, "Expected border to be a Border")
+	}
+
+	widget.layout.max = math.INF_F32
 }
