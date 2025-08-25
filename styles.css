@@ -8,15 +8,16 @@
 }
 
 .child {
-    width: 200;
+    width: 550;
     height: 100;
     color: rgb(255, 255, 255);
-    margin-right: 100;
     border: 10, rgb(0, 0, 0);
+    margin-right: 100;
 }
 
 .child2 {
-    width: 300;
+    width: 50;
     height: 200;
     color: rgb(200, 0, 230);
+    margin-right: 100;
 }

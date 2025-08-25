@@ -170,6 +170,8 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 
 	if width, ok := styles[.Width]; ok {
 		widget.layout.preferred, ok = width.(f32)
+		// widget.layout.min = widget.layout.preferred TODO: enable this, disabled for now for testing purposes
+		// widget.layout.max = widget.layout.preferred
 		assert(ok, "Expected width to be a number")
 	}
 

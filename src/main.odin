@@ -67,5 +67,7 @@ main :: proc() {
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()
+
+		// break
 	}
 }

@@ -56,6 +56,7 @@ layout_measure :: proc(layout: ^Layout) {
 
 		min += child.min
 		preferred += child.preferred
+		preferred += child.margin.left + child.margin.right
 
 		if max != math.INF_F32 {
 			if child.max != math.INF_F32 {
@@ -78,18 +79,6 @@ layout_measure :: proc(layout: ^Layout) {
 	layout.preferred = math.max(preferred + layout.padding.left + layout.padding.right, layout.preferred)
 }
 
-layout_min :: proc(layout: ^Layout) -> f32 {
-	return layout.min + layout.margin.left + layout.margin.right
-}
-
-layout_preferred :: proc(layout: ^Layout) -> f32 {
-	return layout.preferred + layout.margin.left + layout.margin.right
-}
-
-layout_max :: proc(layout: ^Layout) -> f32 {
-	return layout.max + layout.margin.left + layout.margin.right
-}
-
 layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocator) {
 	layout.result.size.x = width
 
@@ -98,49 +87,48 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 	}
 
 	// shrink
-	if layout_preferred(layout) > width {
-		available := layout_preferred(layout) - width
-		available_children := make([dynamic]^Layout, allocator)
-		append(&available_children, ..layout.children[:])
-		defer delete(available_children)
+	if layout.preferred > width && len(layout.children) > 0 {
+		space := layout.preferred - width
+		children := make([dynamic]^Layout, allocator)
+		append(&children, ..layout.children[:])
+		defer delete(children)
 
-		for len(available_children) > 0 && available > 0 {
+		for len(children) > 0 && space > 0 {
 			min_distance := math.INF_F32
-			#reverse for child, i in available_children {
-				if child.result.size.x - layout_min(child) <= 0 {
-					assert(child.result.size.x == layout_min(child), "expected child width to be equal to min")
-					unordered_remove(&available_children, i)
+			#reverse for child, i in children {
+				if child.result.size.x - child.min <= 0 {
+					assert(child.result.size.x == child.min, "expected child width to be equal to min")
+					unordered_remove(&children, i)
 					continue
 				}
 
-				distance := child.result.size.x - layout_min(child)
+				distance := child.result.size.x - child.min
 				min_distance = math.min(min_distance, distance)
 			}
 
-			min_distance =
-				math.min(min_distance * f32(len(available_children)), available) / f32(len(available_children))
+			min_distance = math.min(min_distance * f32(len(children)), space) / f32(len(children))
 
-			for &child in available_children {
+			for &child in children {
 				child.result.size.x -= min_distance
-				available -= min_distance
+				space -= min_distance
 			}
 		}
 	}
 
 	// grow
-	if layout_preferred(layout) < width {
-		available := width - layout_preferred(layout)
-		available_children := make([dynamic]^Layout, allocator)
-		append(&available_children, ..layout.children[:])
-		defer delete(available_children)
+	if layout.preferred < width && len(layout.children) > 0 {
+		space := width - layout.preferred
+		children := make([dynamic]^Layout, allocator)
+		append(&children, ..layout.children[:])
+		defer delete(children)
 
-		for len(available_children) > 0 && available > 0 {
+		for len(children) > 0 && space > 0 {
 			min_distance := math.INF_F32
 
-			#reverse for child, i in available_children {
-				if child.result.size.x - layout_max(child) >= 0 {
-					assert(child.result.size.x == layout_max(child), "expected child width to be equal to max")
-					unordered_remove(&available_children, i)
+			#reverse for child, i in children {
+				if child.result.size.x - child.max >= 0 {
+					assert(child.result.size.x == child.max, "expected child width to be equal to max")
+					unordered_remove(&children, i)
 					continue
 				}
 
@@ -148,12 +136,11 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 				min_distance = math.min(min_distance, distance)
 			}
 
-			min_distance =
-				math.min(min_distance * f32(len(available_children)), available) / f32(len(available_children))
+			min_distance = math.min(min_distance * f32(len(children)), space) / f32(len(children))
 
-			for &child in available_children {
+			for &child in children {
 				child.result.size.x += min_distance
-				available -= min_distance
+				space -= min_distance
 			}
 		}
 	}
@@ -161,8 +148,6 @@ layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocat
 	for &child in layout.children {
 		layout_compute(child, child.result.size.x)
 	}
-
-	layout.result.size.x -= layout.margin.left + layout.margin.right
 }
 
 layout_arrange :: proc(layout: ^Layout) {
@@ -215,17 +200,18 @@ test_layout_compute_grow :: proc(t: ^testing.T) {
 
 	child1 := layout_make(100, 200, 220)
 	child2 := layout_make(100, 200)
+	child2.margin.left = 30
 	append(&layout.children, &child1)
 	append(&layout.children, &child2)
 
 	layout_measure(&layout)
 	testing.expect(t, layout.min == 200)
-	testing.expect(t, layout.preferred == 400)
+	testing.expect(t, layout.preferred == 430)
 
 	layout_compute(&layout, 500)
 
 	testing.expect(t, layout.children[0].result.size.x == 220)
-	testing.expect(t, layout.children[1].result.size.x == 280)
+	testing.expect(t, layout.children[1].result.size.x == 250)
 }
 
 @(test)
@@ -236,7 +222,7 @@ test_layout_arrange :: proc(t: ^testing.T) {
 
 	child1 := layout_make(100, 200, 220)
 	child2 := layout_make(100, 200)
-	child2.margin.left = 100
+	child2.margin.left = 150
 	append(&layout.children, &child1)
 	append(&layout.children, &child2)
 
@@ -245,5 +231,7 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	layout_arrange(&layout)
 
 	testing.expect(t, child1.result.position.x == 100)
-	testing.expect(t, child2.result.position.x == 200)
+	testing.expect(t, child1.result.size.x == 125)
+	testing.expect(t, child2.result.position.x == 375)
+	testing.expect(t, child2.result.size.x == 125)
 }
