@@ -126,7 +126,7 @@ parse_ast :: proc(token_stream: Token_Stream) -> (ast: Ast, err: Parser_Error) {
 
 expect_token :: proc(token: Token, expected: Token_Type) -> (err: Parser_Error) {
 	if token.type != expected {
-		fmt.println("Expected token", expected, "but got", token.type)
+		fmt.eprintln("Expected token", expected, "but got", token.type)
 		err = Parser_Error.Unexpected_Token
 	}
 
@@ -201,8 +201,7 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Error) {
 	#partial switch tokens[i^].type {
 	case .Number:
-		value = tokens[i^].value.(f32)
-		i^ += 1
+		value = parse_size(tokens, &i^) or_return
 
 		if tokens[i^].type == .Comma {
 			i^ += 1
@@ -210,8 +209,6 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 			color := parse_color(tokens, &i^) or_return
 			value = Border{color, value.(f32)}
 		}
-
-		return
 	case .Ident:
 		ident := tokens[i^].value.(string)
 		if ident == "rgb" {
@@ -219,15 +216,29 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 		} else {
 			err = Parser_Error.Unexpected_Token
 		}
-
-		return
 	case:
 		err = Parser_Error.Unexpected_Token
-		return
 	}
 
 	return
 }
+
+parse_size :: proc(tokens: []Token, i: ^int) -> (size: Value, err: Parser_Error) {
+	size = tokens[i^].value.(f32)
+	i^ += 1
+
+	if tokens[i^].type == .Ident {
+		if tokens[i^].value.(string) != "px" {
+			err = Parser_Error.Invalid_Value
+			return
+		}
+
+		i^ += 1
+	}
+
+	return
+}
+
 
 parse_color :: proc(tokens: []Token, i: ^int) -> (color: [3]f32, err: Parser_Error) {
 	expect_token(tokens[i^], .Ident) or_return
@@ -259,7 +270,7 @@ parse_color :: proc(tokens: []Token, i: ^int) -> (color: [3]f32, err: Parser_Err
 
 @(test)
 test_parse_ast :: proc(t: ^testing.T) {
-	contents := ".class { width: 100; height: 200; } #id { height: 100; } element { color: rgb(255, 0, 0); border: 2, rgb(255, 0, 0); }"
+	contents := ".class { width: 100px; height: 200.5; } #id { height: 100px; } element { color: rgb(255, 0, 0); border: 2px, rgb(255, 0, 0); }"
 
 	token_stream, err := parse_tokens(contents)
 	testing.expect(t, err == .None, "Failed to parse tokens")
@@ -275,7 +286,7 @@ test_parse_ast :: proc(t: ^testing.T) {
 	testing.expect(t, ast.selectors[0].name == "class")
 	testing.expect(t, len(ast.selectors[0].declarations) == 2)
 	testing.expect(t, ast.selectors[0].declarations[.Width] == 100)
-	testing.expect(t, ast.selectors[0].declarations[.Height] == 200)
+	testing.expect(t, ast.selectors[0].declarations[.Height] == 200.5)
 	testing.expect(t, ast.selectors[1].type == .Id)
 	testing.expect(t, ast.selectors[1].name == "id")
 	testing.expect(t, len(ast.selectors[1].declarations) == 1)
