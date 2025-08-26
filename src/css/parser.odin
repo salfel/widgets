@@ -41,8 +41,11 @@ Property :: enum {
 	Border,
 }
 
+Percentage :: distinct f32
+
 Value :: union {
 	f32,
+	Percentage,
 	[3]f32,
 	Border,
 }
@@ -181,7 +184,10 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 	     .Margin_Right,
 	     .Margin_Top,
 	     .Margin_Bottom:
-		if _, ok := value.(f32); !ok {
+		#partial switch v in value {
+		case f32:
+		case Percentage:
+		case:
 			err = Parser_Error.Invalid_Value
 			return
 		}
@@ -224,6 +230,7 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 }
 
 parse_size :: proc(tokens: []Token, i: ^int) -> (size: Value, err: Parser_Error) {
+	expect_token(tokens[i^], .Number) or_return
 	size = tokens[i^].value.(f32)
 	i^ += 1
 
@@ -233,6 +240,9 @@ parse_size :: proc(tokens: []Token, i: ^int) -> (size: Value, err: Parser_Error)
 			return
 		}
 
+		i^ += 1
+	} else if tokens[i^].type == .Percentage {
+		size = Percentage(size.(f32) / 100)
 		i^ += 1
 	}
 
@@ -270,10 +280,10 @@ parse_color :: proc(tokens: []Token, i: ^int) -> (color: [3]f32, err: Parser_Err
 
 @(test)
 test_parse_ast :: proc(t: ^testing.T) {
-	contents := ".class { width: 100px; height: 200.5; } #id { height: 100px; } element { color: rgb(255, 0, 0); border: 2px, rgb(255, 0, 0); }"
+	contents := ".class { width: 100px; height: 200.5; } #id { height: 100%; } element { color: rgb(255, 0, 0); border: 2px, rgb(255, 0, 0); }"
 
 	token_stream, err := parse_tokens(contents)
-	testing.expect(t, err == .None, "Failed to parse tokens")
+	testing.expect(t, err == .None)
 	defer token_stream_destroy(&token_stream)
 
 	ast: Ast
@@ -285,12 +295,12 @@ test_parse_ast :: proc(t: ^testing.T) {
 	testing.expect(t, ast.selectors[0].type == .Class)
 	testing.expect(t, ast.selectors[0].name == "class")
 	testing.expect(t, len(ast.selectors[0].declarations) == 2)
-	testing.expect(t, ast.selectors[0].declarations[.Width] == 100)
-	testing.expect(t, ast.selectors[0].declarations[.Height] == 200.5)
+	testing.expect(t, ast.selectors[0].declarations[.Width] == f32(100))
+	testing.expect(t, ast.selectors[0].declarations[.Height] == f32(200.5))
 	testing.expect(t, ast.selectors[1].type == .Id)
 	testing.expect(t, ast.selectors[1].name == "id")
 	testing.expect(t, len(ast.selectors[1].declarations) == 1)
-	testing.expect(t, ast.selectors[1].declarations[.Height] == 100)
+	testing.expect(t, ast.selectors[1].declarations[.Height] == Percentage(1.0))
 	testing.expect(t, ast.selectors[2].type == .Element)
 	testing.expect(t, ast.selectors[2].name == "element")
 	testing.expect(t, len(ast.selectors[2].declarations) == 2)

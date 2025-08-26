@@ -18,6 +18,7 @@ Token_Type :: enum {
 	Colon,
 	Semicolon,
 	Comma,
+	Percentage,
 }
 
 Token :: struct {
@@ -108,6 +109,8 @@ parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, err: Pars
 			append(&token_stream.tokens, Token{.Semicolon, nil})
 		case ',':
 			append(&token_stream.tokens, Token{.Comma, nil})
+		case '%':
+			append(&token_stream.tokens, Token{.Percentage, nil})
 		case ' ', '\t', '\n', '\r':
 			continue
 		case:
