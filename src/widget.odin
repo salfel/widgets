@@ -20,6 +20,7 @@ Widget :: struct {
 	// render
 	color:                                        [4]f32,
 	border:                                       Border,
+	border_radius:                                f32,
 	mp:                                           matrix[4, 4]f32,
 	last_window_size:                             [2]f32,
 
@@ -32,6 +33,7 @@ Widget :: struct {
 	program, vao:                                 u32,
 	mvp_location, size_location, color_location:  i32,
 	border_width_location, border_color_location: i32,
+	border_radius_location:                       i32,
 }
 
 widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: ^Widget, ok: bool) #optional_ok {
@@ -78,9 +80,10 @@ widget_make :: proc(classes: []string, allocator := context.allocator) -> (widge
 	gl.UseProgram(widget.program)
 	widget.mvp_location = gl.GetUniformLocation(widget.program, "MVP")
 	widget.color_location = gl.GetUniformLocation(widget.program, "color")
+	widget.size_location = gl.GetUniformLocation(widget.program, "size")
 	widget.border_width_location = gl.GetUniformLocation(widget.program, "border_width")
 	widget.border_color_location = gl.GetUniformLocation(widget.program, "border_color")
-	widget.size_location = gl.GetUniformLocation(widget.program, "size")
+	widget.border_radius_location = gl.GetUniformLocation(widget.program, "border_radius")
 	gl.UseProgram(0)
 
 	return
@@ -107,6 +110,7 @@ widget_draw :: proc(widget: ^Widget) {
 	gl.Uniform1f(widget.border_width_location, widget.border.width)
 	gl.Uniform3fv(widget.border_color_location, 1, linalg.vector_to_ptr(&widget.border.color))
 	gl.Uniform2fv(widget.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
+	gl.Uniform1f(widget.border_radius_location, widget.border_radius)
 
 	gl.BindVertexArray(widget.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
@@ -230,6 +234,11 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 		widget.border, ok = border.(Border)
 		widget.layout.border = edges_make(widget.border.width)
 		assert(ok, "Expected border to be a Border")
+	}
+
+	if border_radius, ok := styles[.Border_Radius]; ok {
+		widget.border_radius, ok = border_radius.(f32)
+		assert(ok, "Expected border-radius to be a number")
 	}
 
 	widget.layout.max = math.INF_F32

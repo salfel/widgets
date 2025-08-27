@@ -39,6 +39,7 @@ Property :: enum {
 	Margin_Top,
 	Margin_Bottom,
 	Border,
+	Border_Radius,
 }
 
 Percentage :: distinct f32
@@ -88,6 +89,8 @@ make_property :: proc(property: string) -> (Property, Parser_Error) {
 		return .Margin_Bottom, nil
 	case "border":
 		return .Border, nil
+	case "border-radius":
+		return .Border_Radius, nil
 	}
 
 	return nil, .Unknown_Property
@@ -183,7 +186,8 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 	     .Margin_Left,
 	     .Margin_Right,
 	     .Margin_Top,
-	     .Margin_Bottom:
+	     .Margin_Bottom,
+	     .Border_Radius:
 		#partial switch v in value {
 		case f32:
 		case Percentage:
@@ -280,7 +284,7 @@ parse_color :: proc(tokens: []Token, i: ^int) -> (color: [3]f32, err: Parser_Err
 
 @(test)
 test_parse_ast :: proc(t: ^testing.T) {
-	contents := ".class { width: 100px; height: 200.5; } #id { height: 100%; } element { color: rgb(255, 0, 0); border: 2px, rgb(255, 0, 0); }"
+	contents := ".class { width: 100px; height: 200.5; } #id { height: 100%; } element { color: rgb(255, 0, 0); border: 2px, rgb(255, 0, 0); border-radius: 10px; }"
 
 	token_stream, err := parse_tokens(contents)
 	testing.expect(t, err == .None)
@@ -303,6 +307,7 @@ test_parse_ast :: proc(t: ^testing.T) {
 	testing.expect(t, ast.selectors[1].declarations[.Height] == Percentage(1.0))
 	testing.expect(t, ast.selectors[2].type == .Element)
 	testing.expect(t, ast.selectors[2].name == "element")
-	testing.expect(t, len(ast.selectors[2].declarations) == 2)
+	testing.expect(t, len(ast.selectors[2].declarations) == 3)
 	testing.expect(t, ast.selectors[2].declarations[.Color] == [3]f32{1, 0, 0})
+	testing.expect(t, ast.selectors[2].declarations[.Border_Radius] == f32(10))
 }

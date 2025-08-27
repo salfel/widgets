@@ -57,6 +57,9 @@ main :: proc() {
 	widget_append_child(child, child3)
 	widget_append_child(child, child4)
 
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
 	for !glfw.WindowShouldClose(window_handle) {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
