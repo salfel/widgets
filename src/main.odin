@@ -47,13 +47,15 @@ main :: proc() {
 	parent := widget_make([]string{"parent"})
 	child := widget_make([]string{"child"})
 	child2 := widget_make([]string{"child2"})
+	child3 := widget_make([]string{"child3"})
+	child4 := widget_make([]string{"child4"})
 
-	defer widget_destroy(&parent)
-	defer widget_destroy(&child)
-	defer widget_destroy(&child2)
+	defer widget_destroy(parent)
 
-	widget_append_child(&parent, child)
-	widget_append_child(&parent, child2)
+	widget_append_child(parent, child)
+	widget_append_child(parent, child2)
+	widget_append_child(child, child3)
+	widget_append_child(child, child4)
 
 	for !glfw.WindowShouldClose(window_handle) {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
@@ -63,11 +65,9 @@ main :: proc() {
 		layout_compute(&parent.layout, state.app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
-		widget_draw(&parent)
+		widget_draw(parent)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()
-
-		// break
 	}
 }

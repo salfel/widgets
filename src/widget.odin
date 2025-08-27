@@ -24,7 +24,7 @@ Widget :: struct {
 	last_window_size:                             [2]f32,
 
 	// layout
-	children:                                     [dynamic]Widget,
+	children:                                     [dynamic]^Widget,
 	parent:                                       ^Widget,
 	layout:                                       Layout,
 
@@ -34,8 +34,9 @@ Widget :: struct {
 	border_width_location, border_color_location: i32,
 }
 
-widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: Widget, ok: bool) #optional_ok {
-	widget.children = make([dynamic]Widget, allocator)
+widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: ^Widget, ok: bool) #optional_ok {
+	widget = new(Widget, allocator)
+	widget.children = make([dynamic]^Widget, allocator)
 	widget.layout = layout_make(0, 0)
 
 	styles := make(map[css.Property]css.Value, allocator)
@@ -52,7 +53,7 @@ widget_make :: proc(classes: []string, allocator := context.allocator) -> (widge
 		}
 	}
 
-	widget_apply_styles(&widget, styles)
+	widget_apply_styles(widget, styles)
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -86,8 +87,13 @@ widget_make :: proc(classes: []string, allocator := context.allocator) -> (widge
 }
 
 widget_destroy :: proc(widget: ^Widget) {
+	for &child in widget.children {
+		widget_destroy(child)
+	}
+
 	delete(widget.children)
 	layout_destroy(&widget.layout)
+	free(widget)
 }
 
 
@@ -127,9 +133,8 @@ widget_draw :: proc(widget: ^Widget) {
 		)
 	}
 
-
 	for &child in widget.children {
-		widget_draw(&child)
+		widget_draw(child)
 	}
 
 	if widget.layout.result.clip {
@@ -137,10 +142,10 @@ widget_draw :: proc(widget: ^Widget) {
 	}
 }
 
-widget_append_child :: proc(widget: ^Widget, child: Widget) {
+widget_append_child :: proc(widget: ^Widget, child: ^Widget) {
+	child.parent = widget
 	append(&widget.children, child)
-	widget.children[len(widget.children) - 1].parent = widget
-	append(&widget.layout.children, &widget.children[len(widget.children) - 1].layout)
+	append(&widget.layout.children, &child.layout)
 }
 
 calculate_mp :: proc(widget: ^Widget) {
@@ -164,7 +169,7 @@ calculate_mp :: proc(widget: ^Widget) {
 
 widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
 	if height, ok := styles[.Height]; ok {
-		widget.layout.result.size.y, ok = height.(f32)
+		widget.layout.height, ok = height.(f32)
 		assert(ok, "Expected height to be a number")
 	}
 
@@ -223,6 +228,7 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 
 	if border, ok := styles[.Border]; ok {
 		widget.border, ok = border.(Border)
+		widget.layout.border = edges_make(widget.border.width)
 		assert(ok, "Expected border to be a Border")
 	}
 
