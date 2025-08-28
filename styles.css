@@ -16,9 +16,9 @@
 
 .child2 {
     width: 300;
-    height: 160;
+    height: 50;
     color: rgb(255, 255, 255);
-    border-radius: 25px;
+    border-radius: 10px;
 }
 
 .child3 {
@@ -26,10 +26,11 @@
     height: 100;
     color: rgb(255, 0, 0);
     margin-right: 20;
+    border-radius: 10px;
 }
 
 .child4 {
-    width: 100;
+    width: 300;
     height: 100;
     color: rgb(0, 255, 0);
 }
