@@ -15,52 +15,12 @@ TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
 Text :: struct {
-	characters:   [dynamic]Character,
-	textures:     map[rune]u32,
-	program, vao: u32,
-	position:     [2]f32,
+	program, vao, texture: u32,
+	size, position:        [2]i32,
+	mp:                    matrix[4, 4]f32,
 }
 
-Character :: struct {
-	glyph:   Glyph,
-	texture: u32,
-	mp:      matrix[4, 4]f32,
-}
-
-
-text_make :: proc(
-	content: string,
-	font: string,
-	size: f32,
-	position: [2]f32,
-	allocator := context.allocator,
-) -> (
-	text: Text,
-	ok := true,
-) {
-	text.characters = make([dynamic]Character, len(content), allocator)
-	text.textures = make(map[rune]u32, len(content), allocator)
-	text.position = position
-
-	font_config := font_config_make(font, size, allocator) or_return
-
-	runes := utf8.string_to_runes(content)
-	defer delete(runes)
-	for char, i in runes {
-		next := runes[i + 1] if i < len(runes) - 1 else rune(0)
-		glyph := glyph_make(font_config, char, next, allocator)
-		text.textures[char] = text_generate_texture(glyph, i32(glyph.width), i32(glyph.height), allocator)
-
-		character := Character {
-			glyph   = glyph,
-			texture = text.textures[char],
-			mp      = calculate_char_mp({glyph.width, glyph.height}, text.position),
-		}
-
-		text.characters[i] = character
-	}
-
-
+text_make :: proc(bitmap: []u8, size, position: [2]i32, allocator := context.allocator) -> (text: Text, ok := true) {
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
 	vertex_shader := compile_shader(gl.VERTEX_SHADER, TEXT_VERTEX_SHADER) or_return
@@ -81,30 +41,19 @@ text_make :: proc(
 
 	gl.BindVertexArray(0)
 
+	text.texture = text_generate_texture(bitmap, size)
+	text.position = position
+	text.size = size
+
 	return
 }
 
-text_destroy :: proc(text: ^Text) {
-	delete(text.characters)
-	delete(text.textures)
-}
-
-text_generate_texture :: proc(glyph: Glyph, width, height: i32, allocator := context.allocator) -> (texture: u32) {
+text_generate_texture :: proc(bitmap: []u8, size: [2]i32, allocator := context.allocator) -> (texture: u32) {
 	gl.GenTextures(1, &texture)
 	gl.BindTexture(gl.TEXTURE_2D, texture)
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
-	gl.TexImage2D(
-		gl.TEXTURE_2D,
-		0,
-		gl.RED,
-		i32(width),
-		i32(height),
-		0,
-		gl.RED,
-		gl.UNSIGNED_BYTE,
-		raw_data(glyph.bitmap[:]),
-	)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RED, size.x, size.y, 0, gl.RED, gl.UNSIGNED_BYTE, raw_data(bitmap))
 
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
@@ -118,36 +67,24 @@ text_draw :: proc(text: ^Text) {
 	gl.UseProgram(text.program)
 	gl.BindVertexArray(text.vao)
 
-	x := text.position.x
+	text.mp = text_calculate_mp(text.size, text.position)
 
-	for &character in text.characters {
-		character.mp = calculate_char_mp(
-			{character.glyph.width, character.glyph.height},
-			{
-				x + f32(character.glyph.lsb),
-				text.position.y + (f32(character.glyph.font_config.ascent) - character.glyph.height),
-			},
-		)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, text.texture)
 
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, character.texture)
+	gl.UniformMatrix4fv(gl.GetUniformLocation(text.program, "MP"), 1, false, linalg.matrix_to_ptr(&text.mp))
+	gl.Uniform1i(gl.GetUniformLocation(text.program, "tex"), 0)
 
-		gl.UniformMatrix4fv(gl.GetUniformLocation(text.program, "MP"), 1, false, linalg.matrix_to_ptr(&character.mp))
-		gl.Uniform1i(gl.GetUniformLocation(text.program, "tex"), 0)
-
-		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
-
-		x += f32(character.glyph.ax) + f32(character.glyph.kern)
-	}
+	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
 }
 
 
-calculate_char_mp :: proc(size, position: [2]f32) -> (mp: matrix[4, 4]f32) {
-	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
-	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
+text_calculate_mp :: proc(size, position: [2]i32) -> (mp: matrix[4, 4]f32) {
+	scale := linalg.matrix4_scale_f32({f32(size.x), f32(size.y), 1})
+	translation := linalg.matrix4_translate_f32({f32(position.x), f32(position.y), 0})
 	projection := linalg.matrix_ortho3d_f32(0, app_state.window_size.x, app_state.window_size.y, 0, 0, 1)
 
 	mp = projection * translation * scale

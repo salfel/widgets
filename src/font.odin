@@ -8,151 +8,91 @@ import "core:strings"
 import "vendor:stb/image"
 import "vendor:stb/truetype"
 
-Glyph_Repository :: struct {
-	font_configs: [dynamic]^Font_Config,
-}
-
-glyph_repository_make :: proc(allocator := context.allocator) -> (glyph_repository: Glyph_Repository) {
-	glyph_repository.font_configs = make([dynamic]^Font_Config, allocator)
-
-	return
-}
-
-glyph_repository_destroy :: proc(glyph_repository: ^Glyph_Repository, allocator := context.allocator) {
-	for &font_config in glyph_repository.font_configs {
-		font_config_destroy(font_config, allocator)
-	}
-
-	delete(glyph_repository.font_configs)
-}
-
-Font_Config :: struct {
-	name:                     string,
-	size:                     f32,
-	buffer:                   []u8,
-	info:                     truetype.fontinfo,
-	scale:                    f32,
-	ascent, descent, lineGap: i32,
-	glyphs:                   map[rune]Glyph,
-}
-
-Glyph :: struct {
-	bitmap:        []u8,
-	ax, lsb, kern: i32,
-	width, height: f32,
-	font_config:   ^Font_Config,
-}
-
-font_config_make :: proc(
-	filename: string,
-	size: f32,
+font_bitmap_make :: proc(
+	content: string,
+	font: string,
+	height: f32,
 	allocator := context.allocator,
 ) -> (
-	font_config: ^Font_Config,
+	bitmap: []u8,
+	size: [2]i32,
 	ok := true,
 ) {
-	for font_config in app_state.glyph_repository.font_configs {
-		if font_config.name == filename && font_config.size == size {
-			return font_config, true
-		}
-	}
-
-	font_config = new(Font_Config, allocator)
-
-	font_config.name = filename
-	font_config.size = size
-	font_config.glyphs = make(map[rune]Glyph, allocator)
-
-	font_config.buffer, ok = os.read_entire_file_from_filename(filename, allocator)
+	buffer: []u8
+	buffer, ok = os.read_entire_file_from_filename(font, allocator)
+	defer delete(buffer)
 	if !ok {
 		fmt.eprintln("Failed to load font.ttf")
-		return nil, false
+		return nil, {}, false
 	}
 
-	if err := truetype.InitFont(&font_config.info, raw_data(font_config.buffer), 0); !err {
+	info: truetype.fontinfo
+	if err := truetype.InitFont(&info, raw_data(buffer), 0); !err {
 		fmt.eprintln("Failed to init font")
 		ok = false
 	}
 
-	font_config.scale = truetype.ScaleForPixelHeight(&font_config.info, size)
+	scale := truetype.ScaleForPixelHeight(&info, height)
 
-	truetype.GetFontVMetrics(&font_config.info, &font_config.ascent, &font_config.descent, &font_config.lineGap)
+	ascent, descent, lineGap: i32
+	truetype.GetFontVMetrics(&info, &ascent, &descent, &lineGap)
 
-	font_config.ascent = i32(math.round((f32(font_config.ascent) * font_config.scale)))
-	font_config.descent = i32(math.round((f32(font_config.descent) * font_config.scale)))
+	ascent = i32(math.round((f32(ascent) * scale)))
+	descent = i32(math.round((f32(descent) * scale)))
 
-	append(&app_state.glyph_repository.font_configs, font_config)
+	width: i32 = 0
+	max_ax: i32 = 0
+	for char, i in content {
+		ax, lsb: i32
+		truetype.GetCodepointHMetrics(&info, char, &ax, &lsb)
 
-	return
-}
+		max_ax = math.max(max_ax, ax)
 
-font_config_destroy :: proc(font_config: ^Font_Config, allocator := context.allocator) {
-	for _, &glyph in font_config.glyphs {
-		glyph_destroy(&glyph, allocator)
+		kern: i32 = 0
+		if i < len(content) - 1 {
+			kern = truetype.GetCodepointKernAdvance(&info, char, rune(content[i + 1]))
+		}
+
+		width += i32(math.round(f32(ax + kern) * scale))
 	}
 
-	delete(font_config.glyphs)
-	delete(font_config.buffer, allocator)
-	free(font_config, allocator)
-}
+	bitmap = make([]u8, width * (ascent - descent), allocator)
 
-glyph_make :: proc(
-	font_config: ^Font_Config,
-	char: rune,
-	next: rune,
-	allocator := context.allocator,
-) -> (
-	glyph: Glyph,
-) {
-	if _, ok := font_config.glyphs[char]; ok {
-		return font_config.glyphs[char]
+	x: i32 = 0
+	for char, i in content {
+		ax, lsb: i32
+		truetype.GetCodepointHMetrics(&info, char, &ax, &lsb)
+
+		cx1, cy1, cx2, cy2: i32
+		truetype.GetCodepointBitmapBox(&info, char, scale, scale, &cx1, &cy1, &cx2, &cy2)
+
+		c_width := cx2 - cx1
+		c_height := cy2 - cy1
+
+		// don't allocate on every char
+		temp_bitmap := make([]u8, i32(cx2 - cx1) * i32(cy2 - cy1), allocator)
+		defer delete(temp_bitmap)
+
+		truetype.MakeCodepointBitmap(&info, raw_data(temp_bitmap), c_width, c_height, c_width, scale, scale, char)
+
+		for gy: i32 = 0; gy < c_height; gy += 1 {
+			for gx: i32 = 0; gx < c_width; gx += 1 {
+				pixel := temp_bitmap[gy * c_width + gx]
+				if pixel == 0 do continue
+
+				dest := &bitmap[(ascent + cy1 + gy) * width + x + i32(f32(lsb) * scale) + gx]
+
+				dest^ = dest^ + pixel
+			}
+		}
+
+		x += i32(math.round(f32(ax) * scale))
+
+		if i < len(content) - 1 {
+			kern := truetype.GetCodepointKernAdvance(&info, char, rune(content[i + 1]))
+			x += i32(math.round(f32(kern) * scale))
+		}
 	}
 
-	glyph.font_config = font_config
-
-	truetype.GetCodepointHMetrics(&font_config.info, char, &glyph.ax, &glyph.lsb)
-
-	glyph.ax = i32(math.round((f32(glyph.ax) * font_config.scale)))
-	glyph.lsb = i32(math.round((f32(glyph.lsb) * font_config.scale)))
-
-	cx1, cy1, cx2, cy2: i32
-	truetype.GetCodepointBitmapBox(
-		&font_config.info,
-		char,
-		font_config.scale,
-		font_config.scale,
-		&cx1,
-		&cy1,
-		&cx2,
-		&cy2,
-	)
-
-	glyph.width = f32(cx2 - cx1)
-	glyph.height = f32(cy2 - cy1)
-
-	glyph.bitmap = make([]u8, i32(glyph.width * glyph.height), allocator)
-
-	truetype.MakeCodepointBitmap(
-		&font_config.info,
-		raw_data(glyph.bitmap),
-		cx2 - cx1,
-		cy2 - cy1,
-		i32(glyph.width),
-		font_config.scale,
-		font_config.scale,
-		rune(char),
-	)
-
-	font_config.glyphs[char] = glyph
-
-	if next != 0 {
-		glyph.kern = truetype.GetCodepointKernAdvance(&font_config.info, char, next)
-		glyph.kern = i32(math.round((f32(glyph.kern) * font_config.scale)))
-	}
-
-	return
-}
-
-glyph_destroy :: proc(glyph: ^Glyph, allocator := context.allocator) {
-	delete(glyph.bitmap, allocator)
+	return bitmap, {width, ascent - descent}, true
 }

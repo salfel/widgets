@@ -2,6 +2,7 @@ package main
 
 import "core:c"
 import "core:fmt"
+import "core:math"
 import "core:mem"
 import "core:os"
 import "core:strings"
@@ -44,9 +45,6 @@ main :: proc() {
 		return
 	}
 
-	app_state.glyph_repository = glyph_repository_make()
-	defer glyph_repository_destroy(&app_state.glyph_repository)
-
 	parent := widget_make([]string{"parent"})
 	child := widget_make([]string{"child"})
 	child2 := widget_make([]string{"child2"})
@@ -62,8 +60,10 @@ main :: proc() {
 
 	blur_buffer := blur_buffer_make()
 
-	text, _ := text_make("WAV", "font.ttf", 200, {300, 400})
-	defer text_destroy(&text)
+	bitmap, size, _ := font_bitmap_make("WAVg!", "font.ttf", 32)
+	defer delete(bitmap)
+
+	text, _ := text_make(bitmap, size, {i32(app_state.window_size.x / 2), i32(app_state.window_size.y / 2)})
 
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
