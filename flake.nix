@@ -25,6 +25,7 @@
           buildInputs = with pkgs; [
             odin
             glfw
+            stb
           ];
 
           buildPhase = ''

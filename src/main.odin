@@ -1,12 +1,14 @@
 package main
 
+import "core:c"
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import "core:strings"
 import "css"
-import "state"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
+import "vendor:stb/image"
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -33,16 +35,17 @@ main :: proc() {
 
 	defer window_destroy(window_handle)
 
-	file, _ := os.read_entire_file_from_filename("styles.css")
+	file, _ := os.read_entire_file_from_filename("styles.css", context.temp_allocator)
 
 	err: css.Parser_Error
-	state.app_state.css, err = css.parse(string(file))
+	app_state.css, err = css.parse(string(file))
 	if err != .None {
 		fmt.println("Failed to parse CSS", err)
 		return
 	}
 
-	delete(file)
+	app_state.glyph_repository = glyph_repository_make()
+	defer glyph_repository_destroy(&app_state.glyph_repository)
 
 	parent := widget_make([]string{"parent"})
 	child := widget_make([]string{"child"})
@@ -59,6 +62,9 @@ main :: proc() {
 
 	blur_buffer := blur_buffer_make()
 
+	text, _ := text_make("test", "font.ttf", 200, {300, 400})
+	defer text_destroy(&text)
+
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
@@ -69,12 +75,14 @@ main :: proc() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
 		layout_measure(&parent.layout)
-		layout_compute(&parent.layout, state.app_state.window_size.x)
+		layout_compute(&parent.layout, app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
 		widget_draw(parent)
 
 		blur_buffer_render(blur_buffer)
+
+		text_draw(&text)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()

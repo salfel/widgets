@@ -3,7 +3,6 @@ package main
 import "base:runtime"
 import "core:fmt"
 import "core:strings"
-import "state"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
 
@@ -14,7 +13,7 @@ window_size_callback :: proc "c" (window: glfw.WindowHandle, width, height: i32)
 	context = runtime.default_context()
 
 	gl.Viewport(0, 0, width, height)
-	state.app_state.window_size = {f32(width), f32(height)}
+	app_state.window_size = {f32(width), f32(height)}
 }
 
 window_make :: proc(width, height: f32, name: string, allocator := context.allocator) -> (glfw.WindowHandle, bool) {
@@ -37,7 +36,7 @@ window_make :: proc(width, height: f32, name: string, allocator := context.alloc
 	gl.Viewport(0, 0, i32(width), i32(height))
 	glfw.SetFramebufferSizeCallback(window_handle, window_size_callback)
 
-	state.app_state.window_size = {f32(width), f32(height)}
+	app_state.window_size = {f32(width), f32(height)}
 
 	return window_handle, true
 }

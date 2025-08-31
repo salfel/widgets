@@ -7,7 +7,6 @@ import "core:strings"
 import "core:testing"
 import "core:time"
 import "css"
-import "state"
 import gl "vendor:OpenGL"
 
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
@@ -43,7 +42,7 @@ widget_make :: proc(classes: []string, allocator := context.allocator) -> (widge
 
 	styles := make(map[css.Property]css.Value, allocator)
 	defer delete(styles)
-	for selector in state.app_state.css.selectors {
+	for selector in app_state.css.selectors {
 		if selector.type != .Class {continue}
 
 		for class in classes {
@@ -127,7 +126,7 @@ widget_draw :: proc(widget: ^Widget) {
 		gl.Scissor(
 			i32(widget.layout.result.position.x + widget.layout.padding.left),
 			i32(
-				state.app_state.window_size.y -
+				app_state.window_size.y -
 				widget.layout.result.position.y -
 				widget.layout.result.size.y +
 				widget.layout.padding.bottom,
@@ -153,7 +152,7 @@ widget_append_child :: proc(widget: ^Widget, child: ^Widget) {
 }
 
 calculate_mp :: proc(widget: ^Widget) {
-	if state.app_state.window_size == widget.last_window_size {
+	if app_state.window_size == widget.last_window_size {
 		return
 	}
 
@@ -164,11 +163,11 @@ calculate_mp :: proc(widget: ^Widget) {
 	translation := linalg.matrix4_translate_f32(
 		{position.x + widget.layout.margin.left, position.y + widget.layout.margin.top, 0},
 	)
-	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window_size.x, state.app_state.window_size.y, 0, 0, 1)
+	projection := linalg.matrix_ortho3d_f32(0, app_state.window_size.x, app_state.window_size.y, 0, 0, 1)
 
 	widget.mp = projection * translation * scale
 
-	widget.last_window_size = state.app_state.window_size
+	widget.last_window_size = app_state.window_size
 }
 
 widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
