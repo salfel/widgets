@@ -62,7 +62,7 @@ main :: proc() {
 
 	blur_buffer := blur_buffer_make()
 
-	text, _ := text_make("test", "font.ttf", 200, {300, 400})
+	text, _ := text_make("WAV", "font.ttf", 200, {300, 400})
 	defer text_destroy(&text)
 
 	gl.Enable(gl.BLEND)

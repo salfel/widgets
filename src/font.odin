@@ -38,7 +38,7 @@ Font_Config :: struct {
 
 Glyph :: struct {
 	bitmap:        []u8,
-	ax, lsb:       i32,
+	ax, lsb, kern: i32,
 	width, height: f32,
 	font_config:   ^Font_Config,
 }
@@ -96,7 +96,14 @@ font_config_destroy :: proc(font_config: ^Font_Config, allocator := context.allo
 	free(font_config, allocator)
 }
 
-glyph_make :: proc(font_config: ^Font_Config, char: rune, allocator := context.allocator) -> (glyph: Glyph) {
+glyph_make :: proc(
+	font_config: ^Font_Config,
+	char: rune,
+	next: rune,
+	allocator := context.allocator,
+) -> (
+	glyph: Glyph,
+) {
 	if _, ok := font_config.glyphs[char]; ok {
 		return font_config.glyphs[char]
 	}
@@ -137,6 +144,11 @@ glyph_make :: proc(font_config: ^Font_Config, char: rune, allocator := context.a
 	)
 
 	font_config.glyphs[char] = glyph
+
+	if next != 0 {
+		glyph.kern = truetype.GetCodepointKernAdvance(&font_config.info, char, next)
+		glyph.kern = i32(math.round((f32(glyph.kern) * font_config.scale)))
+	}
 
 	return
 }

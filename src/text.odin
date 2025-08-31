@@ -6,6 +6,7 @@ import "core:math"
 import "core:math/linalg"
 import "core:os"
 import "core:strings"
+import "core:unicode/utf8"
 import gl "vendor:OpenGL"
 import "vendor:stb/image"
 import "vendor:stb/truetype"
@@ -43,8 +44,11 @@ text_make :: proc(
 
 	font_config := font_config_make(font, size, allocator) or_return
 
-	for char, i in content {
-		glyph := glyph_make(font_config, char, allocator)
+	runes := utf8.string_to_runes(content)
+	defer delete(runes)
+	for char, i in runes {
+		next := runes[i + 1] if i < len(runes) - 1 else rune(0)
+		glyph := glyph_make(font_config, char, next, allocator)
 		text.textures[char] = text_generate_texture(glyph, i32(glyph.width), i32(glyph.height), allocator)
 
 		character := Character {
@@ -133,7 +137,7 @@ text_draw :: proc(text: ^Text) {
 
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
-		x += f32(character.glyph.ax)
+		x += f32(character.glyph.ax) + f32(character.glyph.kern)
 	}
 
 	gl.BindVertexArray(0)
