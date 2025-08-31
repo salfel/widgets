@@ -57,6 +57,8 @@ font_bitmap_make :: proc(
 	}
 
 	bitmap = make([]u8, width * (ascent - descent), allocator)
+	temp_bitmap := make([]u8, max_ax * (ascent - descent), allocator)
+	defer delete(temp_bitmap)
 
 	x: i32 = 0
 	for char, i in content {
@@ -69,15 +71,11 @@ font_bitmap_make :: proc(
 		c_width := cx2 - cx1
 		c_height := cy2 - cy1
 
-		// don't allocate on every char
-		temp_bitmap := make([]u8, i32(cx2 - cx1) * i32(cy2 - cy1), allocator)
-		defer delete(temp_bitmap)
-
-		truetype.MakeCodepointBitmap(&info, raw_data(temp_bitmap), c_width, c_height, c_width, scale, scale, char)
+		truetype.MakeCodepointBitmap(&info, raw_data(temp_bitmap), c_width, c_height, max_ax, scale, scale, char)
 
 		for gy: i32 = 0; gy < c_height; gy += 1 {
 			for gx: i32 = 0; gx < c_width; gx += 1 {
-				pixel := temp_bitmap[gy * c_width + gx]
+				pixel := temp_bitmap[gy * max_ax + gx]
 				if pixel == 0 do continue
 
 				dest := &bitmap[(ascent + cy1 + gy) * width + x + i32(f32(lsb) * scale) + gx]
