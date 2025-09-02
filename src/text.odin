@@ -20,7 +20,18 @@ Text :: struct {
 	mp:                    matrix[4, 4]f32,
 }
 
-text_make :: proc(bitmap: []u8, size, position: [2]i32, allocator := context.allocator) -> (text: Text, ok := true) {
+text_make :: proc(
+	content, font: string,
+	size: f32,
+	position: [2]i32,
+	allocator := context.allocator,
+) -> (
+	text: Text,
+	ok := true,
+) {
+	bitmap, size := font_bitmap_make(content, font, size, allocator) or_return
+	defer delete(bitmap)
+
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
 	vertex_shader := compile_shader(gl.VERTEX_SHADER, TEXT_VERTEX_SHADER) or_return

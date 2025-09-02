@@ -60,10 +60,7 @@ main :: proc() {
 
 	blur_buffer := blur_buffer_make()
 
-	bitmap, size, _ := font_bitmap_make("WAVg!", "font.ttf", 32)
-	defer delete(bitmap)
-
-	text, _ := text_make(bitmap, size, {i32(app_state.window_size.x / 2), i32(app_state.window_size.y / 2)})
+	text, _ := text_make("WAVg!", "font.ttf", 32, {i32(app_state.window_size.x / 2), i32(app_state.window_size.y / 2)})
 
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
