@@ -15,19 +15,24 @@ void main()
 
     vec2 pos = Position * size;
 
-    vec2 topLeft = vec2(border_radius, border_radius);
-    vec2 bottomLeft = vec2(border_radius, size.y - border_radius);
-    vec2 topRight = vec2(size.x - border_radius, border_radius);
-    vec2 bottomRight = vec2(size.x - border_radius, size.y - border_radius);
+    if (border_radius > 0) {
+        vec2 cornerPos = pos;
+        cornerPos.x = (pos.x > size.x * 0.5) ? size.x - pos.x : pos.x;
+        cornerPos.y = (pos.y > size.y * 0.5) ? size.y - pos.y : pos.y;
 
-    if (border_radius > 0 &&
-            (pos.x <= topLeft.x && pos.y <= topLeft.y && length(abs(pos - topLeft)) >= border_radius) ||
-            (pos.x <= bottomLeft.x && pos.y >= bottomLeft.y && length(abs(pos - bottomLeft)) >= border_radius) ||
-            (pos.x >= topRight.x && pos.y <= topRight.y && length(abs(pos - topRight)) >= border_radius) ||
-            (pos.x >= bottomRight.x && pos.y >= bottomRight.y && length(abs(pos - bottomRight)) >= border_radius)
-    ) {
-        FragColor = vec4(1.0, 0.0, 0.0, 0.0);
-        return;
+        vec2 centerPos = vec2(border_radius, border_radius);
+
+        float distance2 = pow(cornerPos.y - centerPos.y, 2) + pow(cornerPos.x - centerPos.x, 2);
+        float radius2 = pow(border_radius, 2);
+        if (cornerPos.x < border_radius && cornerPos.y < border_radius) {
+            if (distance2 > radius2) {
+                FragColor = vec4(1.0, 0.0, 0.0, 0.0);
+                return;
+            } else if (border_width > 0 && distance2 < radius2 && distance2 >= pow(border_radius - border_width, 2)) {
+                FragColor = vec4(border_color, 1.0);
+                return;
+            }
+        }
     }
 
     if (border_width == 0) {
