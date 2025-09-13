@@ -6,8 +6,8 @@ import "core:strings"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
 
-GL_MAJOR_VERSION :: 3
-GL_MINOR_VERSION :: 3
+GL_MAJOR_VERSION :: 4
+GL_MINOR_VERSION :: 5
 
 window_size_callback :: proc "c" (window: glfw.WindowHandle, width, height: i32) {
 	context = runtime.default_context()
