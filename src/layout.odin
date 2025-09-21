@@ -1,9 +1,10 @@
 package main
 
-import "core:fmt"
+import "core:log"
 import "core:math"
-import "core:mem"
 import "core:testing"
+
+UNDEFINED :: -1
 
 Edges :: struct {
 	left:   f32,
@@ -21,36 +22,28 @@ edges_make :: proc {
 }
 
 Layout :: struct {
-	min:       f32,
-	preferred: f32,
-	max:       f32,
-	height:    f32,
-	padding:   Edges,
-	margin:    Edges,
-	border:    Edges,
-	result:    struct {
-		size:      [2]f32,
-		position:  [2]f32,
-		clip:      bool,
+	width:    f32,
+	height:   f32,
+	border:   Edges,
+	padding:  Edges,
+	margin:   Edges,
+	children: [dynamic]^Layout,
 
-		// only used internaly for computing the layout
-		min:       f32,
-		preferred: f32,
-		max:       f32,
+	// result
+	result:   struct {
+		size:     [2]f32,
+		position: [2]f32,
 	},
-	children:  [dynamic]^Layout,
 }
 
-layout_make :: proc(min: f32, preferred: f32, max: f32 = math.INF_F32, allocator := context.allocator) -> Layout {
+layout_make :: proc(allocator := context.allocator) -> Layout {
 	return Layout {
-		min = min,
-		preferred = preferred,
-		max = max,
-		height = 0,
-		padding = {left = 0, right = 0, top = 0, bottom = 0},
-		margin = {left = 0, right = 0, top = 0, bottom = 0},
-		border = {left = 0, right = 0, top = 0, bottom = 0},
-		result = {size = {0, 0}, position = {0, 0}, clip = false},
+		width = UNDEFINED,
+		height = UNDEFINED,
+		border = edges_make(0),
+		padding = edges_make(0),
+		margin = edges_make(0),
+		result = {size = {0, 0}, position = {0, 0}},
 		children = make([dynamic]^Layout, allocator),
 	}
 }
@@ -60,225 +53,109 @@ layout_destroy :: proc(layout: ^Layout) {
 }
 
 layout_measure :: proc(layout: ^Layout) {
-	min: f32 = 0
-	preferred: f32 = 0
-	max: f32 = 0
-	height: f32 = 0
+	layout.result.size.x = layout.width if layout.width != UNDEFINED else 0
+	layout.result.size.y = layout.height if layout.height != UNDEFINED else 0
 
 	for &child in layout.children {
 		layout_measure(child)
 
-		min += child.result.min + child.margin.left + child.margin.right
-		preferred += child.result.preferred + child.margin.left + child.margin.right
-
-		if max != math.INF_F32 {
-			if child.result.max != math.INF_F32 {
-				max += child.result.max
-			} else {
-				max = math.INF_F32
-			}
+		if layout.width == UNDEFINED {
+			layout.result.size.x += child.result.size.x + child.margin.left + child.margin.right
 		}
 
-		height = math.max(height, child.result.size.y + child.margin.top + child.margin.bottom)
+		if layout.height == UNDEFINED && child.result.size.y > layout.result.size.y {
+			layout.result.size.y =
+				child.height + child.margin.top + child.margin.bottom + layout.border.top + layout.border.bottom
+		}
 	}
 
-	layout.result.size.y = layout.height
-	if layout.height == 0 {
-		layout.result.size.y = height
-	} else if height > layout.height - layout.padding.top - layout.padding.bottom {
-		layout.result.clip = true
+	if layout.width == UNDEFINED {
+		layout.result.size.x += layout.padding.left + layout.padding.right
 	}
+	layout.result.size.x += layout.border.left + layout.border.right
 
+	if layout.height == UNDEFINED {
+		layout.result.size.y += layout.padding.top + layout.padding.bottom
+	}
 	layout.result.size.y += layout.border.top + layout.border.bottom
-
-	layout.result.min =
-		math.max(min + layout.padding.left + layout.padding.right, layout.min) +
-		layout.border.left +
-		layout.border.right
-	layout.result.preferred =
-		math.max(preferred + layout.padding.left + layout.padding.right, layout.preferred) +
-		layout.border.left +
-		layout.border.right
-	layout.result.max =
-		math.max(max + layout.padding.left + layout.padding.right, layout.max) +
-		layout.border.left +
-		layout.border.right
 }
 
-layout_compute :: proc(layout: ^Layout, width: f32, allocator := context.allocator) {
-	layout.result.size.x = width
+layout_arrange :: proc(layout: ^Layout, offset: f32 = 0) {
+	offset := offset + layout.margin.left
+	layout.result.position.x = offset
+	offset += layout.padding.left + layout.border.left
 
 	for &child in layout.children {
-		child.result.size.x = child.result.preferred
+		child.result.position.y = layout.result.position.y + layout.padding.top + layout.border.top + child.margin.top
+		layout_arrange(child, offset)
+		offset += child.result.size.x + child.margin.right
 	}
-
-	// shrink
-	if layout.result.preferred > width && len(layout.children) > 0 {
-		space := layout.result.preferred - width
-		children := make([dynamic]^Layout, allocator)
-		append(&children, ..layout.children[:])
-		defer delete(children)
-
-		for len(children) > 0 && space > 0 {
-			min_distance := math.INF_F32
-			#reverse for child, i in children {
-				if child.result.size.x - child.result.min <= 0 {
-					assert(child.result.size.x == child.result.min, "expected child width to be equal to min")
-					unordered_remove(&children, i)
-					continue
-				}
-
-				distance := child.result.size.x - child.result.min
-				min_distance = math.min(min_distance, distance)
-			}
-
-			min_distance = math.min(min_distance * f32(len(children)), space) / f32(len(children))
-
-			for &child in children {
-				child.result.size.x -= min_distance
-				space -= min_distance
-			}
-		}
-	}
-
-	// grow
-	if layout.result.preferred < width && len(layout.children) > 0 {
-		space := width - layout.result.preferred
-		children := make([dynamic]^Layout, allocator)
-		append(&children, ..layout.children[:])
-		defer delete(children)
-
-		for len(children) > 0 && space > 0 {
-			min_distance := math.INF_F32
-
-			#reverse for child, i in children {
-				if child.result.size.x - child.result.max >= 0 {
-					assert(child.result.size.x == child.result.max)
-					unordered_remove(&children, i)
-					continue
-				}
-
-				distance := child.result.max - child.result.size.x
-				min_distance = math.min(min_distance, distance)
-			}
-
-			min_distance = math.min(min_distance * f32(len(children)), space) / f32(len(children))
-
-			for &child in children {
-				child.result.size.x += min_distance
-				space -= min_distance
-			}
-		}
-	}
-
-	for &child in layout.children {
-		layout_compute(child, child.result.size.x)
-	}
-
-}
-
-layout_arrange :: proc(layout: ^Layout) {
-	offset: f32 = layout.result.position.x
-
-	for &child in layout.children {
-		child.result.position.x = layout.padding.left + child.margin.left + offset + layout.border.left
-		child.result.position.y = layout.result.position.y + child.margin.top + layout.padding.top + layout.border.top
-		offset += child.result.size.x + child.margin.left + child.margin.right
-
-		layout_arrange(child)
-	}
-
 }
 
 @(test)
 test_layout_measure :: proc(t: ^testing.T) {
-	{
-		layout := layout_make(100, 200)
-		defer layout_destroy(&layout)
-		children := []Layout{layout_make(100, 200), layout_make(100, 200)}
-		for &child in children {
-			append(&layout.children, &child)
-		}
+	parent := layout_make()
+	defer layout_destroy(&parent)
+	child1 := layout_make()
+	child2 := layout_make()
 
-		layout_measure(&layout)
-		testing.expect(t, layout.result.min == 200)
-		testing.expect(t, layout.result.preferred == 400)
-	}
+	append(&parent.children, &child1)
+	append(&parent.children, &child2)
 
-	// ----
+	parent.width = UNDEFINED
+	parent.padding.left = 10
 
-	{
-		layout := layout_make(0, 0)
-		layout.padding.left = 100
-		defer layout_destroy(&layout)
-		children := []Layout{layout_make(100, 200), layout_make(100, 200)}
-		for &child in children {
-			append(&layout.children, &child)
-		}
+	child1.width = 100
+	child1.height = 100
+	child1.margin.left = 10
+	child1.margin.right = 10
 
-		layout_measure(&layout)
-		testing.expect(t, layout.result.min == 300)
-		testing.expect(t, layout.result.preferred == 500)
+	child2.width = 200
+	child2.height = 200
+	child2.border.left = 10
 
-	}
-}
+	layout_measure(&parent)
 
-@(test)
-test_layout_compute_shrink :: proc(t: ^testing.T) {
-	layout := layout_make(0, 0)
-	defer layout_destroy(&layout)
-
-	children := []Layout{layout_make(50, 200), layout_make(180, 200)}
-	for &child in children {
-		append(&layout.children, &child)
-	}
-
-	layout_measure(&layout)
-	layout_compute(&layout, 300)
-
-	testing.expect(t, layout.children[0].result.size.x == 120)
-	testing.expect(t, layout.children[1].result.size.x == 180)
-}
-
-@(test)
-test_layout_compute_grow :: proc(t: ^testing.T) {
-	layout := layout_make(0, 0)
-	defer layout_destroy(&layout)
-
-	child1 := layout_make(100, 200, 220)
-	child2 := layout_make(100, 200)
-	child2.margin.left = 30
-	append(&layout.children, &child1)
-	append(&layout.children, &child2)
-
-	layout_measure(&layout)
-	testing.expect(t, layout.result.min == 230)
-	testing.expect(t, layout.result.preferred == 430)
-
-	layout_compute(&layout, 500)
-
-	testing.expect(t, layout.children[0].result.size.x == 220)
-	testing.expect(t, layout.children[1].result.size.x == 250)
+	testing.expect(t, parent.result.size.x == 340)
+	testing.expect(t, child1.result.size.y == 100)
+	testing.expect(t, child2.result.size.x == 210)
 }
 
 @(test)
 test_layout_arrange :: proc(t: ^testing.T) {
-	layout := layout_make(0, 0)
-	layout.padding.left = 100
-	defer layout_destroy(&layout)
+	parent := layout_make()
+	defer layout_destroy(&parent)
+	child1 := layout_make()
+	child2 := layout_make()
 
-	child1 := layout_make(100, 200, 220)
-	child2 := layout_make(100, 200)
-	child2.margin.left = 150
-	append(&layout.children, &child1)
-	append(&layout.children, &child2)
+	append(&parent.children, &child1)
+	append(&parent.children, &child2)
 
-	layout_measure(&layout)
-	layout_compute(&layout, 500)
-	layout_arrange(&layout)
+	parent.width = UNDEFINED
+	parent.margin.left = 20
+	parent.padding.left = 10
+	parent.border.left = 10
+	parent.border.right = 10
 
-	testing.expect(t, child1.result.position.x == 100)
-	testing.expect(t, child1.result.size.x == 125)
-	testing.expect(t, child2.result.position.x == 375)
-	testing.expect(t, child2.result.size.x == 125)
+	child1.width = 100
+	child1.height = 100
+	child1.margin.left = 10
+	child1.margin.right = 10
+	child1.border.left = 10
+	child1.border.right = 10
+
+	child2.width = 200
+	child2.height = 200
+	child2.margin.left = 10
+	child2.border.left = 10
+
+	layout_measure(&parent)
+	layout_arrange(&parent)
+
+	testing.expect(t, parent.result.position.x == 20)
+	testing.expect(t, parent.result.size.x == 390)
+	testing.expect(t, child1.result.position.x == 50)
+	testing.expect(t, child1.result.size.x == 120)
+	testing.expect(t, child2.result.position.x == 180)
+	testing.expect(t, child2.result.size.x == 210)
 }

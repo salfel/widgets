@@ -38,7 +38,7 @@ Widget :: struct {
 widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: ^Widget, ok: bool) #optional_ok {
 	widget = new(Widget, allocator)
 	widget.children = make([dynamic]^Widget, allocator)
-	widget.layout = layout_make(0, 0)
+	widget.layout = layout_make(allocator)
 
 	styles := make(map[css.Property]css.Value, allocator)
 	defer delete(styles)
@@ -121,27 +121,8 @@ widget_draw :: proc(widget: ^Widget) {
 
 	gl.UseProgram(0)
 
-	if widget.layout.result.clip {
-		gl.Enable(gl.SCISSOR_TEST)
-		gl.Scissor(
-			i32(widget.layout.result.position.x + widget.layout.padding.left),
-			i32(
-				app_state.window_size.y -
-				widget.layout.result.position.y -
-				widget.layout.result.size.y +
-				widget.layout.padding.bottom,
-			),
-			i32(widget.layout.result.size.x - widget.layout.padding.left - widget.layout.padding.right),
-			i32(widget.layout.result.size.y - widget.layout.padding.bottom - widget.layout.padding.top),
-		)
-	}
-
 	for &child in widget.children {
 		widget_draw(child)
-	}
-
-	if widget.layout.result.clip {
-		gl.Disable(gl.SCISSOR_TEST)
 	}
 }
 
@@ -160,9 +141,7 @@ calculate_mp :: proc(widget: ^Widget) {
 	position := widget.layout.result.position
 
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
-	translation := linalg.matrix4_translate_f32(
-		{position.x + widget.layout.margin.left, position.y + widget.layout.margin.top, 0},
-	)
+	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
 	projection := linalg.matrix_ortho3d_f32(0, app_state.window_size.x, app_state.window_size.y, 0, 0, 1)
 
 	widget.mp = projection * translation * scale
@@ -177,9 +156,7 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 	}
 
 	if width, ok := styles[.Width]; ok {
-		widget.layout.preferred, ok = width.(f32)
-		// widget.layout.min = widget.layout.preferred TODO: enable this, disabled for now for testing purposes
-		// widget.layout.max = widget.layout.preferred
+		widget.layout.width, ok = width.(f32)
 		assert(ok, "Expected width to be a number")
 	}
 
@@ -239,6 +216,4 @@ widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value)
 		widget.border_radius, ok = border_radius.(f32)
 		assert(ok, "Expected border-radius to be a number")
 	}
-
-	widget.layout.max = math.INF_F32
 }

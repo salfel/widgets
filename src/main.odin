@@ -47,18 +47,10 @@ main :: proc() {
 
 	parent := widget_make([]string{"parent"})
 	child := widget_make([]string{"child"})
-	child2 := widget_make([]string{"child2"})
-	child3 := widget_make([]string{"child3"})
-	child4 := widget_make([]string{"child4"})
-
-	defer widget_destroy(parent)
 
 	widget_append_child(parent, child)
-	widget_append_child(parent, child2)
-	widget_append_child(child, child3)
-	widget_append_child(child, child4)
 
-	text, _ := text_make("WAVg!", "font.ttf", 32, {i32(app_state.window_size.x / 2), i32(app_state.window_size.y / 2)})
+	defer widget_destroy(parent)
 
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
@@ -69,12 +61,9 @@ main :: proc() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
 		layout_measure(&parent.layout)
-		layout_compute(&parent.layout, app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
 		widget_draw(parent)
-
-		text_draw(&text)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()
