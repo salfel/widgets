@@ -9,7 +9,6 @@ import "core:strings"
 import "css"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
-import "vendor:stb/image"
 
 main :: proc() {
 	when ODIN_DEBUG {
