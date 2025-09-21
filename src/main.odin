@@ -47,8 +47,10 @@ main :: proc() {
 
 	parent := widget_make([]string{"parent"})
 	child := widget_make([]string{"child"})
+	child2 := widget_make([]string{"child2"})
 
 	widget_append_child(parent, child)
+	widget_append_child(child, child2)
 
 	defer widget_destroy(parent)
 
@@ -56,9 +58,9 @@ main :: proc() {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	for !glfw.WindowShouldClose(window_handle) {
-
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
-		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.ClearStencil(0)
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		layout_measure(&parent.layout)
 		layout_arrange(&parent.layout)

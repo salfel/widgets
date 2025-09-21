@@ -32,6 +32,7 @@ window_make :: proc(width, height: f32, name: string, allocator := context.alloc
 
 	glfw.MakeContextCurrent(window_handle)
 	gl.load_up_to(GL_MAJOR_VERSION, GL_MINOR_VERSION, glfw.gl_set_proc_address)
+	glfw.WindowHint(glfw.STENCIL_BITS, 8)
 
 	gl.Viewport(0, 0, i32(width), i32(height))
 	glfw.SetFramebufferSizeCallback(window_handle, window_size_callback)

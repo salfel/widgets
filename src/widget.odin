@@ -33,6 +33,7 @@ Widget :: struct {
 	mvp_location, size_location, color_location:  i32,
 	border_width_location, border_color_location: i32,
 	border_radius_location:                       i32,
+	is_stencil_location:                          i32,
 }
 
 widget_make :: proc(classes: []string, allocator := context.allocator) -> (widget: ^Widget, ok: bool) #optional_ok {
@@ -83,6 +84,7 @@ widget_make :: proc(classes: []string, allocator := context.allocator) -> (widge
 	widget.border_width_location = gl.GetUniformLocation(widget.program, "border_width")
 	widget.border_color_location = gl.GetUniformLocation(widget.program, "border_color")
 	widget.border_radius_location = gl.GetUniformLocation(widget.program, "border_radius")
+	widget.is_stencil_location = gl.GetUniformLocation(widget.program, "is_stencil")
 	gl.UseProgram(0)
 
 	return
@@ -99,7 +101,7 @@ widget_destroy :: proc(widget: ^Widget) {
 }
 
 
-widget_draw :: proc(widget: ^Widget) {
+widget_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(widget.program)
 
 	calculate_mp(widget)
@@ -110,20 +112,45 @@ widget_draw :: proc(widget: ^Widget) {
 	gl.Uniform3fv(widget.border_color_location, 1, linalg.vector_to_ptr(&widget.border.color))
 	gl.Uniform2fv(widget.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
 	gl.Uniform1f(widget.border_radius_location, widget.border_radius)
+	gl.Uniform1i(widget.is_stencil_location, 0)
+
+	if depth == 1 {
+		gl.Enable(gl.STENCIL_TEST)
+	}
+
+	gl.ColorMask(true, true, true, true)
+	gl.StencilMask(0x00)
+	gl.StencilFunc(gl.EQUAL, depth - 1, 0xFF)
+	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
 
 	gl.BindVertexArray(widget.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
-	e := gl.GetError()
-	if e != gl.NO_ERROR {
-		fmt.println("Error while drawing widget", e)
-	}
+	gl.ColorMask(false, false, false, false)
+	gl.StencilMask(0xFF)
+	gl.StencilFunc(gl.EQUAL, depth - 1, 0xFF)
+	gl.StencilOp(gl.KEEP, gl.KEEP, gl.INCR)
 
+	gl.UseProgram(widget.program)
+	gl.Uniform1i(widget.is_stencil_location, 1)
+	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
+	gl.BindVertexArray(0)
 	gl.UseProgram(0)
 
 	for &child in widget.children {
-		widget_draw(child)
+		widget_draw(child, depth + 1)
 	}
+
+	if depth == 1 {
+		gl.Disable(gl.STENCIL_TEST)
+		gl.ColorMask(true, true, true, true)
+		gl.StencilMask(0xFF)
+		gl.StencilFunc(gl.EQUAL, 1, 0xFF)
+		gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
+	}
+
+	gl.BindVertexArray(0)
+	gl.UseProgram(0)
 }
 
 widget_append_child :: proc(widget: ^Widget, child: ^Widget) {
