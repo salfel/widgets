@@ -49,7 +49,7 @@ main :: proc() {
 	child2 := widget_make([]string{"child2"})
 
 	widget_append_child(parent, child)
-	widget_append_child(child, child2)
+	widget_append_child(parent, child2)
 
 	defer widget_destroy(parent)
 
@@ -61,7 +61,7 @@ main :: proc() {
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		layout_measure(&parent.layout)
+		layout_compute(&parent.layout, app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
 		widget_draw(parent)
