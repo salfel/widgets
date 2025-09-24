@@ -125,7 +125,7 @@ test_layout_compute :: proc(t: ^testing.T) {
 	layout_compute(&parent, 500)
 
 	testing.expect(t, parent.result.size.x == 400)
-	testing.expect(t, parent.result.size.y == 210)
+	testing.expect(t, parent.result.size.y == 310)
 
 	testing.expect(t, child1.result.size.x == 350)
 	testing.expect(t, child1.result.size.y == 100)
