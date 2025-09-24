@@ -131,7 +131,7 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
 		if child.type == .Box {
 			offset.x += child.result.size.x + child.margin.left + child.margin.right
 		} else {
-			offset.y += child.result.size.y + child.margin.bottom
+			offset.y += child.result.size.y + child.margin.bottom + child.margin.top
 			offset.x = parent_offset.x
 		}
 
