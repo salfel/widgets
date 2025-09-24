@@ -27,6 +27,7 @@ Rule :: struct {
 }
 
 Property :: enum {
+	Layout,
 	Width,
 	Height,
 	Color,
@@ -42,9 +43,15 @@ Property :: enum {
 	Border_Radius,
 }
 
+Layout_Type :: enum {
+	Block,
+	Box,
+}
+
 Percentage :: distinct f32
 
 Value :: union {
+	Layout_Type,
 	f32,
 	Percentage,
 	[3]f32,
@@ -65,6 +72,8 @@ Parser_Error :: enum {
 
 make_property :: proc(property: string) -> (Property, Parser_Error) {
 	switch property {
+	case "layout":
+		return .Layout, nil
 	case "width":
 		return .Width, nil
 	case "height":
@@ -172,6 +181,11 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 	value = parse_value(tokens, &i^) or_return
 
 	switch property {
+	case .Layout:
+		if _, ok := value.(Layout_Type); !ok {
+			err = Parser_Error.Invalid_Value
+			return
+		}
 	case .Color:
 		if _, ok := value.([3]f32); !ok {
 			err = Parser_Error.Invalid_Value
@@ -223,6 +237,12 @@ parse_value :: proc(tokens: []Token, i: ^int) -> (value: Value, err: Parser_Erro
 		ident := tokens[i^].value.(string)
 		if ident == "rgb" {
 			value = parse_color(tokens, &i^) or_return
+		} else if ident == "box" {
+			value = Layout_Type.Box
+			i^ += 1
+		} else if ident == "block" {
+			value = Layout_Type.Block
+			i^ += 1
 		} else {
 			err = Parser_Error.Unexpected_Token
 		}

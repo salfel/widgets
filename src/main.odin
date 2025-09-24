@@ -47,9 +47,13 @@ main :: proc() {
 	parent := widget_make([]string{"parent"})
 	child := widget_make([]string{"child"})
 	child2 := widget_make([]string{"child2"})
+	child3 := widget_make([]string{"child3"})
+	child4 := widget_make([]string{"child4"})
 
 	widget_append_child(parent, child)
 	widget_append_child(parent, child2)
+	widget_append_child(child2, child3)
+	widget_append_child(child2, child4)
 
 	defer widget_destroy(parent)
 

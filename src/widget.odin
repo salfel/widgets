@@ -177,6 +177,11 @@ calculate_mp :: proc(widget: ^Widget) {
 }
 
 widget_apply_styles :: proc(widget: ^Widget, styles: map[css.Property]css.Value) {
+	if layout, ok := styles[.Layout]; ok {
+		widget.layout.type, ok = layout.(css.Layout_Type)
+		assert(ok, "Expected layout to be a number")
+	}
+
 	if height, ok := styles[.Height]; ok {
 		widget.layout.height, ok = height.(f32)
 		assert(ok, "Expected height to be a number")

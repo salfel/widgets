@@ -3,6 +3,7 @@ package main
 import "core:log"
 import "core:math"
 import "core:testing"
+import "css"
 
 UNDEFINED :: -1
 
@@ -21,10 +22,7 @@ edges_make :: proc {
 	edges_make_single,
 }
 
-Layout_Type :: enum {
-	Block,
-	Box,
-}
+Layout_Type :: css.Layout_Type
 
 Layout :: struct {
 	type:     Layout_Type,
@@ -121,14 +119,23 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
 
 	offset := parent_offset
 
+	prev_child: ^Layout = nil
 	for &child in layout.children {
+		if prev_child != nil && prev_child.type == .Box && child.type == .Block {
+			offset.y += prev_child.result.size.y + prev_child.margin.bottom
+			offset.x = parent_offset.x
+		}
+
 		layout_arrange(child, offset)
+
 		if child.type == .Box {
 			offset.x += child.result.size.x + child.margin.left + child.margin.right
 		} else {
 			offset.y += child.result.size.y + child.margin.bottom
 			offset.x = parent_offset.x
 		}
+
+		prev_child = child
 	}
 }
 
