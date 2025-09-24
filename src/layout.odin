@@ -87,6 +87,7 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 
 	children_height := layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom
 
+	box_height: f32 = 0
 	for &child in layout.children {
 		layout_compute(
 			child,
@@ -97,7 +98,16 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 			layout.border.right,
 		)
 
-		children_height += child.result.size.y + child.margin.top + child.margin.bottom
+		child_height := child.result.size.y + child.margin.top + child.margin.bottom
+
+		if child.type == .Box {
+			if child_height > box_height {
+				children_height += child_height - box_height
+				box_height = child_height
+			}
+		} else {
+			children_height += child_height
+		}
 	}
 
 	layout.result.size.y = math.max(layout.result.size.y, children_height)
