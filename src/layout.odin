@@ -139,6 +139,63 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
 	}
 }
 
+layout_apply_styles :: proc(layout: ^Layout, styles: map[css.Property]css.Value) {
+	if height, ok := styles[.Height]; ok {
+		layout.height, ok = height.(f32)
+		assert(ok, "Expected height to be a number")
+	}
+
+	if width, ok := styles[.Width]; ok {
+		layout.width, ok = width.(f32)
+		assert(ok, "Expected width to be a number")
+	}
+
+	if padding_left, ok := styles[.Padding_Left]; ok {
+		layout.padding.left, ok = padding_left.(f32)
+		assert(ok, "Expected padding-left to be a number")
+	}
+
+	if padding_right, ok := styles[.Padding_Right]; ok {
+		layout.padding.right, ok = padding_right.(f32)
+		assert(ok, "Expected padding-right to be a number")
+	}
+
+	if padding_top, ok := styles[.Padding_Top]; ok {
+		layout.padding.top, ok = padding_top.(f32)
+		assert(ok, "Expected padding-top to be a number")
+	}
+
+	if padding_bottom, ok := styles[.Padding_Bottom]; ok {
+		layout.padding.bottom, ok = padding_bottom.(f32)
+		assert(ok, "Expected padding-bottom to be a number")
+	}
+
+	if margin_left, ok := styles[.Margin_Left]; ok {
+		layout.margin.left, ok = margin_left.(f32)
+		assert(ok, "Expected margin-left to be a number")
+	}
+
+	if margin_right, ok := styles[.Margin_Right]; ok {
+		layout.margin.right, ok = margin_right.(f32)
+		assert(ok, "Expected margin-right to be a number")
+	}
+
+	if margin_top, ok := styles[.Margin_Top]; ok {
+		layout.margin.top, ok = margin_top.(f32)
+		assert(ok, "Expected margin-top to be a number")
+	}
+
+	if margin_bottom, ok := styles[.Margin_Bottom]; ok {
+		layout.margin.bottom, ok = margin_bottom.(f32)
+		assert(ok, "Expected margin-bottom to be a number")
+	}
+
+	if border, ok := styles[.Border]; ok {
+		layout.border = edges_make(border.(Border).width)
+		assert(ok, "Expected border to be a Border")
+	}
+}
+
 @(test)
 test_layout_compute_block :: proc(t: ^testing.T) {
 	parent := layout_make()

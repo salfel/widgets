@@ -1,11 +1,8 @@
 package main
 
-import "core:c"
 import "core:fmt"
-import "core:math"
 import "core:mem"
 import "core:os"
-import "core:strings"
 import "css"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
@@ -44,16 +41,18 @@ main :: proc() {
 		return
 	}
 
-	parent := widget_make([]string{"parent"})
-	child := widget_make([]string{"child"})
-	child2 := widget_make([]string{"child2"})
-	child3 := widget_make([]string{"child3"})
-	child4 := widget_make([]string{"child4"})
+	parent := widget_make(.Block, []string{"parent"})
+	child := widget_make(.Block, []string{"child"})
+	child2 := widget_make(.Block, []string{"child2"})
+	child3 := widget_make(.Box, []string{"child3"})
+	child4 := widget_make(.Box, []string{"child4"})
+	child5 := widget_make(.Block, []string{"child5"})
 
 	widget_append_child(parent, child)
 	widget_append_child(parent, child2)
 	widget_append_child(child2, child3)
 	widget_append_child(child2, child4)
+	widget_append_child(child2, child5)
 
 	defer widget_destroy(parent)
 
@@ -68,7 +67,7 @@ main :: proc() {
 		layout_compute(&parent.layout, app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
-		widget_draw(parent)
+		box_draw(parent)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()
