@@ -37,7 +37,6 @@ box_make :: proc(
 	styles: map[css.Property]css.Value
 	widget, styles = widget_make(classes, allocator)
 	widget.type = .Box
-	widget.layout.type = .Box
 
 	widget.data = Box_Data{}
 	box_data := &widget.data.(Box_Data)

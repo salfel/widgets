@@ -44,8 +44,8 @@ Property :: enum {
 }
 
 Layout_Type :: enum {
-	Block,
 	Box,
+	Block,
 }
 
 Percentage :: distinct f32
