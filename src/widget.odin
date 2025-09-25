@@ -24,19 +24,17 @@ Widget :: struct {
 }
 
 widget_make :: proc(
-	type: Widget_Type,
 	classes: []string,
 	allocator := context.allocator,
 ) -> (
 	widget: ^Widget,
-	ok: bool,
-) #optional_ok {
+	styles: map[css.Property]css.Value,
+) {
 	widget = new(Widget, allocator)
 	widget.children = make([dynamic]^Widget, allocator)
 	widget.layout = layout_make(allocator)
-	widget.type = type
 
-	styles := make(map[css.Property]css.Value, allocator)
+	styles = make(map[css.Property]css.Value, allocator)
 	defer delete(styles)
 	for selector in app_state.css.selectors {
 		if selector.type != .Class {continue}
@@ -51,17 +49,6 @@ widget_make :: proc(
 	}
 
 	layout_apply_styles(&widget.layout, styles)
-
-	switch type {
-	case .Box:
-		widget.data = box_make(styles, allocator)
-		widget.layout.type = .Box
-	case .Block:
-		widget.data = box_make(styles, allocator)
-		widget.layout.type = .Block
-	}
-
-	widget.type = type
 
 	return
 }

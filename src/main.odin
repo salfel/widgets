@@ -41,12 +41,12 @@ main :: proc() {
 		return
 	}
 
-	parent := widget_make(.Block, []string{"parent"})
-	child := widget_make(.Block, []string{"child"})
-	child2 := widget_make(.Block, []string{"child2"})
-	child3 := widget_make(.Box, []string{"child3"})
-	child4 := widget_make(.Box, []string{"child4"})
-	child5 := widget_make(.Block, []string{"child5"})
+	parent := block_make([]string{"parent"})
+	child := block_make([]string{"child"})
+	child2 := block_make([]string{"child2"})
+	child3 := box_make([]string{"child3"})
+	child4 := box_make([]string{"child4"})
+	child5 := block_make([]string{"child5"})
 
 	widget_append_child(parent, child)
 	widget_append_child(parent, child2)
@@ -67,7 +67,7 @@ main :: proc() {
 		layout_compute(&parent.layout, app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
-		box_draw(parent)
+		widget_draw(parent)
 
 		glfw.SwapBuffers(window_handle)
 		glfw.PollEvents()

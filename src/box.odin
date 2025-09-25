@@ -28,13 +28,21 @@ Box_Data :: struct {
 }
 
 box_make :: proc(
-	styles: map[css.Property]css.Value,
+	classes: []string,
 	allocator := context.allocator,
 ) -> (
-	box_data: Box_Data,
-	ok: bool,
+	widget: ^Widget,
+	ok: bool = true,
 ) #optional_ok {
-	box_apply_styles(&box_data, styles)
+	styles: map[css.Property]css.Value
+	widget, styles = widget_make(classes, allocator)
+	widget.type = .Box
+	widget.layout.type = .Box
+
+	widget.data = Box_Data{}
+	box_data := &widget.data.(Box_Data)
+
+	box_apply_styles(box_data, styles)
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
