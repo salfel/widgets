@@ -10,9 +10,14 @@ TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
 Text_Data :: struct {
+	// data
+	color:                     [3]f32,
+
+	// OpenGL stuff
 	program, vao, texture:     u32,
 	mp:                        matrix[4, 4]f32,
 	mp_location, tex_location: i32,
+	color_location:            i32,
 }
 
 text_make :: proc(
@@ -31,6 +36,8 @@ text_make :: proc(
 
 	widget.data = Text_Data{}
 	text_data := &widget.data.(Text_Data)
+
+	text_apply_styles(text_data, styles)
 
 	bitmap, size := font_bitmap_make(content, font, size, allocator) or_return
 	defer delete(bitmap)
@@ -63,6 +70,7 @@ text_make :: proc(
 	gl.UseProgram(text_data.program)
 	text_data.mp_location = gl.GetUniformLocation(text_data.program, "MP")
 	text_data.tex_location = gl.GetUniformLocation(text_data.program, "tex")
+	text_data.color_location = gl.GetUniformLocation(text_data.program, "color")
 	gl.UseProgram(0)
 
 	return
@@ -97,6 +105,7 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 
 	gl.UniformMatrix4fv(text_data.mp_location, 1, false, linalg.matrix_to_ptr(&text_data.mp))
 	gl.Uniform1i(text_data.tex_location, 0)
+	gl.Uniform3fv(text_data.color_location, 1, linalg.vector_to_ptr(&text_data.color))
 
 	gl.ColorMask(true, true, true, true)
 	gl.StencilMask(0x00)
@@ -107,4 +116,12 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
+}
+
+text_apply_styles :: proc(text_data: ^Text_Data, styles: map[css.Property]css.Value) {
+	if color, ok := styles[.Color]; ok {
+		color, ok := color.([3]f32)
+		text_data.color = color
+		assert(ok, "Expected color to be a color vec")
+	}
 }
