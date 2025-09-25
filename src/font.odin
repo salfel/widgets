@@ -22,7 +22,7 @@ font_bitmap_make :: proc(
 	buffer, ok = os.read_entire_file_from_filename(font, allocator)
 	defer delete(buffer)
 	if !ok {
-		fmt.eprintln("Failed to load font.ttf")
+		fmt.eprintf("Failed to load %s", font)
 		return nil, {}, false
 	}
 
