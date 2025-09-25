@@ -44,3 +44,7 @@
     border: 5px, rgb(100, 0, 255);
     color: rgb(255, 150, 0);
 }
+
+.text {
+    margin-left: 10px;
+}

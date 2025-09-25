@@ -7,6 +7,7 @@ import "css"
 Widget_Type :: enum {
 	Box,
 	Block,
+	Text,
 }
 
 Widget :: struct {
@@ -20,6 +21,7 @@ Widget :: struct {
 	// Rendering
 	data:     union {
 		Box_Data,
+		Text_Data,
 	},
 }
 
@@ -57,6 +59,8 @@ widget_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	switch widget.type {
 	case .Box, .Block:
 		box_draw(widget, depth)
+	case .Text:
+		text_draw(widget, depth)
 	}
 }
 

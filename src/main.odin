@@ -45,12 +45,14 @@ main :: proc() {
 	child := block_make([]string{"child"})
 	child2 := block_make([]string{"child2"})
 	child3 := box_make([]string{"child3"})
+	text := text_make("Hello World", "font.ttf", 50, []string{"text"})
 	child4 := box_make([]string{"child4"})
 	child5 := block_make([]string{"child5"})
 
 	widget_append_child(parent, child)
 	widget_append_child(parent, child2)
 	widget_append_child(child2, child3)
+	widget_append_child(child2, text)
 	widget_append_child(child2, child4)
 	widget_append_child(child2, child5)
 

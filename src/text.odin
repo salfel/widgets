@@ -1,48 +1,54 @@
 package main
 
-import "core:c"
-import "core:fmt"
 import "core:math"
 import "core:math/linalg"
-import "core:os"
-import "core:strings"
-import "core:unicode/utf8"
+import "css"
 import gl "vendor:OpenGL"
-import "vendor:stb/image"
 import "vendor:stb/truetype"
 
 TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
-Text :: struct {
-	program, vao, texture: u32,
-	size, position:        [2]i32,
-	mp:                    matrix[4, 4]f32,
+Text_Data :: struct {
+	program, vao, texture:     u32,
+	mp:                        matrix[4, 4]f32,
+	mp_location, tex_location: i32,
 }
 
 text_make :: proc(
 	content, font: string,
 	size: f32,
-	position: [2]i32,
+	classes: []string,
 	allocator := context.allocator,
 ) -> (
-	text: Text,
+	widget: ^Widget,
 	ok := true,
-) {
+) #optional_ok {
+	styles: map[css.Property]css.Value
+	widget, styles = widget_make(classes, allocator)
+	widget.type = .Text
+	widget.layout.type = .Box
+
+	widget.data = Text_Data{}
+	text_data := &widget.data.(Text_Data)
+
 	bitmap, size := font_bitmap_make(content, font, size, allocator) or_return
 	defer delete(bitmap)
+
+	widget.layout.width = f32(size.x)
+	widget.layout.height = f32(size.y)
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
 	vertex_shader := compile_shader(gl.VERTEX_SHADER, TEXT_VERTEX_SHADER) or_return
 	fragment_shader := compile_shader(gl.FRAGMENT_SHADER, TEXT_FRAGMENT_SHADER) or_return
 
-	text.program = create_program(vertex_shader, fragment_shader) or_return
+	text_data.program = create_program(vertex_shader, fragment_shader) or_return
 
 	vbo: u32
 	gl.GenBuffers(1, &vbo)
-	gl.GenVertexArrays(1, &text.vao)
-	gl.BindVertexArray(text.vao)
+	gl.GenVertexArrays(1, &text_data.vao)
+	gl.BindVertexArray(text_data.vao)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.BufferData(gl.ARRAY_BUFFER, len(VERTICES) * size_of(f32), &VERTICES[0], gl.STATIC_DRAW)
@@ -52,9 +58,12 @@ text_make :: proc(
 
 	gl.BindVertexArray(0)
 
-	text.texture = text_generate_texture(bitmap, size)
-	text.position = position
-	text.size = size
+	text_data.texture = text_generate_texture(bitmap, size)
+
+	gl.UseProgram(text_data.program)
+	text_data.mp_location = gl.GetUniformLocation(text_data.program, "MP")
+	text_data.tex_location = gl.GetUniformLocation(text_data.program, "tex")
+	gl.UseProgram(0)
 
 	return
 }
@@ -74,31 +83,28 @@ text_generate_texture :: proc(bitmap: []u8, size: [2]i32, allocator := context.a
 	return
 }
 
-text_draw :: proc(text: ^Text) {
-	gl.UseProgram(text.program)
-	gl.BindVertexArray(text.vao)
+text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
+	text_data, ok := &widget.data.(Text_Data)
+	assert(ok, "Expected Text_Data")
 
-	text.mp = text_calculate_mp(text.size, text.position)
+	gl.UseProgram(text_data.program)
+	gl.BindVertexArray(text_data.vao)
+
+	text_data.mp = calculate_mp(widget.layout)
 
 	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, text.texture)
+	gl.BindTexture(gl.TEXTURE_2D, text_data.texture)
 
-	gl.UniformMatrix4fv(gl.GetUniformLocation(text.program, "MP"), 1, false, linalg.matrix_to_ptr(&text.mp))
-	gl.Uniform1i(gl.GetUniformLocation(text.program, "tex"), 0)
+	gl.UniformMatrix4fv(text_data.mp_location, 1, false, linalg.matrix_to_ptr(&text_data.mp))
+	gl.Uniform1i(text_data.tex_location, 0)
+
+	gl.ColorMask(true, true, true, true)
+	gl.StencilMask(0x00)
+	gl.StencilFunc(gl.EQUAL, depth - 1, 0xFF)
+	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
 
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
-}
-
-
-text_calculate_mp :: proc(size, position: [2]i32) -> (mp: matrix[4, 4]f32) {
-	scale := linalg.matrix4_scale_f32({f32(size.x), f32(size.y), 1})
-	translation := linalg.matrix4_translate_f32({f32(position.x), f32(position.y), 0})
-	projection := linalg.matrix_ortho3d_f32(0, app_state.window_size.x, app_state.window_size.y, 0, 0, 1)
-
-	mp = projection * translation * scale
-
-	return
 }
