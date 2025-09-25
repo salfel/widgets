@@ -31,6 +31,7 @@ Property :: enum {
 	Width,
 	Height,
 	Color,
+	Background,
 	Padding_Left,
 	Padding_Right,
 	Padding_Top,
@@ -80,6 +81,8 @@ make_property :: proc(property: string) -> (Property, Parser_Error) {
 		return .Height, nil
 	case "color":
 		return .Color, nil
+	case "background":
+		return .Background, nil
 	case "padding-left":
 		return .Padding_Left, nil
 	case "padding-right":
@@ -186,7 +189,7 @@ parse_declaration :: proc(tokens: []Token, i: ^int) -> (property: Property, valu
 			err = Parser_Error.Invalid_Value
 			return
 		}
-	case .Color:
+	case .Color, .Background:
 		if _, ok := value.([3]f32); !ok {
 			err = Parser_Error.Invalid_Value
 			return

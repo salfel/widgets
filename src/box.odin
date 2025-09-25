@@ -13,7 +13,7 @@ Border :: css.Border
 
 Box_Data :: struct {
 	// render
-	color:                                        [4]f32,
+	background:                                   [4]f32,
 	border:                                       Border,
 	border_radius:                                f32,
 	mp:                                           matrix[4, 4]f32,
@@ -87,7 +87,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	box_data.mp = calculate_mp(widget.layout)
 
 	gl.UniformMatrix4fv(box_data.mvp_location, 1, false, linalg.matrix_to_ptr(&box_data.mp))
-	gl.Uniform4fv(box_data.color_location, 1, linalg.vector_to_ptr(&box_data.color))
+	gl.Uniform4fv(box_data.color_location, 1, linalg.vector_to_ptr(&box_data.background))
 	gl.Uniform1f(box_data.border_width_location, box_data.border.width)
 	gl.Uniform3fv(box_data.border_color_location, 1, linalg.vector_to_ptr(&box_data.border.color))
 	gl.Uniform2fv(box_data.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
@@ -134,9 +134,9 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 }
 
 box_apply_styles :: proc(box_data: ^Box_Data, styles: map[css.Property]css.Value) {
-	if color, ok := styles[.Color]; ok {
-		col, ok := color.([3]f32)
-		box_data.color = [4]f32{col[0], col[1], col[2], 1}
+	if background, ok := styles[.Background]; ok {
+		background, ok := background.([3]f32)
+		box_data.background = [4]f32{background[0], background[1], background[2], 1}
 		assert(ok, "Expected color to be a color vec")
 	}
 	if border, ok := styles[.Border]; ok {
