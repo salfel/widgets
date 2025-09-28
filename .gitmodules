@@ -1,0 +1,3 @@
+[submodule "lib/wayland"]
+	path = lib/wayland
+	url = git@github.com:yasinkaraaslan/odin-wayland.git
