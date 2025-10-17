@@ -19,6 +19,7 @@ window: struct {
 		compositor: ^wl.compositor,
 		surface:    ^wl.surface,
 		shm:        ^wl.shm,
+		seat:       ^wl.seat,
 		egl_window: ^wl.egl_window,
 	},
 	egl:      struct {
@@ -44,6 +45,10 @@ registry_handle_global :: proc "c" (
 	switch interface {
 	case wl.compositor_interface.name:
 		window.wl.compositor = cast(^wl.compositor)wl.registry_bind(registry, name, &wl.compositor_interface, 4)
+	case wl.seat_interface.name:
+		window.wl.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 1)
+		keyboard := wl.seat_get_keyboard(window.wl.seat)
+		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, nil)
 	}
 }
 
@@ -171,6 +176,49 @@ init_libdecor :: proc(app_id, title: cstring) {
 	libdecor.frame_map(window.libdecor.frame)
 	wl.display_dispatch(window.wl.display)
 	wl.display_dispatch(window.wl.display)
+}
+
+hndle_keymap :: proc "c" (
+	data: rawptr,
+	keyboard: ^wl.keyboard,
+	format: wl.keyboard_keymap_format,
+	fd: int,
+	size: uint,
+) {
+	context = window.ctx
+
+	os.close(cast(os.Handle)fd)
+}
+
+handle_enter :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface, keys: wl.array) {}
+handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface) {}
+
+handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key: uint, state: wl.keyboard_key_state) {
+	context = window.ctx
+
+	fmt.println("key", key, state)
+}
+
+handle_modifiers :: proc "c" (
+	data: rawptr,
+	keyboard: ^wl.keyboard,
+	serial: uint,
+	mods_depressed: uint,
+	mods_latched: uint,
+	mods_locked: uint,
+	group: uint,
+) {}
+
+handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}
+
+
+wl_keyboard_listener := wl.keyboard_listener {
+	keymap      = hndle_keymap,
+	enter       = handle_enter,
+	leave       = handle_leave,
+	key         = handle_key,
+	modifiers   = handle_modifiers,
+	repeat_info = handle_repeat_info,
 }
 
 window_init :: proc(app_id, title: cstring) {
