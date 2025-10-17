@@ -92,25 +92,25 @@ parse_tokens :: proc(contents: string) -> (token_stream: Token_Stream, err: Pars
 			append(&token_stream.tokens, Token{.Ident, strings.to_string(builder)})
 
 		case '.':
-			append(&token_stream.tokens, Token{.Dot, nil})
+			append(&token_stream.tokens, Token{.Dot, 0})
 		case '#':
-			append(&token_stream.tokens, Token{.Hashtag, nil})
+			append(&token_stream.tokens, Token{.Hashtag, 0})
 		case '{':
-			append(&token_stream.tokens, Token{.Brace_Open, nil})
+			append(&token_stream.tokens, Token{.Brace_Open, 0})
 		case '}':
-			append(&token_stream.tokens, Token{.Brace_Close, nil})
+			append(&token_stream.tokens, Token{.Brace_Close, 0})
 		case '(':
-			append(&token_stream.tokens, Token{.Paranthesis_Open, nil})
+			append(&token_stream.tokens, Token{.Paranthesis_Open, 0})
 		case ')':
-			append(&token_stream.tokens, Token{.Paranthesis_Close, nil})
+			append(&token_stream.tokens, Token{.Paranthesis_Close, 0})
 		case ':':
-			append(&token_stream.tokens, Token{.Colon, nil})
+			append(&token_stream.tokens, Token{.Colon, 0})
 		case ';':
-			append(&token_stream.tokens, Token{.Semicolon, nil})
+			append(&token_stream.tokens, Token{.Semicolon, 0})
 		case ',':
-			append(&token_stream.tokens, Token{.Comma, nil})
+			append(&token_stream.tokens, Token{.Comma, 0})
 		case '%':
-			append(&token_stream.tokens, Token{.Percentage, nil})
+			append(&token_stream.tokens, Token{.Percentage, 0})
 		case ' ', '\t', '\n', '\r':
 			continue
 		case:
