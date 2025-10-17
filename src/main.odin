@@ -1,5 +1,6 @@
 package main
 
+import wl "../lib/wayland"
 import "core:fmt"
 import "core:mem"
 import "core:os"
@@ -24,13 +25,11 @@ main :: proc() {
 		}
 	}
 
-	window_handle, ok := window_make(800, 600, "widgets")
-	if !ok {
-		fmt.eprintln("Failed to create window")
-		return
-	}
-
-	defer window_destroy(window_handle)
+	window_init("widgets", "widgets")
+	
+	// Initialize window size in app_state for layout calculations
+	app_state.window_size = [2]f32{f32(window.size[0]), f32(window.size[1])}
+	fmt.println("Window size initialized to:", app_state.window_size)
 
 	file, _ := os.read_entire_file_from_filename("styles.css", context.temp_allocator)
 
@@ -61,7 +60,10 @@ main :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	for !glfw.WindowShouldClose(window_handle) {
+	for window_should_render() {
+		// Update window size each frame for responsive layout
+		app_state.window_size = [2]f32{f32(window.size[0]), f32(window.size[1])}
+		
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -71,7 +73,6 @@ main :: proc() {
 
 		widget_draw(parent)
 
-		glfw.SwapBuffers(window_handle)
-		glfw.PollEvents()
+		window_swap()
 	}
 }

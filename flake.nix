@@ -22,9 +22,12 @@
 
           src = ./.;
 
+          nativeBuildInputs = with pkgs; [odin];
+
           buildInputs = with pkgs; [
-            odin
             glfw
+            wayland
+            libdecor
             stb
           ];
 
