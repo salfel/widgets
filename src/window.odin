@@ -2,13 +2,16 @@ package main
 
 import wl "../lib/wayland"
 import "../lib/wayland/ext/libdecor"
+import xkb "../lib/xkbcommon"
 import "base:runtime"
 import "core:fmt"
+import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
 import gl "vendor:OpenGL"
 import "vendor:egl"
 import "vendor:glfw"
+import "vendor:x11/xlib"
 
 GL_MAJOR_VERSION :: 3
 GL_MINOR_VERSION :: 3
@@ -30,6 +33,11 @@ window: struct {
 	libdecor: struct {
 		instance: ^libdecor.instance,
 		frame:    ^libdecor.frame,
+	},
+	input:    struct {
+		ctx:    ^xkb.ctx,
+		keymap: ^xkb.keymap,
+		state:  ^xkb.state,
 	},
 	size:     [2]int,
 	ctx:      runtime.Context,
@@ -178,7 +186,7 @@ init_libdecor :: proc(app_id, title: cstring) {
 	wl.display_dispatch(window.wl.display)
 }
 
-hndle_keymap :: proc "c" (
+handle_keymap :: proc "c" (
 	data: rawptr,
 	keyboard: ^wl.keyboard,
 	format: wl.keyboard_keymap_format,
@@ -187,7 +195,32 @@ hndle_keymap :: proc "c" (
 ) {
 	context = window.ctx
 
-	os.close(cast(os.Handle)fd)
+	defer os.close(cast(os.Handle)fd)
+
+	map_shm, err := vmem.map_file_from_file_descriptor(uintptr(fd), vmem.Map_File_Flags{.Read})
+	if err != .None {
+		fmt.eprintln("Failed to map file", err)
+		return
+	}
+
+	keymap_string := strings.clone_to_cstring(string(map_shm))
+	defer {vmem.release(raw_data(map_shm), uint(len(map_shm)))
+		delete(keymap_string)
+	}
+
+	window.input.ctx = xkb.context_new(.CONTEXT_NO_FLAGS)
+	window.input.keymap = xkb.keymap_new_from_string(
+		window.input.ctx,
+		keymap_string,
+		.KEYMAP_FORMAT_TEXT_V1,
+		.KEYMAP_COMPILE_NO_FLAGS,
+	)
+	if window.input.keymap == nil {
+		fmt.eprintln("Failed to compile keymap")
+		return
+	}
+
+	window.input.state = xkb.state_new(window.input.keymap)
 }
 
 handle_enter :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface, keys: wl.array) {}
@@ -196,7 +229,20 @@ handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, su
 handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key: uint, state: wl.keyboard_key_state) {
 	context = window.ctx
 
-	fmt.println("key", key, state)
+	if state != .PRESSED {
+		return
+	}
+
+	sym := xkb.state_key_get_one_sym(window.input.state, i32(key + 8))
+
+	utf8 := make([]u8, 8)
+	utf8_len := xkb.keysym_to_utf8(sym, cast(^i8)&utf8[0], i32(len(utf8)))
+
+	if utf8_len == 0 do return
+
+	char := cstring(raw_data(utf8))
+
+	fmt.print(char)
 }
 
 handle_modifiers :: proc "c" (
@@ -207,13 +253,31 @@ handle_modifiers :: proc "c" (
 	mods_latched: uint,
 	mods_locked: uint,
 	group: uint,
-) {}
+) {
+	context = window.ctx
+
+	xkb.state_update_mask(
+		window.input.state,
+		i32(mods_depressed),
+		i32(mods_latched),
+		i32(mods_locked),
+		0,
+		0,
+		i32(group),
+	)
+
+	mod_ctrl := xkb.keymap_mod_get_index(window.input.keymap, xkb.XKB_MOD_NAME_CTRL)
+
+	if bool(xkb.state_mod_name_is_active(window.input.state, xkb.XKB_MOD_NAME_CTRL, .MODS_EFFECTIVE)) {
+		fmt.print("ctrl")
+	}
+}
 
 handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}
 
 
 wl_keyboard_listener := wl.keyboard_listener {
-	keymap      = hndle_keymap,
+	keymap      = handle_keymap,
 	enter       = handle_enter,
 	leave       = handle_leave,
 	key         = handle_key,
