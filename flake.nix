@@ -29,6 +29,7 @@
             wayland
             libdecor
             stb
+            libxkbcommon
           ];
 
           buildPhase = ''
