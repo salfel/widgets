@@ -28,12 +28,12 @@ compose_state :: struct {}
 
 /** Flags affecting Compose file compilation. */
 compose_compile_flags :: enum u32 {
-	XKB_COMPOSE_COMPILE_NO_FLAGS = 0,
+	NO_FLAGS = 0,
 }
 
 /** The recognized Compose file formats. */
 compose_format :: enum u32 {
-	XKB_COMPOSE_FORMAT_TEXT_V1 = 1,
+	Text_V1 = 1,
 }
 
 
@@ -232,7 +232,7 @@ foreign lib {
 
 /** Flags for compose state creation. */
 compose_state_flags :: enum u32 {
-	XKB_COMPOSE_STATE_NO_FLAGS = 0,
+	No_Flags = 0,
 }
 
 @(default_calling_convention = "c")
@@ -287,16 +287,16 @@ foreign lib {
 
 /** Status of the Compose sequence state machine. */
 compose_status :: enum u32 {
-	NOTHING   = 0,
-	COMPOSING = 1,
-	COMPOSED  = 2,
-	CANCELLED = 3,
+	Nothing   = 0,
+	Composing = 1,
+	Composed  = 2,
+	Cancelled = 3,
 }
 
 /** The effect of a keysym fed to compose_state_feed(). */
 compose_feed_result :: enum u32 {
-	IGNORED  = 0,
-	ACCEPTED = 1,
+	Ignored  = 0,
+	Accepted = 1,
 }
 
 @(default_calling_convention = "c")

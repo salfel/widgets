@@ -87,18 +87,18 @@ rxkb_iso3166_code :: struct {}
  * popularity.
  */
 rxkb_popularity :: enum u32 {
-	STANDARD = 1,
-	EXOTIC   = 2,
+	Standard = 1,
+	Exotic   = 2,
 }
 
 /**
  * Flags for context creation.
  */
 rxkb_context_flags :: enum u32 {
-	NO_FLAGS            = 0,
-	NO_DEFAULT_INCLUDES = 1,
-	LOAD_EXOTIC_RULES   = 2,
-	NO_SECURE_GETENV    = 4,
+	No_Flags            = 0,
+	No_Default_Includes = 1,
+	Load_Exotic_Rules   = 2,
+	No_Secure_Getenv    = 4,
 }
 
 foreign import lib "system:xkbcommon"
@@ -123,11 +123,11 @@ foreign lib {
 
 /** Specifies a logging level. */
 rxkb_log_level :: enum u32 {
-	CRITICAL = 10,
-	ERROR    = 20,
-	WARNING  = 30,
-	INFO     = 40,
-	DEBUG    = 50,
+	Critical = 10,
+	Error    = 20,
+	Warning  = 30,
+	Info     = 40,
+	Debug    = 50,
 }
 
 @(default_calling_convention = "c")

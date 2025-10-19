@@ -26,14 +26,14 @@ package xkbcommon
  *
  * @{
  */
-XKB_MOD_NAME_SHIFT      :: "Shift"
-XKB_MOD_NAME_CAPS       :: "Lock"
-XKB_MOD_NAME_CTRL       :: "Control"
-XKB_MOD_NAME_MOD1       :: "Mod1"
-XKB_MOD_NAME_MOD2       :: "Mod2"
-XKB_MOD_NAME_MOD3       :: "Mod3"
-XKB_MOD_NAME_MOD4       :: "Mod4"
-XKB_MOD_NAME_MOD5       :: "Mod5"
+MOD_NAME_SHIFT :: "Shift"
+MOD_NAME_CAPS :: "Lock"
+MOD_NAME_CTRL :: "Control"
+MOD_NAME_MOD1 :: "Mod1"
+MOD_NAME_MOD2 :: "Mod2"
+MOD_NAME_MOD3 :: "Mod3"
+MOD_NAME_MOD4 :: "Mod4"
+MOD_NAME_MOD5 :: "Mod5"
 
 /** @} */
 
@@ -52,28 +52,28 @@ XKB_MOD_NAME_MOD5       :: "Mod5"
  * @{
  */
 /** @since 1.8.0 */
-XKB_VMOD_NAME_ALT       :: "Alt"
+VMOD_NAME_ALT :: "Alt"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_HYPER     :: "Hyper"
+VMOD_NAME_HYPER :: "Hyper"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_LEVEL3    :: "LevelThree"
+VMOD_NAME_LEVEL3 :: "LevelThree"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_LEVEL5    :: "LevelFive"
+VMOD_NAME_LEVEL5 :: "LevelFive"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_META      :: "Meta"
+VMOD_NAME_META :: "Meta"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_NUM       :: "NumLock"
+VMOD_NAME_NUM :: "NumLock"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_SCROLL    :: "ScrollLock"
+VMOD_NAME_SCROLL :: "ScrollLock"
 
 /** @since 1.8.0 */
-XKB_VMOD_NAME_SUPER     :: "Super"
+VMOD_NAME_SUPER :: "Super"
 
 /** @} */
 
@@ -94,37 +94,37 @@ XKB_VMOD_NAME_SUPER     :: "Super"
  * Usual [*real* modifier][real modifier] for the
  * [*virtual* modifier][virtual modifier] `Alt`.
  *
- * @deprecated Use `::XKB_VMOD_NAME_ALT` instead.
+ * @deprecated Use `::VMOD_NAME_ALT` instead.
  * @since 1.10: deprecated
  *
  * [virtual modifier]: @ref virtual-modifier-def
  * [real modifier]: @ref real-modifier-def
  */
-XKB_MOD_NAME_ALT        :: "Mod1"
+MOD_NAME_ALT :: "Mod1"
 
 /**
  * Usual [*real* modifier][real modifier] for the
  * [*virtual* modifier][virtual modifier] `Super`.
  *
- * @deprecated Use `::XKB_VMOD_NAME_SUPER` instead.
+ * @deprecated Use `::VMOD_NAME_SUPER` instead.
  * @since 1.10: deprecated
  *
  * [virtual modifier]: @ref virtual-modifier-def
  * [real modifier]: @ref real-modifier-def
  */
-XKB_MOD_NAME_LOGO       :: "Mod4"
+MOD_NAME_LOGO :: "Mod4"
 
 /**
  * Usual [*real* modifier][real modifier] for the
  * [*virtual* modifier][virtual modifier] `NumLock`.
  *
- * @deprecated Use `::XKB_VMOD_NAME_NUM` instead.
+ * @deprecated Use `::VMOD_NAME_NUM` instead.
  * @since 1.10: deprecated
  *
  * [virtual modifier]: @ref virtual-modifier-def
  * [real modifier]: @ref real-modifier-def
  */
-XKB_MOD_NAME_NUM        :: "Mod2"
+MOD_NAME_NUM :: "Mod2"
 
 /** @} */
 
@@ -141,10 +141,10 @@ XKB_MOD_NAME_NUM        :: "Mod2"
  *
  * @{
  */
-XKB_LED_NAME_NUM        :: "Num Lock"
-XKB_LED_NAME_CAPS       :: "Caps Lock"
-XKB_LED_NAME_SCROLL     :: "Scroll Lock"
+LED_NAME_NUM :: "Num Lock"
+LED_NAME_CAPS :: "Caps Lock"
+LED_NAME_SCROLL :: "Scroll Lock"
 
 /** @since 1.8.0 */
-XKB_LED_NAME_COMPOSE    :: "Compose"
-XKB_LED_NAME_KANA       :: "Kana"
+LED_NAME_COMPOSE :: "Compose"
+LED_NAME_KANA :: "Kana"

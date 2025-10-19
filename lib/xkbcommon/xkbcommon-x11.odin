@@ -85,17 +85,17 @@ package xkbcommon
  * The minimal compatible major version of the XKB X11 extension which
  * this library can use.
  */
-XKB_X11_MIN_MAJOR_XKB_VERSION :: 1
+X11_MIN_MAJOR_XKB_VERSION :: 1
 
 /**
  * The minimal compatible minor version of the XKB X11 extension which
  * this library can use (for the minimal major version).
  */
-XKB_X11_MIN_MINOR_XKB_VERSION :: 0
+X11_MIN_MINOR_XKB_VERSION :: 0
 
 /** Flags for the `x11_setup_xkb_extension()` function. */
 x11_setup_xkb_extension_flags :: enum u32 {
-	XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS = 0,
+	x11_Setup_Xkb_Extension_No_Flags = 0,
 }
 
 foreign import lib "system:xkbcommon"

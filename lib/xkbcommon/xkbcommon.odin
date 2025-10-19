@@ -275,7 +275,7 @@ XKB_KEYSYM_MAX :: 0x1fffffff
 rmlvo_builder :: struct {}
 
 rmlvo_builder_flags :: enum u32 {
-	XKB_RMLVO_BUILDER_NO_FLAGS = 0,
+	No_Flags = 0,
 }
 
 foreign import lib "system:xkbcommon"
@@ -539,8 +539,8 @@ foreign lib {
 
 /** Flags for keysym_from_name(). */
 keysym_flags :: enum u32 {
-	NO_FLAGS         = 0,
-	CASE_INSENSITIVE = 1,
+	No_Flags         = 0,
+	Case_Insensitive = 1,
 }
 
 @(default_calling_convention = "c")
@@ -670,10 +670,10 @@ foreign lib {
 
 /** Flags for context creation. */
 context_flags :: enum u32 {
-	CONTEXT_NO_FLAGS             = 0,
-	CONTEXT_NO_DEFAULT_INCLUDES  = 1,
-	CONTEXT_NO_ENVIRONMENT_NAMES = 2,
-	CONTEXT_NO_SECURE_GETENV     = 4,
+	No_Flags             = 0,
+	No_Default_includes  = 1,
+	No_Environment_names = 2,
+	No_Secure_getenv     = 4,
 }
 
 @(default_calling_convention = "c")
@@ -790,11 +790,11 @@ foreign lib {
 
 /** Specifies a logging level. */
 log_level :: enum u32 {
-	CRITICAL = 10,
-	ERROR    = 20,
-	WARNING  = 30,
-	INFO     = 40,
-	DEBUG    = 50,
+	Critical = 10,
+	Error    = 20,
+	Warning  = 30,
+	Info     = 40,
+	Debug    = 50,
 }
 
 @(default_calling_convention = "c")
@@ -876,7 +876,7 @@ foreign lib {
 
 /** Flags for keymap compilation. */
 keymap_compile_flags :: enum u32 {
-	KEYMAP_COMPILE_NO_FLAGS = 0,
+	No_Flags = 0,
 }
 
 /**
@@ -957,8 +957,8 @@ keymap_compile_flags :: enum u32 {
  * [xkeyboard-config]: https://gitlab.freedesktop.org/xkeyboard-config/xkeyboard-config
  */
 keymap_format :: enum u32 {
-	KEYMAP_FORMAT_TEXT_V1 = 1,
-	KEYMAP_FORMAT_TEXT_V2 = 2,
+	Text_V1 = 1,
+	Text_V2 = 2,
 }
 
 @(default_calling_convention = "c")
@@ -1097,9 +1097,9 @@ foreign lib {
  * @since 1.12.0
  */
 keymap_serialize_flags :: enum u32 {
-	NO_FLAGS    = 0,
-	PRETTY      = 1,
-	KEEP_UNUSED = 2,
+	No_Flags    = 0,
+	Pretty      = 1,
+	Keep_Unused = 2,
 }
 
 @(default_calling_convention = "c")
@@ -1507,8 +1507,8 @@ foreign lib {
 
 /** Specifies the direction of the key (press / release). */
 key_direction :: enum u32 {
-	UP   = 0,
-	DOWN = 1,
+	Up   = 0,
+	Down = 1,
 }
 
 /**
@@ -1519,15 +1519,15 @@ key_direction :: enum u32 {
  * In XKB, the `DEPRESSED` components are also known as *base*.
  */
 state_component :: enum u32 {
-	MODS_DEPRESSED   = 1,
-	MODS_LATCHED     = 2,
-	MODS_LOCKED      = 4,
-	MODS_EFFECTIVE   = 8,
-	LAYOUT_DEPRESSED = 16,
-	LAYOUT_LATCHED   = 32,
-	LAYOUT_LOCKED    = 64,
-	LAYOUT_EFFECTIVE = 128,
-	LEDS             = 256,
+	Mods_Depressed   = 1,
+	Mods_Latched     = 2,
+	Mods_Locked      = 4,
+	Mods_Effective   = 8,
+	Layout_Depressed = 16,
+	Layout_Latched   = 32,
+	Layout_Locked    = 64,
+	Layout_Effective = 128,
+	Leds             = 256,
 }
 
 @(default_calling_convention = "c")
@@ -1773,9 +1773,9 @@ foreign lib {
  * the other modes.
  */
 state_match :: enum u32 {
-	ANY           = 1,
-	ALL           = 2,
-	NON_EXCLUSIVE = 65536,
+	Any           = 1,
+	All           = 2,
+	Non_Exclusive = 65536,
 }
 
 @(default_calling_convention = "c")
@@ -1931,8 +1931,8 @@ foreign lib {
  * have otherwise.
  */
 consumed_mode :: enum u32 {
-	XKB = 0,
-	GTK = 1,
+	Xkb = 0,
+	Gtk = 1,
 }
 
 @(default_calling_convention = "c")
