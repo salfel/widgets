@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:strings"
 import "core:testing"
+import "renderer"
 import gl "vendor:OpenGL"
 
 
@@ -69,7 +70,8 @@ create_program :: proc(vertex_shader: u32, fragmemt_shader: u32, allocator := co
 
 @(test)
 test_program_creation :: proc(t: ^testing.T) {
-	window_init("widgets", "widgets")
+	window_state: renderer.Window_State
+	renderer.window_init(&window_state, "widgets", "widgets")
 
 	vertex_shader, success := compile_shader(gl.VERTEX_SHADER, string(VERTEX_SHADER))
 	testing.expect(t, success)

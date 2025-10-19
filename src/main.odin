@@ -5,7 +5,10 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "css"
+import "renderer"
+import "state"
 import gl "vendor:OpenGL"
+import "vendor:egl"
 import "vendor:glfw"
 
 main :: proc() {
@@ -25,16 +28,15 @@ main :: proc() {
 		}
 	}
 
-	window_init("widgets", "widgets")
-	
-	// Initialize window size in app_state for layout calculations
-	app_state.window_size = [2]f32{f32(window.size[0]), f32(window.size[1])}
-	fmt.println("Window size initialized to:", app_state.window_size)
+	state.app_state.ctx = context
+
+	window_state: renderer.Window_State
+	renderer.window_init(&window_state, "widgets", "widgets")
 
 	file, _ := os.read_entire_file_from_filename("styles.css", context.temp_allocator)
 
 	err: css.Parser_Error
-	app_state.css, err = css.parse(string(file))
+	state.app_state.css, err = css.parse(string(file))
 	if err != .None {
 		fmt.println("Failed to parse CSS", err)
 		return
@@ -57,22 +59,20 @@ main :: proc() {
 
 	defer widget_destroy(parent)
 
+
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	for window_should_render() {
-		// Update window size each frame for responsive layout
-		app_state.window_size = [2]f32{f32(window.size[0]), f32(window.size[1])}
-		
+	for wl.display_dispatch_pending(window_state.wl_state.display) != -1 {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		layout_compute(&parent.layout, app_state.window_size.x)
+		layout_compute(&parent.layout, state.app_state.window_size.x)
 		layout_arrange(&parent.layout)
 
 		widget_draw(parent)
 
-		window_swap()
+		egl.SwapBuffers(window_state.egl_state.display, window_state.egl_state.surface)
 	}
 }

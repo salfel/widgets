@@ -1,5 +1,6 @@
 package main
 
+import "state"
 import gl "vendor:OpenGL"
 
 
@@ -82,20 +83,20 @@ blur_buffer_render :: proc(blur_buffer: BlurBuffer) {
 }
 
 blur_buffer_update :: proc(blur_buffer: ^BlurBuffer) {
-	if blur_buffer.size == app_state.window_size {
+	if blur_buffer.size == state.app_state.window_size {
 		return
 	}
 
 	blur_buffer.fbo[0], blur_buffer.fbo_texture[0] = framebuffer_make(
-		i32(app_state.window_size.x),
-		i32(app_state.window_size.y),
+		i32(state.app_state.window_size.x),
+		i32(state.app_state.window_size.y),
 	)
 	blur_buffer.fbo[1], blur_buffer.fbo_texture[1] = framebuffer_make(
-		i32(app_state.window_size.x),
-		i32(app_state.window_size.y),
+		i32(state.app_state.window_size.x),
+		i32(state.app_state.window_size.y),
 	)
 
-	blur_buffer.size = app_state.window_size
+	blur_buffer.size = state.app_state.window_size
 }
 
 

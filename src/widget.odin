@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:math/linalg"
 import "css"
+import "state"
 
 Widget_Type :: enum {
 	Box,
@@ -38,7 +39,7 @@ widget_make :: proc(
 
 	styles = make(map[css.Property]css.Value, allocator)
 	defer delete(styles)
-	for selector in app_state.css.selectors {
+	for selector in state.app_state.css.selectors {
 		if selector.type != .Class {continue}
 
 		for class in classes {
@@ -86,7 +87,7 @@ calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {
 
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
 	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
-	projection := linalg.matrix_ortho3d_f32(0, app_state.window_size.x, app_state.window_size.y, 0, 0, 1)
+	projection := linalg.matrix_ortho3d_f32(0, state.app_state.window_size.x, state.app_state.window_size.y, 0, 0, 1)
 
 	return projection * translation * scale
 }
