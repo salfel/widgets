@@ -19,16 +19,10 @@ frame_close :: proc "c" (frame: ^libdecor.frame, user_data: rawptr) {
 }
 
 frame_commit :: proc "c" (frame: ^libdecor.frame, user_data: rawptr) {
-	egl_state := cast(^Egl_State)user_data
-
-	window_state := cast(^Window_State)user_data
-
-	egl.SwapBuffers(egl_state.display, egl_state.surface)
+	egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
 }
 
 frame_configure :: proc "c" (frame: ^libdecor.frame, configuration: ^libdecor.configuration, user_data: rawptr) {
-	egl_state := cast(^Egl_State)user_data
-
 	width, height: int
 
 	if !libdecor.configuration_get_content_size(configuration, frame, &width, &height) {
@@ -36,7 +30,7 @@ frame_configure :: proc "c" (frame: ^libdecor.frame, configuration: ^libdecor.co
 		height = 720
 	}
 
-	wl.egl_window_resize(egl_state.window, width, height, 0, 0)
+	wl.egl_window_resize(g_Renderer.egl_state.window, width, height, 0, 0)
 	gl.Viewport(0, 0, cast(i32)width, cast(i32)height)
 
 	libdecor_state := libdecor.state_new(width, height)
@@ -64,17 +58,17 @@ interface := libdecor.interface {
 	error = interface_error,
 }
 
-libdecor_init :: proc(window_state: ^Window_State, app_id, title: cstring) {
-	window_state.libdecor_state.instance = libdecor.new(window_state.wl_state.display, &interface)
-	window_state.libdecor_state.frame = libdecor.decorate(
-		window_state.libdecor_state.instance,
-		window_state.wl_state.surface,
+libdecor_init :: proc(app_id, title: cstring) {
+	g_Renderer.libdecor_state.instance = libdecor.new(g_Renderer.wl_state.display, &interface)
+	g_Renderer.libdecor_state.frame = libdecor.decorate(
+		g_Renderer.libdecor_state.instance,
+		g_Renderer.wl_state.surface,
 		&frame_interface,
-		&window_state.egl_state,
+		&g_Renderer.egl_state,
 	)
-	libdecor.frame_set_app_id(window_state.libdecor_state.frame, app_id)
-	libdecor.frame_set_title(window_state.libdecor_state.frame, title)
-	libdecor.frame_map(window_state.libdecor_state.frame)
-	wl.display_dispatch(window_state.wl_state.display)
-	wl.display_dispatch(window_state.wl_state.display)
+	libdecor.frame_set_app_id(g_Renderer.libdecor_state.frame, app_id)
+	libdecor.frame_set_title(g_Renderer.libdecor_state.frame, title)
+	libdecor.frame_map(g_Renderer.libdecor_state.frame)
+	wl.display_dispatch(g_Renderer.wl_state.display)
+	wl.display_dispatch(g_Renderer.wl_state.display)
 }

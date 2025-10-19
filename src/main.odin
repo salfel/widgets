@@ -30,8 +30,7 @@ main :: proc() {
 
 	state.app_state.ctx = context
 
-	window_state: renderer.Window_State
-	renderer.window_init(&window_state, "widgets", "widgets")
+	renderer.renderer_init("widgets", "widgets")
 
 	file, _ := os.read_entire_file_from_filename("styles.css", context.temp_allocator)
 
@@ -63,7 +62,7 @@ main :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	for wl.display_dispatch_pending(window_state.wl_state.display) != -1 {
+	for wl.display_dispatch_pending(renderer.g_Renderer.wl_state.display) != -1 {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -73,6 +72,6 @@ main :: proc() {
 
 		widget_draw(parent)
 
-		egl.SwapBuffers(window_state.egl_state.display, window_state.egl_state.surface)
+		egl.SwapBuffers(renderer.g_Renderer.egl_state.display, renderer.g_Renderer.egl_state.surface)
 	}
 }

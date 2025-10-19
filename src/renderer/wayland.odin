@@ -19,17 +19,20 @@ registry_handle_global :: proc "c" (
 	interface: cstring,
 	version: uint,
 ) {
-	wl_state := cast(^Wayland_State)data
-
 	switch interface {
 	case wl.compositor_interface.name:
-		wl_state.compositor = cast(^wl.compositor)wl.registry_bind(registry, name, &wl.compositor_interface, 4)
+		g_Renderer.wl_state.compositor = cast(^wl.compositor)wl.registry_bind(
+			registry,
+			name,
+			&wl.compositor_interface,
+			4,
+		)
 	case wl.seat_interface.name:
-		wl_state.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 1)
-		keyboard := wl.seat_get_keyboard(wl_state.seat)
-		pointer := wl.seat_get_pointer(wl_state.seat)
-		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, &wl_state.keyboard_state)
-		wl.pointer_add_listener(pointer, &wl_pointer_listener, &wl_state.pointer_state)
+		g_Renderer.wl_state.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 1)
+		keyboard := wl.seat_get_keyboard(g_Renderer.wl_state.seat)
+		pointer := wl.seat_get_pointer(g_Renderer.wl_state.seat)
+		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, &g_Renderer.wl_state.keyboard_state)
+		wl.pointer_add_listener(pointer, &wl_pointer_listener, &g_Renderer.wl_state.pointer_state)
 	}
 }
 
@@ -40,20 +43,20 @@ registry_listener := wl.registry_listener {
 	global_remove = registry_handle_global_remove,
 }
 
-wayland_init :: proc(wl_state: ^Wayland_State) {
-	wl_state.pointer_state = pointer_state_make()
-	wl_state.keyboard_state = keyboard_state_make()
+wayland_init :: proc() {
+	g_Renderer.wl_state.pointer_state = pointer_state_make()
+	g_Renderer.wl_state.keyboard_state = keyboard_state_make()
 
-	wl_state.display = wl.display_connect(nil)
+	g_Renderer.wl_state.display = wl.display_connect(nil)
 
-	if wl_state.display == nil {
+	if g_Renderer.wl_state.display == nil {
 		fmt.eprintln("Failed to connect to a wayland display")
 		return
 	}
 
-	wl_registry := wl.display_get_registry(wl_state.display)
-	wl.registry_add_listener(wl_registry, &registry_listener, wl_state)
-	wl.display_roundtrip(wl_state.display)
+	wl_registry := wl.display_get_registry(g_Renderer.wl_state.display)
+	wl.registry_add_listener(wl_registry, &registry_listener, nil)
+	wl.display_roundtrip(g_Renderer.wl_state.display)
 
-	wl_state.surface = wl.compositor_create_surface(wl_state.compositor)
+	g_Renderer.wl_state.surface = wl.compositor_create_surface(g_Renderer.wl_state.compositor)
 }
