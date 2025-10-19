@@ -56,7 +56,9 @@ registry_handle_global :: proc "c" (
 	case wl.seat_interface.name:
 		window.wl.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 1)
 		keyboard := wl.seat_get_keyboard(window.wl.seat)
+		pointer := wl.seat_get_pointer(window.wl.seat)
 		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, nil)
+		wl.pointer_add_listener(pointer, &wl_pointer_listener, nil)
 	}
 }
 
@@ -208,13 +210,8 @@ handle_keymap :: proc "c" (
 		delete(keymap_string)
 	}
 
-	window.input.ctx = xkb.context_new(.CONTEXT_NO_FLAGS)
-	window.input.keymap = xkb.keymap_new_from_string(
-		window.input.ctx,
-		keymap_string,
-		.KEYMAP_FORMAT_TEXT_V1,
-		.KEYMAP_COMPILE_NO_FLAGS,
-	)
+	window.input.ctx = xkb.context_new(.No_Flags)
+	window.input.keymap = xkb.keymap_new_from_string(window.input.ctx, keymap_string, .Text_V1, .No_Flags)
 	if window.input.keymap == nil {
 		fmt.eprintln("Failed to compile keymap")
 		return
@@ -266,15 +263,14 @@ handle_modifiers :: proc "c" (
 		i32(group),
 	)
 
-	mod_ctrl := xkb.keymap_mod_get_index(window.input.keymap, xkb.XKB_MOD_NAME_CTRL)
+	mod_ctrl := xkb.keymap_mod_get_index(window.input.keymap, xkb.MOD_NAME_CTRL)
 
-	if bool(xkb.state_mod_name_is_active(window.input.state, xkb.XKB_MOD_NAME_CTRL, .MODS_EFFECTIVE)) {
+	if bool(xkb.state_mod_name_is_active(window.input.state, xkb.MOD_NAME_CTRL, .Mods_Effective)) {
 		fmt.print("ctrl")
 	}
 }
 
 handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}
-
 
 wl_keyboard_listener := wl.keyboard_listener {
 	keymap      = handle_keymap,
@@ -283,6 +279,53 @@ wl_keyboard_listener := wl.keyboard_listener {
 	key         = handle_key,
 	modifiers   = handle_modifiers,
 	repeat_info = handle_repeat_info,
+}
+
+pointer_enter :: proc "c" (
+	data: rawptr,
+	pointer: ^wl.pointer,
+	serial: uint,
+	surface: ^wl.surface,
+	surface_x, surface_y: wl.fixed_t,
+) {
+	context = window.ctx
+
+	fmt.println("pointer enter", surface_x / 256.0, surface_y / 256.0)
+}
+
+pointer_leave :: proc "c" (data: rawptr, pointer: ^wl.pointer, serial: uint, surface: ^wl.surface) {
+	context = window.ctx
+
+	fmt.println("pointer leave")
+}
+
+pointer_motion :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, surface_x, surface_y: wl.fixed_t) {
+	context = window.ctx
+
+	fmt.println("pointer motion", surface_x / 256.0, surface_y / 256.0)
+}
+
+pointer_button :: proc "c" (
+	data: rawptr,
+	pointer: ^wl.pointer,
+	serial: uint,
+	time: uint,
+	button: uint,
+	state: wl.pointer_button_state,
+) {
+	context = window.ctx
+
+	fmt.println("pointer button", button, state)
+}
+
+pointer_axis :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, axis: wl.pointer_axis, value: wl.fixed_t) {}
+
+wl_pointer_listener := wl.pointer_listener {
+	enter  = pointer_enter,
+	leave  = pointer_leave,
+	motion = pointer_motion,
+	button = pointer_button,
+	axis   = pointer_axis,
 }
 
 window_init :: proc(app_id, title: cstring) {
