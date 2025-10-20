@@ -1,3 +1,6 @@
 [submodule "lib/wayland"]
 	path = lib/wayland
 	url = git@github.com:salfel/odin-wayland.git
+[submodule "lib/xkbcommon"]
+	path = lib/xkbcommon
+	url = git@github.com:salfel/odin-xkbcommon.git
