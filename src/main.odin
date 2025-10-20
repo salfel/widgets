@@ -5,8 +5,6 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "css"
-import "renderer"
-import "state"
 import gl "vendor:OpenGL"
 import "vendor:egl"
 import "vendor:glfw"
@@ -28,14 +26,12 @@ main :: proc() {
 		}
 	}
 
-	state.app_state.ctx = context
-
-	renderer.renderer_init("widgets", "widgets")
+	renderer_init("widgets", "widgets")
 
 	file, _ := os.read_entire_file_from_filename("styles.css", context.temp_allocator)
 
 	err: css.Parser_Error
-	state.app_state.css, err = css.parse(string(file))
+	g_Renderer.css, err = css.parse(string(file))
 	if err != .None {
 		fmt.println("Failed to parse CSS", err)
 		return
@@ -62,16 +58,16 @@ main :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	for wl.display_dispatch_pending(renderer.g_Renderer.wl_state.display) != -1 {
+	for wl.display_dispatch_pending(g_Renderer.wl_state.display) != -1 {
 		gl.ClearColor(0.8, 0.7, 0.3, 1.0)
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		layout_compute(&parent.layout, state.app_state.window_size.x)
+		layout_compute(&parent.layout, g_Renderer.window_size.x)
 		layout_arrange(&parent.layout)
 
 		widget_draw(parent)
 
-		egl.SwapBuffers(renderer.g_Renderer.egl_state.display, renderer.g_Renderer.egl_state.surface)
+		egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
 	}
 }

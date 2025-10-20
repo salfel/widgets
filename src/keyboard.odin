@@ -1,8 +1,7 @@
-package renderer
+package main
 
-import wl "../../lib/wayland"
-import xkb "../../lib/xkbcommon"
-import "../state"
+import wl "../lib/wayland"
+import xkb "../lib/xkbcommon"
 import "base:runtime"
 import "core:fmt"
 import vmem "core:mem/virtual"
@@ -46,7 +45,7 @@ handle_keymap :: proc "c" (
 	size: uint,
 ) {
 	keyboard_state := cast(^Keyboard_State)data
-	context = state.app_state.ctx
+	context = g_Renderer.ctx
 
 	defer os.close(cast(os.Handle)fd)
 
@@ -76,7 +75,7 @@ handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, su
 
 handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key: uint, _state: wl.keyboard_key_state) {
 	keyboard_state := cast(^Keyboard_State)data
-	context = state.app_state.ctx
+	context = g_Renderer.ctx
 
 	if _state != .PRESSED {
 		return
@@ -112,7 +111,7 @@ handle_modifiers :: proc "c" (
 	group: uint,
 ) {
 	keyboard_state := cast(^Keyboard_State)data
-	context = state.app_state.ctx
+	context = g_Renderer.ctx
 
 	xkb.state_update_mask(
 		keyboard_state.xkb.state,

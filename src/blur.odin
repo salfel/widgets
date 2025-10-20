@@ -1,8 +1,6 @@
 package main
 
-import "state"
 import gl "vendor:OpenGL"
-
 
 BLUR_VERTEX_SHADER :: #load("shaders/blur/vertexShader.glsl", string)
 BLUR_FRAGMENT_SHADER :: #load("shaders/blur/fragmentShader.glsl", string)
@@ -83,20 +81,20 @@ blur_buffer_render :: proc(blur_buffer: BlurBuffer) {
 }
 
 blur_buffer_update :: proc(blur_buffer: ^BlurBuffer) {
-	if blur_buffer.size == state.app_state.window_size {
+	if blur_buffer.size == g_Renderer.window_size {
 		return
 	}
 
 	blur_buffer.fbo[0], blur_buffer.fbo_texture[0] = framebuffer_make(
-		i32(state.app_state.window_size.x),
-		i32(state.app_state.window_size.y),
+		i32(g_Renderer.window_size.x),
+		i32(g_Renderer.window_size.y),
 	)
 	blur_buffer.fbo[1], blur_buffer.fbo_texture[1] = framebuffer_make(
-		i32(state.app_state.window_size.x),
-		i32(state.app_state.window_size.y),
+		i32(g_Renderer.window_size.x),
+		i32(g_Renderer.window_size.y),
 	)
 
-	blur_buffer.size = state.app_state.window_size
+	blur_buffer.size = g_Renderer.window_size
 }
 
 

@@ -1,7 +1,6 @@
-package renderer
+package main
 
-import wl "../../lib/wayland"
-import "../state"
+import wl "../lib/wayland"
 import "base:runtime"
 import "core:fmt"
 
@@ -47,7 +46,7 @@ pointer_enter :: proc "c" (
 
 pointer_leave :: proc "c" (data: rawptr, pointer: ^wl.pointer, serial: uint, surface: ^wl.surface) {
 	pointer_state := cast(^Pointer_State)data
-	context = state.app_state.ctx
+	context = g_Renderer.ctx
 
 	assert(pointer_state.surface == surface)
 

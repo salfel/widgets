@@ -1,6 +1,6 @@
-package renderer
+package main
 
-import wl "../../lib/wayland"
+import wl "../lib/wayland"
 import "core:fmt"
 import gl "vendor:OpenGL"
 import "vendor:egl"

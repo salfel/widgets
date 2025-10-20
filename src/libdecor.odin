@@ -1,8 +1,7 @@
-package renderer
+package main
 
-import wl "../../lib/wayland"
-import "../../lib/wayland/ext/libdecor"
-import "../state"
+import wl "../lib/wayland"
+import "../lib/wayland/ext/libdecor"
 import "base:runtime"
 import "core:fmt"
 import "core:os"
@@ -37,7 +36,7 @@ frame_configure :: proc "c" (frame: ^libdecor.frame, configuration: ^libdecor.co
 	libdecor.frame_commit(frame, libdecor_state, configuration)
 	libdecor.state_free(libdecor_state)
 
-	state.app_state.window_size = [2]f32{f32(width), f32(height)}
+	g_Renderer.window_size = {f32(width), f32(height)}
 }
 
 frame_interface := libdecor.frame_interface {
