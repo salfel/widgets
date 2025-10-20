@@ -3,19 +3,16 @@ package main
 import "core:math"
 import "core:math/linalg"
 import "core:testing"
-import "css"
 import gl "vendor:OpenGL"
 
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
 FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 
-Border :: css.Border
-
 Box_Data :: struct {
 	// render
-	background:                                   [4]f32,
+	background:                                   Color,
 	border:                                       Border,
-	border_radius:                                f32,
+	rounding:                                     f32,
 	mp:                                           matrix[4, 4]f32,
 	last_window_size:                             [2]f32,
 
@@ -27,22 +24,15 @@ Box_Data :: struct {
 	is_stencil_location:                          i32,
 }
 
-box_make :: proc(
-	classes: []string,
-	allocator := context.allocator,
-) -> (
-	widget: ^Widget,
-	ok: bool = true,
-) #optional_ok {
-	styles: map[css.Property]css.Value
-	widget, styles = widget_make(classes, allocator)
+box_make :: proc(style: Style, allocator := context.allocator) -> (widget: ^Widget, ok: bool = true) #optional_ok {
+	widget = widget_make(style, allocator)
 	widget.type = .Box
 	widget.layout.type = .Box
 
 	widget.data = Box_Data{}
 	box_data := &widget.data.(Box_Data)
 
-	box_apply_styles(box_data, styles)
+	box_apply_styles(box_data, style)
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -91,7 +81,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.Uniform1f(box_data.border_width_location, box_data.border.width)
 	gl.Uniform3fv(box_data.border_color_location, 1, linalg.vector_to_ptr(&box_data.border.color))
 	gl.Uniform2fv(box_data.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
-	gl.Uniform1f(box_data.border_radius_location, box_data.border_radius)
+	gl.Uniform1f(box_data.border_radius_location, box_data.rounding)
 	gl.Uniform1i(box_data.is_stencil_location, 0)
 
 	if depth == 1 {
@@ -133,19 +123,18 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-box_apply_styles :: proc(box_data: ^Box_Data, styles: map[css.Property]css.Value) {
-	if background, ok := styles[.Background]; ok {
-		background, ok := background.([3]f32)
-		box_data.background = [4]f32{background[0], background[1], background[2], 1}
+box_apply_styles :: proc(box_data: ^Box_Data, style: Style) {
+	if background, ok := style[.Background]; ok {
+		box_data.background, ok = background.(Color)
 		assert(ok, "Expected color to be a color vec")
 	}
-	if border, ok := styles[.Border]; ok {
+	if border, ok := style[.Border]; ok {
 		box_data.border, ok = border.(Border)
 		assert(ok, "Expected border to be a Border")
 	}
 
-	if border_radius, ok := styles[.Border_Radius]; ok {
-		box_data.border_radius, ok = border_radius.(f32)
+	if border_radius, ok := style[.Rounding]; ok {
+		box_data.rounding, ok = border_radius.(f32)
 		assert(ok, "Expected border-radius to be a number")
 	}
 }

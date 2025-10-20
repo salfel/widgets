@@ -1,9 +1,9 @@
 package main
 
+import "core:fmt"
 import "core:log"
 import "core:math"
 import "core:testing"
-import "css"
 
 UNDEFINED :: -1
 
@@ -18,11 +18,19 @@ edges_make_single :: proc(size: f32) -> Edges {
 	return Edges{left = size, right = size, top = size, bottom = size}
 }
 
-edges_make :: proc {
-	edges_make_single,
+edges_make_multiple :: proc(left, right, top, bottom: f32) -> Edges {
+	return Edges{left = left, right = right, top = top, bottom = bottom}
 }
 
-Layout_Type :: css.Layout_Type
+edges_make :: proc {
+	edges_make_single,
+	edges_make_multiple,
+}
+
+Layout_Type :: enum {
+	Block,
+	Box,
+}
 
 Layout :: struct {
 	type:     Layout_Type,
@@ -40,8 +48,8 @@ Layout :: struct {
 	},
 }
 
-layout_make :: proc(allocator := context.allocator) -> Layout {
-	return Layout {
+layout_make :: proc(style: Style, allocator := context.allocator) -> Layout {
+	layout := Layout {
 		type = .Block,
 		width = UNDEFINED,
 		height = UNDEFINED,
@@ -51,6 +59,46 @@ layout_make :: proc(allocator := context.allocator) -> Layout {
 		result = {size = {0, 0}, position = {0, 0}},
 		children = make([dynamic]^Layout, allocator),
 	}
+
+	if height, ok := style[.Height]; ok {
+		layout.height, ok = height.(f32)
+		assert(ok, "Expected height to be a number")
+	}
+
+	if width, ok := style[.Width]; ok {
+		layout.width, ok = width.(f32)
+		assert(ok, "Expected width to be a number")
+	}
+
+	if padding, ok := style[.Padding]; ok {
+		#partial switch padding in padding {
+		case f32:
+			layout.padding = edges_make(padding)
+		case Sides:
+			layout.padding = edges_make(padding[.Left], padding[.Right], padding[.Top], padding[.Bottom])
+		case:
+			assert(false, "Expected padding to be a number or a Sides")
+		}
+	}
+
+	if margin, ok := style[.Margin]; ok {
+		#partial switch margin in margin {
+		case f32:
+			layout.margin = edges_make(margin)
+		case Sides:
+			layout.margin = edges_make(margin[.Left], margin[.Right], margin[.Top], margin[.Bottom])
+		case:
+			assert(false, "Expected margin to be a number or a Sides")
+		}
+	}
+
+	if border, ok := style[.Border]; ok {
+		border, ok := border.(Border)
+		assert(ok, "Expected border to be a Border")
+		layout.border = edges_make_single(border.width)
+	}
+
+	return layout
 }
 
 layout_destroy :: proc(layout: ^Layout) {
@@ -139,69 +187,15 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
 	}
 }
 
-layout_apply_styles :: proc(layout: ^Layout, styles: map[css.Property]css.Value) {
-	if height, ok := styles[.Height]; ok {
-		layout.height, ok = height.(f32)
-		assert(ok, "Expected height to be a number")
-	}
-
-	if width, ok := styles[.Width]; ok {
-		layout.width, ok = width.(f32)
-		assert(ok, "Expected width to be a number")
-	}
-
-	if padding_left, ok := styles[.Padding_Left]; ok {
-		layout.padding.left, ok = padding_left.(f32)
-		assert(ok, "Expected padding-left to be a number")
-	}
-
-	if padding_right, ok := styles[.Padding_Right]; ok {
-		layout.padding.right, ok = padding_right.(f32)
-		assert(ok, "Expected padding-right to be a number")
-	}
-
-	if padding_top, ok := styles[.Padding_Top]; ok {
-		layout.padding.top, ok = padding_top.(f32)
-		assert(ok, "Expected padding-top to be a number")
-	}
-
-	if padding_bottom, ok := styles[.Padding_Bottom]; ok {
-		layout.padding.bottom, ok = padding_bottom.(f32)
-		assert(ok, "Expected padding-bottom to be a number")
-	}
-
-	if margin_left, ok := styles[.Margin_Left]; ok {
-		layout.margin.left, ok = margin_left.(f32)
-		assert(ok, "Expected margin-left to be a number")
-	}
-
-	if margin_right, ok := styles[.Margin_Right]; ok {
-		layout.margin.right, ok = margin_right.(f32)
-		assert(ok, "Expected margin-right to be a number")
-	}
-
-	if margin_top, ok := styles[.Margin_Top]; ok {
-		layout.margin.top, ok = margin_top.(f32)
-		assert(ok, "Expected margin-top to be a number")
-	}
-
-	if margin_bottom, ok := styles[.Margin_Bottom]; ok {
-		layout.margin.bottom, ok = margin_bottom.(f32)
-		assert(ok, "Expected margin-bottom to be a number")
-	}
-
-	if border, ok := styles[.Border]; ok {
-		layout.border = edges_make(border.(Border).width)
-		assert(ok, "Expected border to be a Border")
-	}
+layout_apply_styles :: proc(layout: ^Layout, style: Style) {
 }
 
 @(test)
 test_layout_compute_block :: proc(t: ^testing.T) {
-	parent := layout_make()
+	parent := layout_make({})
 	defer layout_destroy(&parent)
-	child1 := layout_make()
-	child2 := layout_make()
+	child1 := layout_make({})
+	child2 := layout_make({})
 
 	append(&parent.children, &child1)
 	append(&parent.children, &child2)
@@ -235,10 +229,10 @@ test_layout_compute_block :: proc(t: ^testing.T) {
 
 @(test)
 test_layout_compute_box :: proc(t: ^testing.T) {
-	parent := layout_make()
+	parent := layout_make({})
 	defer layout_destroy(&parent)
-	child1 := layout_make()
-	child2 := layout_make()
+	child1 := layout_make({})
+	child2 := layout_make({})
 
 	append(&parent.children, &child1)
 	append(&parent.children, &child2)
@@ -273,13 +267,13 @@ test_layout_compute_box :: proc(t: ^testing.T) {
 
 @(test)
 test_layout_arrange :: proc(t: ^testing.T) {
-	parent := layout_make()
+	parent := layout_make({})
 	defer layout_destroy(&parent)
-	child1 := layout_make()
-	child2 := layout_make()
+	child1 := layout_make({})
+	child2 := layout_make({})
 
-	child3 := layout_make()
-	child4 := layout_make()
+	child3 := layout_make({})
+	child4 := layout_make({})
 
 	append(&child2.children, &child3)
 	append(&child2.children, &child4)

@@ -1,8 +1,6 @@
 package main
 
-import "core:fmt"
 import "core:math/linalg"
-import "css"
 
 Widget_Type :: enum {
 	Box,
@@ -25,32 +23,10 @@ Widget :: struct {
 	},
 }
 
-widget_make :: proc(
-	classes: []string,
-	allocator := context.allocator,
-) -> (
-	widget: ^Widget,
-	styles: map[css.Property]css.Value,
-) {
+widget_make :: proc(style: Style, allocator := context.allocator) -> (widget: ^Widget) {
 	widget = new(Widget, allocator)
 	widget.children = make([dynamic]^Widget, allocator)
-	widget.layout = layout_make(allocator)
-
-	styles = make(map[css.Property]css.Value, allocator)
-	defer delete(styles)
-	for selector in g_Renderer.css.selectors {
-		if selector.type != .Class {continue}
-
-		for class in classes {
-			if selector.name == class {
-				for property, value in selector.declarations {
-					styles[property] = value
-				}
-			}
-		}
-	}
-
-	layout_apply_styles(&widget.layout, styles)
+	widget.layout = layout_make(style, allocator)
 
 	return
 }

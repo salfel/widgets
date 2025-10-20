@@ -2,7 +2,6 @@ package main
 
 import "core:math"
 import "core:math/linalg"
-import "css"
 import gl "vendor:OpenGL"
 import "vendor:stb/truetype"
 
@@ -11,7 +10,7 @@ TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
 Text_Data :: struct {
 	// data
-	color:                     [3]f32,
+	color:                     Color,
 
 	// OpenGL stuff
 	program, vao, texture:     u32,
@@ -23,21 +22,20 @@ Text_Data :: struct {
 text_make :: proc(
 	content, font: string,
 	size: f32,
-	classes: []string,
+	style: Style,
 	allocator := context.allocator,
 ) -> (
 	widget: ^Widget,
 	ok := true,
 ) #optional_ok {
-	styles: map[css.Property]css.Value
-	widget, styles = widget_make(classes, allocator)
+	widget = widget_make(style, allocator)
 	widget.type = .Text
 	widget.layout.type = .Box
 
 	widget.data = Text_Data{}
 	text_data := &widget.data.(Text_Data)
 
-	text_apply_styles(text_data, styles)
+	text_apply_styles(text_data, style)
 
 	bitmap, size := font_bitmap_make(content, font, size, allocator) or_return
 	defer delete(bitmap)
@@ -105,7 +103,7 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 
 	gl.UniformMatrix4fv(text_data.mp_location, 1, false, linalg.matrix_to_ptr(&text_data.mp))
 	gl.Uniform1i(text_data.tex_location, 0)
-	gl.Uniform3fv(text_data.color_location, 1, linalg.vector_to_ptr(&text_data.color))
+	gl.Uniform4fv(text_data.color_location, 1, linalg.vector_to_ptr(&text_data.color))
 
 	gl.ColorMask(true, true, true, true)
 	gl.StencilMask(0x00)
@@ -118,9 +116,9 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-text_apply_styles :: proc(text_data: ^Text_Data, styles: map[css.Property]css.Value) {
-	if color, ok := styles[.Color]; ok {
-		color, ok := color.([3]f32)
+text_apply_styles :: proc(text_data: ^Text_Data, style: Style) {
+	if color, ok := style[.Color]; ok {
+		color, ok := color.(Color)
 		text_data.color = color
 		assert(ok, "Expected color to be a color vec")
 	}
