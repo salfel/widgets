@@ -96,7 +96,7 @@ renderer_register_child :: proc(parent_id: WidgetId, child: Widget) -> (child_id
 	return
 }
 
-@(private)
+@(private = "file")
 renderer_unsafe_get_widget :: proc(id: WidgetId) -> (^Widget, bool) {
 	for &widget in &g_Renderer.widgets {
 		if widget.id == id {
