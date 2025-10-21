@@ -17,6 +17,7 @@ Renderer :: struct {
 	egl_state:      Egl_State,
 	libdecor_state: Libdecor_State,
 	window_size:    [2]f32,
+	dirty:          bool,
 }
 
 g_Renderer: Renderer
@@ -30,23 +31,38 @@ renderer_init :: proc(app_id, title: cstring, allocator := context.allocator) {
 
 	g_Renderer.viewport = viewport_make(allocator)
 	g_Renderer.viewport.id = -1
+
+	g_Renderer.widget_id = 0
+	g_Renderer.dirty = true
 }
 
 renderer_loop :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
+	i := 0
+
 	for wl.display_dispatch_pending(g_Renderer.wl_state.display) != -1 {
 		gl.ClearColor(0, 0, 0, 0)
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		layout_compute(&g_Renderer.viewport.layout, g_Renderer.window_size.x)
-		layout_arrange(&g_Renderer.viewport.layout)
+		if g_Renderer.dirty {
+			layout_compute(&g_Renderer.viewport.layout, g_Renderer.window_size.x)
+			layout_arrange(&g_Renderer.viewport.layout)
+
+			g_Renderer.dirty = false
+		}
+
+		if i == 200 {
+			text_change_content(1, "Felix")
+		}
 
 		viewport_draw(&g_Renderer.viewport)
 
 		egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
+
+		i += 1
 	}
 }
 

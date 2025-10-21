@@ -138,12 +138,15 @@ text_apply_styles :: proc(text_data: ^Text_Data, style: Style) {
 
 text_change_content :: proc(id: WidgetId, content: string) -> bool {
 	widget := renderer_unsafe_get_widget(id) or_return
-	text_data := &widget.data.(Text_Data)
+	text_data, ok := &widget.data.(Text_Data)
+	assert(ok, "Expected Widget to be of type Text")
 	text_data.content = content
 	size := text_generate_texture(text_data) or_return
 
 	widget.layout.width = f32(size.x)
 	widget.layout.height = f32(size.y)
+
+	g_Renderer.dirty = true
 
 	return true
 }
