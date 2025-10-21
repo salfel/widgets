@@ -21,14 +21,3 @@ renderer_init :: proc(app_id, title: cstring) {
 	egl_init()
 	libdecor_init(app_id, title)
 }
-
-renderer_register_widget :: proc(widget_type: Widget_Type, style: Style, allocator := context.allocator) -> ^Widget {
-	#partial switch widget_type {
-	case .Box:
-		return box_make(style, allocator)
-	case .Block:
-		return block_make(style, allocator)
-	}
-
-	return nil
-}
