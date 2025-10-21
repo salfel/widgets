@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import "core:testing"
@@ -108,7 +109,8 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 
 	for child in widget.children {
-		renderer_draw_widget(child, depth + 1)
+		ok := renderer_draw_widget(child, depth + 1)
+		assert(ok, fmt.tprint("Couldn't draw child:", child))
 	}
 
 	if depth == 1 {

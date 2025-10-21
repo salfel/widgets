@@ -5,6 +5,7 @@ import "core:math/linalg"
 WidgetId :: distinct int
 
 Widget_Type :: enum {
+	Viewport,
 	Box,
 	Block,
 	Text,
