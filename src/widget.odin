@@ -30,15 +30,6 @@ widget_make :: proc(style: Style, allocator := context.allocator) -> Widget {
 	return Widget{children = make([dynamic]WidgetId, allocator), layout = layout_make(style, allocator)}
 }
 
-widget_draw :: proc(widget: ^Widget, depth: i32 = 1) {
-	switch widget.type {
-	case .Box, .Block:
-		box_draw(widget, depth)
-	case .Text:
-		text_draw(widget, depth)
-	}
-}
-
 calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {
 	using layout.result
 

@@ -107,10 +107,8 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
 
-	for child_id in widget.children {
-		child, ok := renderer_unsafe_get_widget(child_id)
-		assert(ok, "Expected child to be a widget")
-		widget_draw(child, depth + 1)
+	for child in widget.children {
+		renderer_draw_widget(child, depth + 1)
 	}
 
 	if depth == 1 {
