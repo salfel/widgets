@@ -11,6 +11,7 @@ TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 Text_Data :: struct {
 	// data
 	color:                     Color,
+	size:                      f32,
 
 	// OpenGL stuff
 	program, vao, texture:     u32,
@@ -21,7 +22,6 @@ Text_Data :: struct {
 
 text_make :: proc(
 	content, font: string,
-	size: f32,
 	style: Style,
 	allocator := context.allocator,
 ) -> (
@@ -37,7 +37,7 @@ text_make :: proc(
 
 	text_apply_styles(text_data, style)
 
-	bitmap, size := font_bitmap_make(content, font, size, allocator) or_return
+	bitmap, size := font_bitmap_make(content, font, text_data.size, allocator) or_return
 	defer delete(bitmap)
 
 	widget.layout.width = f32(size.x)
@@ -118,8 +118,12 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 
 text_apply_styles :: proc(text_data: ^Text_Data, style: Style) {
 	if color, ok := style[.Color]; ok {
-		color, ok := color.(Color)
-		text_data.color = color
+		text_data.color, ok = color.(Color)
 		assert(ok, "Expected color to be a color vec")
+	}
+
+	if size, ok := style[.Font_Size]; ok {
+		text_data.size, ok = size.(f32)
+		assert(ok, "Expected size to be a number")
 	}
 }

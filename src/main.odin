@@ -42,7 +42,7 @@ main :: proc() {
 	)
 	renderer_register_child(
 		parent_id,
-		text_make("Hello World", "font.ttf", 50, map[Property]Value{.Color = Color{.4, 1, .2, 1}}),
+		text_make("Hello World", "font.ttf", map[Property]Value{.Color = Color{.4, 1, .2, 1}, .Font_Size = 50}),
 	)
 
 	renderer_loop()

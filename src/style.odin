@@ -19,6 +19,7 @@ Property :: enum {
 	Margin,
 	Border,
 	Rounding,
+	Font_Size,
 }
 
 Value :: union {
