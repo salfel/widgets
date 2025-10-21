@@ -2,6 +2,8 @@ package main
 
 import "core:math/linalg"
 
+WidgetId :: distinct int
+
 Widget_Type :: enum {
 	Box,
 	Block,
@@ -10,11 +12,12 @@ Widget_Type :: enum {
 
 Widget :: struct {
 	type:     Widget_Type,
+	id:       WidgetId,
 
 	// layout
 	layout:   Layout,
-	children: [dynamic]^Widget,
-	parent:   ^Widget,
+	children: [dynamic]WidgetId,
+	parent:   WidgetId,
 
 	// Rendering
 	data:     union {
@@ -23,12 +26,8 @@ Widget :: struct {
 	},
 }
 
-widget_make :: proc(style: Style, allocator := context.allocator) -> (widget: ^Widget) {
-	widget = new(Widget, allocator)
-	widget.children = make([dynamic]^Widget, allocator)
-	widget.layout = layout_make(style, allocator)
-
-	return
+widget_make :: proc(style: Style, allocator := context.allocator) -> Widget {
+	return Widget{children = make([dynamic]WidgetId, allocator), layout = layout_make(style, allocator)}
 }
 
 widget_draw :: proc(widget: ^Widget, depth: i32 = 1) {
@@ -38,23 +37,6 @@ widget_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	case .Text:
 		text_draw(widget, depth)
 	}
-}
-
-widget_destroy :: proc(widget: ^Widget) {
-	for &child in widget.children {
-		widget_destroy(child)
-	}
-
-	delete(widget.children)
-	layout_destroy(&widget.layout)
-	free(widget)
-}
-
-
-widget_append_child :: proc(widget: ^Widget, child: ^Widget) {
-	child.parent = widget
-	append(&widget.children, child)
-	append(&widget.layout.children, &child.layout)
 }
 
 calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {

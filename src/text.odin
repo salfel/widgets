@@ -25,7 +25,7 @@ text_make :: proc(
 	style: Style,
 	allocator := context.allocator,
 ) -> (
-	widget: ^Widget,
+	widget: Widget,
 	ok := true,
 ) #optional_ok {
 	widget = widget_make(style, allocator)

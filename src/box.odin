@@ -24,7 +24,7 @@ Box_Data :: struct {
 	is_stencil_location:                          i32,
 }
 
-box_make :: proc(style: Style, allocator := context.allocator) -> (widget: ^Widget, ok: bool = true) #optional_ok {
+box_make :: proc(style: Style, allocator := context.allocator) -> (widget: Widget, ok: bool = true) #optional_ok {
 	widget = widget_make(style, allocator)
 	widget.type = .Box
 	widget.layout.type = .Box
@@ -107,7 +107,9 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
 
-	for &child in widget.children {
+	for child_id in widget.children {
+		child, ok := renderer_unsafe_get_widget(child_id)
+		assert(ok, "Expected child to be a widget")
 		widget_draw(child, depth + 1)
 	}
 

@@ -30,31 +30,20 @@ main :: proc() {
 
 	renderer_init("widgets", "widgets")
 
-	parent := box_make(
-		map[Property]Value {
-			.Background = Color{0, 0, 0.8, 1.0},
-			.Margin = 20,
-			.Rounding = 20,
-			.Border = Border{width = 10, color = {1, .3, 0.5, 1}},
-		},
+	parent_id := renderer_register_widget(
+		box_make(
+			map[Property]Value {
+				.Background = Color{0, 0, 0.8, 1.0},
+				.Margin = 20,
+				.Rounding = 20,
+				.Border = Border{width = 10, color = {1, .3, 0.5, 1}},
+			},
+		),
 	)
-	child := text_make("Hello World", "font.ttf", 50, map[Property]Value{.Color = Color{.4, 1, .2, 1}})
-	widget_append_child(parent, child)
-	defer widget_destroy(parent)
+	renderer_register_child(
+		parent_id,
+		text_make("Hello World", "font.ttf", 50, map[Property]Value{.Color = Color{.4, 1, .2, 1}}),
+	)
 
-	gl.Enable(gl.BLEND)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-
-	for wl.display_dispatch_pending(g_Renderer.wl_state.display) != -1 {
-		gl.ClearColor(0.26, 0.2, 0.2, 1)
-		gl.ClearStencil(0)
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-		layout_compute(&parent.layout, g_Renderer.window_size.x)
-		layout_arrange(&parent.layout)
-
-		widget_draw(parent)
-
-		egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
-	}
+	renderer_loop()
 }
