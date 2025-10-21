@@ -2,6 +2,7 @@ package main
 
 import wl "../lib/wayland"
 import "base:runtime"
+import "core:fmt"
 import "core:math"
 import gl "vendor:OpenGL"
 import "vendor:egl"
@@ -96,7 +97,7 @@ renderer_register_child :: proc(parent_id: WidgetId, child: Widget) -> (child_id
 	return
 }
 
-@(private = "file")
+@(private)
 renderer_unsafe_get_widget :: proc(id: WidgetId) -> (^Widget, bool) {
 	for &widget in &g_Renderer.widgets {
 		if widget.id == id {

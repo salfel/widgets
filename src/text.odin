@@ -9,7 +9,7 @@ TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
 Text_Data :: struct {
-	// data
+	content, font:             string,
 	color:                     Color,
 	size:                      f32,
 
@@ -34,14 +34,10 @@ text_make :: proc(
 
 	widget.data = Text_Data{}
 	text_data := &widget.data.(Text_Data)
+	text_data.content = content
+	text_data.font = font
 
 	text_apply_styles(text_data, style)
-
-	bitmap, size := font_bitmap_make(content, font, text_data.size, allocator) or_return
-	defer delete(bitmap)
-
-	widget.layout.width = f32(size.x)
-	widget.layout.height = f32(size.y)
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -63,7 +59,9 @@ text_make :: proc(
 
 	gl.BindVertexArray(0)
 
-	text_data.texture = text_generate_texture(bitmap, size)
+	size := text_generate_texture(text_data, allocator) or_return
+	widget.layout.width = f32(size.x)
+	widget.layout.height = f32(size.y)
 
 	gl.UseProgram(text_data.program)
 	text_data.mp_location = gl.GetUniformLocation(text_data.program, "MP")
@@ -74,9 +72,19 @@ text_make :: proc(
 	return
 }
 
-text_generate_texture :: proc(bitmap: []u8, size: [2]i32, allocator := context.allocator) -> (texture: u32) {
-	gl.GenTextures(1, &texture)
-	gl.BindTexture(gl.TEXTURE_2D, texture)
+text_generate_texture :: proc(
+	text_data: ^Text_Data,
+	allocator := context.allocator,
+) -> (
+	size: [2]i32,
+	ok: bool = true,
+) {
+	bitmap: []u8
+	bitmap, size = font_bitmap_make(text_data.content, text_data.font, text_data.size, allocator) or_return
+	defer delete(bitmap)
+
+	gl.GenTextures(1, &text_data.texture)
+	gl.BindTexture(gl.TEXTURE_2D, text_data.texture)
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RED, size.x, size.y, 0, gl.RED, gl.UNSIGNED_BYTE, raw_data(bitmap))
@@ -126,4 +134,16 @@ text_apply_styles :: proc(text_data: ^Text_Data, style: Style) {
 		text_data.size, ok = size.(f32)
 		assert(ok, "Expected size to be a number")
 	}
+}
+
+text_change_content :: proc(id: WidgetId, content: string) -> bool {
+	widget := renderer_unsafe_get_widget(id) or_return
+	text_data := &widget.data.(Text_Data)
+	text_data.content = content
+	size := text_generate_texture(text_data) or_return
+
+	widget.layout.width = f32(size.x)
+	widget.layout.height = f32(size.y)
+
+	return true
 }
