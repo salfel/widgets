@@ -270,6 +270,7 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	defer layout_destroy(&parent)
 	child1 := layout_make({})
 	child2 := layout_make({})
+	defer layout_destroy(&child2)
 
 	child3 := layout_make({})
 	child4 := layout_make({})
