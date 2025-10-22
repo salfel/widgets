@@ -19,6 +19,7 @@ Pointer_State :: struct {
 	position: [2]f32,
 	surface:  ^wl.surface,
 	buttons:  Pointer_Buttons,
+	clicked:  Pointer_Buttons,
 	scroll:   [wl.pointer_axis]f32,
 }
 
@@ -67,41 +68,18 @@ pointer_button :: proc "c" (
 	button: uint,
 	state: wl.pointer_button_state,
 ) {
+	context = g_Renderer.ctx
+
 	pointer_state := cast(^Pointer_State)data
 
-	if state == .pressed {
-		switch button {
-		case uint(Pointer_Button.Left):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Left}
-		case uint(Pointer_Button.Right):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Right}
-		case uint(Pointer_Button.Middle):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Middle}
-		case uint(Pointer_Button.Side):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Side}
-		case uint(Pointer_Button.Extra):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Extra}
-		case uint(Pointer_Button.Forward):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Forward}
-		case uint(Pointer_Button.Back):
-			pointer_state.buttons += Pointer_Buttons{Pointer_Button.Back}
-		}
-	} else {
-		switch button {
-		case uint(Pointer_Button.Left):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Left}
-		case uint(Pointer_Button.Right):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Right}
-		case uint(Pointer_Button.Middle):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Middle}
-		case uint(Pointer_Button.Side):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Side}
-		case uint(Pointer_Button.Extra):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Extra}
-		case uint(Pointer_Button.Forward):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Forward}
-		case uint(Pointer_Button.Back):
-			pointer_state.buttons -= Pointer_Buttons{Pointer_Button.Back}
+	for ptr_button in Pointer_Button {
+		if button == uint(ptr_button) {
+			if state == .pressed {
+				pointer_state.buttons += Pointer_Buttons{ptr_button}
+			} else {
+				pointer_state.buttons -= Pointer_Buttons{ptr_button}
+				pointer_state.clicked += Pointer_Buttons{ptr_button}
+			}
 		}
 	}
 }

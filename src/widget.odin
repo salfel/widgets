@@ -11,6 +11,8 @@ Widget_Type :: enum {
 	Text,
 }
 
+On_Click :: proc(widget: ^Widget, position: [2]f32)
+
 Widget :: struct {
 	type:     Widget_Type,
 	id:       WidgetId,
@@ -19,6 +21,7 @@ Widget :: struct {
 	layout:   Layout,
 	children: [dynamic]WidgetId,
 	parent:   WidgetId,
+	onclick:  On_Click,
 
 	// Rendering
 	data:     union {
@@ -28,7 +31,20 @@ Widget :: struct {
 }
 
 widget_make :: proc(style: Style, allocator := context.allocator) -> Widget {
-	return Widget{children = make([dynamic]WidgetId, allocator), layout = layout_make(style, allocator)}
+	return Widget {
+		children = make([dynamic]WidgetId, allocator),
+		layout = layout_make(style, allocator),
+		onclick = proc(widget: ^Widget, position: [2]f32) {},
+	}
+}
+
+widget_contains_point :: proc(widget: ^Widget, position: [2]f32) -> bool {
+	return(
+		position.x >= widget.layout.result.position.x &&
+		position.x <= widget.layout.result.position.x + widget.layout.result.size.x &&
+		position.y >= widget.layout.result.position.y &&
+		position.y <= widget.layout.result.position.y + widget.layout.result.size.y \
+	)
 }
 
 calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {

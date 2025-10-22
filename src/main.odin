@@ -11,6 +11,8 @@ import gl "vendor:OpenGL"
 import "vendor:egl"
 import "vendor:glfw"
 
+count := 1
+
 main :: proc() {
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -37,13 +39,23 @@ main :: proc() {
 				.Margin = 20,
 				.Rounding = 20,
 				.Border = Border{width = 10, color = {1, .3, 0.5, 1}},
+				.Width = 300,
 			},
 		),
 	)
-	renderer_register_child(
+	child_id, _ := renderer_register_child(
 		parent_id,
-		text_make("Hello World", "font.ttf", map[Property]Value{.Color = Color{.4, 1, .2, 1}, .Font_Size = 50}),
+		text_make(
+			"count: 0",
+			"font.ttf",
+			map[Property]Value{.Color = Color{.4, 1, .2, 1}, .Font_Size = 50, .Width = 300},
+		),
 	)
+
+	renderer_register_click(child_id, proc(widget: ^Widget, position: [2]f32) {
+		text_change_content(widget.id, fmt.tprint("count: ", count))
+		count += 1
+	})
 
 	renderer_loop()
 }

@@ -40,8 +40,6 @@ renderer_loop :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	i := 0
-
 	for wl.display_dispatch_pending(g_Renderer.wl_state.display) != -1 {
 		gl.ClearColor(0, 0, 0, 0)
 		gl.ClearStencil(0)
@@ -54,16 +52,36 @@ renderer_loop :: proc() {
 			g_Renderer.dirty = false
 		}
 
-		if i == 200 {
-			text_change_content(1, "Felix")
-		}
+		renderer_handle_click()
 
 		viewport_draw(&g_Renderer.viewport)
 
 		egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
-
-		i += 1
 	}
+}
+
+renderer_handle_click :: proc() {
+	clicked := Pointer_Buttons{.Left} <= g_Renderer.wl_state.pointer_state.clicked
+	if !clicked {
+		return
+	}
+
+	g_Renderer.wl_state.pointer_state.clicked -= Pointer_Buttons{.Left}
+
+	position := g_Renderer.wl_state.pointer_state.position
+
+	for &widget in &g_Renderer.widgets {
+		if widget_contains_point(widget, position) && widget.onclick != nil {
+			widget.onclick(widget, position)
+		}
+	}
+}
+
+renderer_register_click :: proc(widget: WidgetId, onclick: On_Click) -> bool {
+	widget := renderer_unsafe_get_widget(widget) or_return
+	widget.onclick = onclick
+
+	return true
 }
 
 renderer_draw_widget :: proc(widget: WidgetId, depth: i32) -> bool {
