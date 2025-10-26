@@ -28,6 +28,8 @@ text_make :: proc(
 	widget: Widget,
 	ok := true,
 ) #optional_ok {
+	defer delete(style)
+
 	widget = widget_make(style, allocator)
 	widget.type = .Text
 	widget.layout.type = .Box

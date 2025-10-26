@@ -26,6 +26,8 @@ Box_Data :: struct {
 }
 
 box_make :: proc(style: Style, allocator := context.allocator) -> (widget: Widget, ok: bool = true) #optional_ok {
+	defer delete(style)
+
 	widget = widget_make(style, allocator)
 	widget.type = .Box
 	widget.layout.type = .Box

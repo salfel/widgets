@@ -84,6 +84,7 @@ handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key:
 	sym := xkb.state_key_get_one_sym(keyboard_state.xkb.state, i32(key + 8))
 
 	utf8 := make([]u8, 8)
+	defer delete(utf8)
 	utf8_len := xkb.keysym_to_utf8(sym, cast(^i8)&utf8[0], i32(len(utf8)))
 
 	if utf8_len == 0 do return

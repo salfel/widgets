@@ -9,15 +9,15 @@ import "vendor:egl"
 
 
 Renderer :: struct {
-	ctx:            runtime.Context,
-	widget_id:      WidgetId,
-	viewport:       Widget,
-	widgets:        [dynamic]^Widget,
-	wl_state:       Wayland_State,
-	egl_state:      Egl_State,
-	libdecor_state: Libdecor_State,
-	window_size:    [2]f32,
-	dirty:          bool,
+	ctx:         runtime.Context,
+	widget_id:   WidgetId,
+	viewport:    Widget,
+	widgets:     [dynamic]^Widget,
+	wl_state:    Wayland_State,
+	egl_state:   Egl_State,
+	window_size: [2]f32,
+	dirty:       bool,
+	exit:        bool,
 }
 
 g_Renderer: Renderer
@@ -27,13 +27,13 @@ renderer_init :: proc(app_id, title: cstring, allocator := context.allocator) {
 
 	wayland_init()
 	egl_init()
-	libdecor_init(app_id, title)
 
 	g_Renderer.viewport = viewport_make(allocator)
 	g_Renderer.viewport.id = -1
 
 	g_Renderer.widget_id = 0
 	g_Renderer.dirty = true
+	g_Renderer.exit = false
 }
 
 renderer_loop :: proc() {
@@ -41,6 +41,10 @@ renderer_loop :: proc() {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	for wl.display_dispatch_pending(g_Renderer.wl_state.display) != -1 {
+		if g_Renderer.exit {
+			break
+		}
+
 		gl.ClearColor(0, 0, 0, 0)
 		gl.ClearStencil(0)
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -58,6 +62,15 @@ renderer_loop :: proc() {
 
 		egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
 	}
+
+	for widget in g_Renderer.widgets {
+		delete(widget.layout.children)
+		delete(widget.children)
+		free(widget)
+	}
+	delete(g_Renderer.widgets)
+	delete(g_Renderer.viewport.children)
+	delete(g_Renderer.viewport.layout.children)
 }
 
 renderer_handle_click :: proc() {
