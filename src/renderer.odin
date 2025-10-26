@@ -40,34 +40,39 @@ renderer_loop :: proc() {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	for wl.display_dispatch_pending(g_Renderer.wl_state.display) != -1 {
-		if g_Renderer.exit {
-			break
-		}
+	egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
 
-		gl.ClearColor(0, 0, 0, 0)
-		gl.ClearStencil(0)
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	for wl.display_dispatch(g_Renderer.wl_state.display) != -1 && !g_Renderer.exit {}
 
-		if g_Renderer.dirty {
-			layout_compute(&g_Renderer.viewport.layout, g_Renderer.window_size.x)
-			layout_arrange(&g_Renderer.viewport.layout)
+	renderer_destroy()
+}
 
-			g_Renderer.dirty = false
-		}
+renderer_render :: proc() {
+	gl.ClearColor(0, 0, 0, 0)
+	gl.ClearStencil(0)
+	gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		renderer_handle_click()
+	if g_Renderer.dirty {
+		layout_compute(&g_Renderer.viewport.layout, g_Renderer.window_size.x)
+		layout_arrange(&g_Renderer.viewport.layout)
 
-		viewport_draw(&g_Renderer.viewport)
-
-		egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
+		g_Renderer.dirty = false
 	}
 
+	renderer_handle_click()
+
+	viewport_draw(&g_Renderer.viewport)
+
+	egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
+}
+
+renderer_destroy :: proc() {
 	for widget in g_Renderer.widgets {
 		delete(widget.layout.children)
 		delete(widget.children)
 		free(widget)
 	}
+	delete(g_Renderer.wl_state.keyboard_state.chars)
 	delete(g_Renderer.widgets)
 	delete(g_Renderer.viewport.children)
 	delete(g_Renderer.viewport.layout.children)

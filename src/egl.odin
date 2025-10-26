@@ -44,7 +44,6 @@ egl_init :: proc() {
 	}
 
 	egl.Initialize(g_Renderer.egl_state.display, &major, &minor)
-	fmt.println("EGL Major, EGL Minor", major, minor)
 
 	config: egl.Config
 	num_config: i32

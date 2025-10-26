@@ -3,6 +3,7 @@ package main
 import wl "../lib/wayland"
 import "../lib/wayland/xdg"
 import "core:fmt"
+import "core:math"
 import gl "vendor:OpenGL"
 
 Wayland_State :: struct {
@@ -89,6 +90,23 @@ xdg_wm_base_listener := xdg.wm_base_listener {
 	ping = xdg_wm_base_ping,
 }
 
+wl_callback_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) {
+	context = g_Renderer.ctx
+
+	wl.callback_destroy(callback)
+
+	callback := wl.surface_frame(g_Renderer.wl_state.surface)
+	wl.callback_add_listener(callback, &wl_callback_listener, nil)
+
+	renderer_render()
+
+	wl.surface_commit(g_Renderer.wl_state.surface)
+}
+
+wl_callback_listener := wl.callback_listener {
+	done = wl_callback_done,
+}
+
 wayland_init :: proc() {
 	g_Renderer.wl_state.pointer_state = pointer_state_make()
 	g_Renderer.wl_state.keyboard_state = keyboard_state_make()
@@ -119,4 +137,7 @@ wayland_init :: proc() {
 	xdg.toplevel_add_listener(g_Renderer.wl_state.xdg.toplevel, &xdg_toplevel_listener, nil)
 
 	wl.surface_commit(g_Renderer.wl_state.surface)
+
+	callback := wl.surface_frame(g_Renderer.wl_state.surface)
+	wl.callback_add_listener(callback, &wl_callback_listener, nil)
 }
