@@ -22,10 +22,10 @@ Renderer :: struct {
 
 g_Renderer: Renderer
 
-renderer_init :: proc(app_id, title: cstring, allocator := context.allocator) {
+renderer_init :: proc(title, app_id: cstring, allocator := context.allocator) {
 	g_Renderer.ctx = context
 
-	wayland_init()
+	wl_init(title, app_id)
 	egl_init()
 
 	g_Renderer.viewport = viewport_make(allocator)

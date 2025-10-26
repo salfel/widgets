@@ -115,7 +115,7 @@ register_callback :: proc "contextless" () {
 	wl.surface_commit(g_Renderer.wl_state.surface)
 }
 
-wayland_init :: proc() {
+wl_init :: proc(title, app_id: cstring) {
 	g_Renderer.wl_state.pointer_state = pointer_state_make()
 	g_Renderer.wl_state.keyboard_state = keyboard_state_make()
 
@@ -140,8 +140,8 @@ wayland_init :: proc() {
 
 	g_Renderer.wl_state.xdg.toplevel = xdg.surface_get_toplevel(g_Renderer.wl_state.xdg.surface)
 
-	xdg.toplevel_set_title(g_Renderer.wl_state.xdg.toplevel, "widgets")
-	xdg.toplevel_set_app_id(g_Renderer.wl_state.xdg.toplevel, "widgets")
+	xdg.toplevel_set_title(g_Renderer.wl_state.xdg.toplevel, title)
+	xdg.toplevel_set_app_id(g_Renderer.wl_state.xdg.toplevel, app_id)
 	xdg.toplevel_add_listener(g_Renderer.wl_state.xdg.toplevel, &xdg_toplevel_listener, nil)
 
 	wl.surface_commit(g_Renderer.wl_state.surface)
