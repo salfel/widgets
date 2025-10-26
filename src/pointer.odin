@@ -58,6 +58,8 @@ pointer_motion :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, surf
 	pointer_state := cast(^Pointer_State)data
 
 	pointer_state.position = [2]f32{f32(surface_x) / 256.0, f32(surface_y) / 256.0}
+
+	register_callback()
 }
 
 pointer_button :: proc "c" (
@@ -82,6 +84,8 @@ pointer_button :: proc "c" (
 			}
 		}
 	}
+
+	register_callback()
 }
 
 pointer_axis :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, axis: wl.pointer_axis, value: wl.fixed_t) {

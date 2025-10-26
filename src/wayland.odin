@@ -12,6 +12,7 @@ Wayland_State :: struct {
 	registry:       ^wl.registry,
 	seat:           ^wl.seat,
 	surface:        ^wl.surface,
+	callback:       ^wl.callback,
 	xdg:            struct {
 		wm_base:  ^xdg.wm_base,
 		surface:  ^xdg.surface,
@@ -94,9 +95,7 @@ wl_callback_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) 
 	context = g_Renderer.ctx
 
 	wl.callback_destroy(callback)
-
-	callback := wl.surface_frame(g_Renderer.wl_state.surface)
-	wl.callback_add_listener(callback, &wl_callback_listener, nil)
+	g_Renderer.wl_state.callback = nil
 
 	renderer_render()
 
@@ -105,6 +104,15 @@ wl_callback_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) 
 
 wl_callback_listener := wl.callback_listener {
 	done = wl_callback_done,
+}
+
+register_callback :: proc "contextless" () {
+	if g_Renderer.wl_state.callback != nil do return
+
+	g_Renderer.wl_state.callback = wl.surface_frame(g_Renderer.wl_state.surface)
+	wl.callback_add_listener(g_Renderer.wl_state.callback, &wl_callback_listener, nil)
+
+	wl.surface_commit(g_Renderer.wl_state.surface)
 }
 
 wayland_init :: proc() {

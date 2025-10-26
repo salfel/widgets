@@ -100,6 +100,8 @@ handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key:
 	}
 
 	append(&keyboard_state.chars, r)
+
+	register_callback()
 }
 
 handle_modifiers :: proc "c" (
@@ -138,6 +140,8 @@ handle_modifiers :: proc "c" (
 			keyboard_state.modifiers -= Modifiers{mod}
 		}
 	}
+
+	register_callback()
 }
 
 handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}
