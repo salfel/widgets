@@ -1,5 +1,6 @@
 package main
 
+import "core:fmt"
 import "core:math"
 import "core:math/linalg"
 import gl "vendor:OpenGL"
@@ -9,28 +10,23 @@ TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
 Text_Data :: struct {
-	content, font:             string,
-	color:                     Color,
-	size:                      f32,
+	content, font:                             string,
+	style:                                     Text_Style,
 
 	// OpenGL stuff
-	program, vao, texture:     u32,
-	mp:                        matrix[4, 4]f32,
-	mp_location, tex_location: i32,
-	color_location:            i32,
+	program, vao, texture:                     u32,
+	mp:                                        matrix[4, 4]f32,
+	mp_location, tex_location, color_location: i32,
+	uniforms:                                  Text_Uniforms,
 }
 
-text_make :: proc(
-	content, font: string,
-	style: Style,
-	allocator := context.allocator,
-) -> (
-	widget: Widget,
-	ok := true,
-) #optional_ok {
-	defer delete(style)
+Text_Uniform :: enum {
+	Tex_MP,
+	Color,
+}
+Text_Uniforms :: bit_set[Text_Uniform]
 
-	widget = widget_make(style, allocator)
+text_make :: proc(content, font: string, allocator := context.allocator) -> (widget: Widget, ok := true) #optional_ok {
 	widget.type = .Text
 	widget.layout.type = .Box
 
@@ -38,8 +34,8 @@ text_make :: proc(
 	text_data := &widget.data.(Text_Data)
 	text_data.content = content
 	text_data.font = font
-
-	text_apply_styles(text_data, style)
+	text_data.style = DEFAULT_TEXT_STYLE
+	text_data.uniforms = Text_Uniforms{.Tex_MP, .Color}
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -82,7 +78,7 @@ text_generate_texture :: proc(
 	ok: bool = true,
 ) {
 	bitmap: []u8
-	bitmap, size = font_bitmap_make(text_data.content, text_data.font, text_data.size, allocator) or_return
+	bitmap, size = font_bitmap_make(text_data.content, text_data.font, text_data.style.font_size, allocator) or_return
 	defer delete(bitmap)
 
 	gl.GenTextures(1, &text_data.texture)
@@ -111,9 +107,17 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, text_data.texture)
 
-	gl.UniformMatrix4fv(text_data.mp_location, 1, false, linalg.matrix_to_ptr(&text_data.mp))
-	gl.Uniform1i(text_data.tex_location, 0)
-	gl.Uniform4fv(text_data.color_location, 1, linalg.vector_to_ptr(&text_data.color))
+	for uniform in text_data.uniforms {
+		switch uniform {
+		case .Tex_MP:
+			gl.UniformMatrix4fv(text_data.mp_location, 1, false, linalg.matrix_to_ptr(&text_data.mp))
+			gl.Uniform1i(text_data.tex_location, 0)
+			text_data.uniforms -= {.Tex_MP}
+		case .Color:
+			gl.Uniform4fv(text_data.color_location, 1, linalg.vector_to_ptr(&text_data.style.color))
+			text_data.uniforms -= {.Color}
+		}
+	}
 
 	gl.ColorMask(true, true, true, true)
 	gl.StencilMask(0x00)
@@ -126,24 +130,38 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-text_apply_styles :: proc(text_data: ^Text_Data, style: Style) {
-	if color, ok := style[.Color]; ok {
-		text_data.color, ok = color.(Color)
-		assert(ok, "Expected color to be a color vec")
-	}
+text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	text_data := (&widget.data.(Text_Data)) or_return
+	text_data.style.color = color
+	text_data.uniforms += {.Color}
 
-	if size, ok := style[.Font_Size]; ok {
-		text_data.size, ok = size.(f32)
-		assert(ok, "Expected size to be a number")
-	}
+	renderer.dirty = true
+
+	return true
 }
 
-text_change_content :: proc(renderer: ^Renderer, id: WidgetId, content: string) -> bool {
+text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f32) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text_data, ok := &widget.data.(Text_Data)
-	assert(ok, "Expected Widget to be of type Text")
+	text_data := (&widget.data.(Text_Data)) or_return
+	text_data.style.font_size = font_size
+	size := text_generate_texture(text_data) or_return
+	text_data.uniforms += {.Tex_MP}
+
+	widget.layout.width = f32(size.x)
+	widget.layout.height = f32(size.y)
+
+	renderer.dirty = true
+
+	return true
+}
+
+text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	text_data := (&widget.data.(Text_Data)) or_return
 	text_data.content = content
 	size := text_generate_texture(text_data) or_return
+	text_data.uniforms += {.Tex_MP}
 
 	widget.layout.width = f32(size.x)
 	widget.layout.height = f32(size.y)

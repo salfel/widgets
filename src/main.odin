@@ -41,22 +41,15 @@ main :: proc() {
 				.Margin = 20,
 				.Rounding = 20,
 				.Border = Border{width = 10, color = {1, .3, 0.5, 1}},
-				.Width = 300,
 			},
 		),
 	)
-	child_id, _ := renderer_register_child(
-		&renderer,
-		parent_id,
-		text_make(
-			"count: 0",
-			"font.ttf",
-			map[Property]Value{.Color = Color{.4, 1, .2, 1}, .Font_Size = 50, .Width = 300},
-		),
-	)
+	child_id, _ := renderer_register_child(&renderer, parent_id, text_make("count: 0", "font.ttf"))
+	text_style_set_color(&renderer, child_id, WHITE)
+	text_style_set_font_size(&renderer, child_id, 96)
 
 	renderer_register_click(&renderer, child_id, proc(widget: ^Widget, position: [2]f32) {
-		text_change_content(&renderer, widget.id, fmt.tprint("count: ", count))
+		text_set_content(&renderer, widget.id, fmt.tprint("count: ", count))
 		count += 1
 	})
 
