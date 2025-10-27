@@ -1,5 +1,3 @@
-#+feature dynamic-literals
-
 package main
 
 
@@ -33,17 +31,15 @@ main :: proc() {
 
 	renderer_init(&renderer, "widgets", "widgets")
 
-	parent_id := renderer_register_widget(
-		&renderer,
-		box_make(
-			map[Property]Value {
-				.Background = Color{0, 0, 0.8, 1.0},
-				.Margin = 20,
-				.Rounding = 20,
-				.Border = Border{width = 10, color = {1, .3, 0.5, 1}},
-			},
-		),
-	)
+	parent_id := renderer_register_widget(&renderer, box_make())
+	box_style_set_width(&renderer, parent_id, 400)
+	box_style_set_height(&renderer, parent_id, 700)
+	box_style_set_rounding(&renderer, parent_id, 10)
+	box_style_set_border(&renderer, parent_id, Border{width = 10, color = RED})
+	box_style_set_background(&renderer, parent_id, BLUE)
+	box_style_set_margin(&renderer, parent_id, sides_make(30))
+	box_style_set_padding(&renderer, parent_id, sides_make(50))
+
 	child_id, _ := renderer_register_child(&renderer, parent_id, text_make("count: 0", "font.ttf"))
 	text_style_set_color(&renderer, child_id, WHITE)
 	text_style_set_font_size(&renderer, child_id, 96)

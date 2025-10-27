@@ -3,7 +3,6 @@ package main
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
-import "core:testing"
 import gl "vendor:OpenGL"
 
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
@@ -11,9 +10,7 @@ FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 
 Box_Data :: struct {
 	// render
-	background:                                   Color,
-	border:                                       Border,
-	rounding:                                     f32,
+	style:                                        Box_Style,
 	mp:                                           matrix[4, 4]f32,
 	last_window_size:                             [2]f32,
 
@@ -25,17 +22,13 @@ Box_Data :: struct {
 	is_stencil_location:                          i32,
 }
 
-box_make :: proc(style: Style, allocator := context.allocator) -> (widget: Widget, ok: bool = true) #optional_ok {
-	defer delete(style)
-
-	widget = widget_make(style, allocator)
+box_make :: proc(allocator := context.allocator) -> (widget: Widget, ok: bool = true) #optional_ok {
+	widget = widget_make(allocator)
 	widget.type = .Box
 	widget.layout.type = .Box
 
 	widget.data = Box_Data{}
 	box_data := &widget.data.(Box_Data)
-
-	box_apply_styles(box_data, style)
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -79,12 +72,13 @@ box_draw :: proc(renderer: ^Renderer, widget: ^Widget, depth: i32 = 1) {
 
 	box_data.mp = calculate_mp(widget.layout)
 
+	// implement ubo
 	gl.UniformMatrix4fv(box_data.mvp_location, 1, false, linalg.matrix_to_ptr(&box_data.mp))
-	gl.Uniform4fv(box_data.color_location, 1, linalg.vector_to_ptr(&box_data.background))
-	gl.Uniform1f(box_data.border_width_location, box_data.border.width)
-	gl.Uniform3fv(box_data.border_color_location, 1, linalg.vector_to_ptr(&box_data.border.color))
+	gl.Uniform4fv(box_data.color_location, 1, linalg.vector_to_ptr(&box_data.style.background))
+	gl.Uniform1f(box_data.border_width_location, box_data.style.border.width)
+	gl.Uniform3fv(box_data.border_color_location, 1, linalg.vector_to_ptr(&box_data.style.border.color))
 	gl.Uniform2fv(box_data.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
-	gl.Uniform1f(box_data.border_radius_location, box_data.rounding)
+	gl.Uniform1f(box_data.border_radius_location, box_data.style.rounding)
 	gl.Uniform1i(box_data.is_stencil_location, 0)
 
 	if depth == 1 {
@@ -127,18 +121,69 @@ box_draw :: proc(renderer: ^Renderer, widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-box_apply_styles :: proc(box_data: ^Box_Data, style: Style) {
-	if background, ok := style[.Background]; ok {
-		box_data.background, ok = background.(Color)
-		assert(ok, "Expected color to be a color vec")
-	}
-	if border, ok := style[.Border]; ok {
-		box_data.border, ok = border.(Border)
-		assert(ok, "Expected border to be a Border")
-	}
+box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	widget.layout.style.width = width
 
-	if border_radius, ok := style[.Rounding]; ok {
-		box_data.rounding, ok = border_radius.(f32)
-		assert(ok, "Expected border-radius to be a number")
-	}
+	renderer.dirty = true
+
+	return true
+}
+
+box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	widget.layout.style.height = height
+
+	renderer.dirty = true
+
+	return true
+}
+
+box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	widget.layout.style.margin = margin
+
+	renderer.dirty = true
+
+	return true
+}
+
+box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	widget.layout.style.padding = padding
+
+	renderer.dirty = true
+
+	return true
+}
+
+box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	box_data.style.border = border
+	widget.layout.style.border = border
+
+	renderer.dirty = true
+
+	return true
+}
+
+box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	box_data.style.background = color
+
+	return true
+}
+
+box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
+	box_data := (&widget.data.(Box_Data)) or_return
+	box_data.style.rounding = rounding
+
+	return true
 }

@@ -27,6 +27,7 @@ Text_Uniform :: enum {
 Text_Uniforms :: bit_set[Text_Uniform]
 
 text_make :: proc(content, font: string, allocator := context.allocator) -> (widget: Widget, ok := true) #optional_ok {
+	widget = widget_make(allocator)
 	widget.type = .Text
 	widget.layout.type = .Box
 
@@ -58,8 +59,8 @@ text_make :: proc(content, font: string, allocator := context.allocator) -> (wid
 	gl.BindVertexArray(0)
 
 	size := text_generate_texture(text_data, allocator) or_return
-	widget.layout.width = f32(size.x)
-	widget.layout.height = f32(size.y)
+	widget.layout.style.width = f32(size.x)
+	widget.layout.style.height = f32(size.y)
 
 	gl.UseProgram(text_data.program)
 	text_data.mp_location = gl.GetUniformLocation(text_data.program, "MP")
@@ -130,13 +131,16 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
+text_style_set :: proc {
+	text_style_set_color,
+	text_style_set_font_size,
+}
+
 text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	text_data := (&widget.data.(Text_Data)) or_return
 	text_data.style.color = color
 	text_data.uniforms += {.Color}
-
-	renderer.dirty = true
 
 	return true
 }
@@ -148,8 +152,8 @@ text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f
 	size := text_generate_texture(text_data) or_return
 	text_data.uniforms += {.Tex_MP}
 
-	widget.layout.width = f32(size.x)
-	widget.layout.height = f32(size.y)
+	widget.layout.style.width = f32(size.x)
+	widget.layout.style.height = f32(size.y)
 
 	renderer.dirty = true
 
@@ -163,8 +167,8 @@ text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string) -> 
 	size := text_generate_texture(text_data) or_return
 	text_data.uniforms += {.Tex_MP}
 
-	widget.layout.width = f32(size.x)
-	widget.layout.height = f32(size.y)
+	widget.layout.style.width = f32(size.x)
+	widget.layout.style.height = f32(size.y)
 
 	renderer.dirty = true
 

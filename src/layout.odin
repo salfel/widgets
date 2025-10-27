@@ -1,30 +1,11 @@
 package main
 
+import "core:fmt"
 import "core:log"
 import "core:math"
 import "core:testing"
 
 UNDEFINED :: -1
-
-Edges :: struct {
-	left:   f32,
-	right:  f32,
-	top:    f32,
-	bottom: f32,
-}
-
-edges_make_single :: proc(size: f32) -> Edges {
-	return Edges{left = size, right = size, top = size, bottom = size}
-}
-
-edges_make_multiple :: proc(left, right, top, bottom: f32) -> Edges {
-	return Edges{left = left, right = right, top = top, bottom = bottom}
-}
-
-edges_make :: proc {
-	edges_make_single,
-	edges_make_multiple,
-}
 
 Layout_Type :: enum {
 	Block,
@@ -33,11 +14,7 @@ Layout_Type :: enum {
 
 Layout :: struct {
 	type:     Layout_Type,
-	width:    f32,
-	height:   f32,
-	border:   Edges,
-	padding:  Edges,
-	margin:   Edges,
+	style:    Layout_Style,
 	children: [dynamic]^Layout,
 
 	// result
@@ -47,54 +24,12 @@ Layout :: struct {
 	},
 }
 
-layout_make :: proc(style: Style, allocator := context.allocator) -> Layout {
+layout_make :: proc(allocator := context.allocator) -> Layout {
 	layout := Layout {
 		type = .Block,
-		width = UNDEFINED,
-		height = UNDEFINED,
-		border = edges_make(0),
-		padding = edges_make(0),
-		margin = edges_make(0),
+		style = DEFAULT_LAYOUT_STYLE,
 		result = {size = {0, 0}, position = {0, 0}},
 		children = make([dynamic]^Layout, allocator),
-	}
-
-	if height, ok := style[.Height]; ok {
-		layout.height, ok = height.(f32)
-		assert(ok, "Expected height to be a number")
-	}
-
-	if width, ok := style[.Width]; ok {
-		layout.width, ok = width.(f32)
-		assert(ok, "Expected width to be a number")
-	}
-
-	if padding, ok := style[.Padding]; ok {
-		#partial switch padding in padding {
-		case f32:
-			layout.padding = edges_make(padding)
-		case Sides:
-			layout.padding = edges_make(padding[.Left], padding[.Right], padding[.Top], padding[.Bottom])
-		case:
-			assert(false, "Expected padding to be a number or a Sides")
-		}
-	}
-
-	if margin, ok := style[.Margin]; ok {
-		#partial switch margin in margin {
-		case f32:
-			layout.margin = edges_make(margin)
-		case Sides:
-			layout.margin = edges_make(margin[.Left], margin[.Right], margin[.Top], margin[.Bottom])
-		case:
-			assert(false, "Expected margin to be a number or a Sides")
-		}
-	}
-
-	if border, ok := style[.Border]; ok {
-		border, ok := border.(Border)
-		assert(ok, "Expected border to be a Border")
-		layout.border = edges_make_single(border.width)
 	}
 
 	return layout
@@ -110,40 +45,52 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 		for &child in layout.children {
 			layout_compute(child)
 
-			children_size.x += child.result.size.x + child.margin.left + child.margin.right
-			children_size.y = math.max(children_size.y, child.result.size.y + child.margin.top + child.margin.bottom)
+			children_size.x += child.result.size.x + child.style.margin.left + child.style.margin.right
+			children_size.y = math.max(
+				children_size.y,
+				child.result.size.y + child.style.margin.top + child.style.margin.bottom,
+			)
 		}
 
-		if layout.width == UNDEFINED {
+		if layout.style.width == UNDEFINED {
 			layout.result.size.x =
-				children_size.x + layout.padding.left + layout.padding.right + layout.border.left + layout.border.right
-		} else do layout.result.size.x = layout.width + layout.border.left + layout.border.right
+				children_size.x +
+				layout.style.padding.left +
+				layout.style.padding.right +
+				layout.style.border.width +
+				layout.style.border.width
+		} else do layout.result.size.x = layout.style.width + layout.style.border.width + layout.style.border.width
 
-		if layout.height == UNDEFINED {
+		if layout.style.height == UNDEFINED {
 			layout.result.size.y =
-				children_size.y + layout.padding.top + layout.padding.bottom + layout.border.top + layout.border.bottom
-		} else do layout.result.size.y = layout.height + layout.border.top + layout.border.bottom
+				children_size.y +
+				layout.style.padding.top +
+				layout.style.padding.bottom +
+				layout.style.border.width +
+				layout.style.border.width
+		} else do layout.result.size.y = layout.style.height + layout.style.border.width + layout.style.border.width
 
 		return
 	}
 
-	layout.result.size.x = available - layout.margin.left - layout.margin.right
-	layout.result.size.y = layout.height + layout.border.top + layout.border.bottom
+	layout.result.size.x = available - layout.style.margin.left - layout.style.margin.right
+	layout.result.size.y = layout.style.height + layout.style.border.width + layout.style.border.width
 
-	children_height := layout.border.top + layout.border.bottom + layout.padding.top + layout.padding.bottom
+	children_height :=
+		layout.style.border.width + layout.style.border.width + layout.style.padding.top + layout.style.padding.bottom
 
 	box_height: f32 = 0
 	for &child in layout.children {
 		layout_compute(
 			child,
 			layout.result.size.x -
-			layout.padding.left -
-			layout.padding.right -
-			layout.border.left -
-			layout.border.right,
+			layout.style.padding.left -
+			layout.style.padding.right -
+			layout.style.border.width -
+			layout.style.border.width,
 		)
 
-		child_height := child.result.size.y + child.margin.top + child.margin.bottom
+		child_height := child.result.size.y + child.style.margin.top + child.style.margin.bottom
 
 		if child.type == .Box {
 			if child_height > box_height {
@@ -159,34 +106,31 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 }
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
-	parent_offset := [2]f32{offset.x + layout.margin.left, offset.y + layout.margin.top}
+	parent_offset := [2]f32{offset.x + layout.style.margin.left, offset.y + layout.style.margin.top}
 	layout.result.position = parent_offset
-	parent_offset.x += layout.padding.left + layout.border.left
-	parent_offset.y += layout.padding.top + layout.border.top
+	parent_offset.x += layout.style.padding.left + layout.style.border.width
+	parent_offset.y += layout.style.padding.top + layout.style.border.width
 
 	offset := parent_offset
 
 	prev_child: ^Layout = nil
 	for &child in layout.children {
 		if prev_child != nil && prev_child.type == .Box && child.type == .Block {
-			offset.y += prev_child.result.size.y + prev_child.margin.bottom
+			offset.y += prev_child.result.size.y + prev_child.style.margin.bottom
 			offset.x = parent_offset.x
 		}
 
 		layout_arrange(child, offset)
 
 		if child.type == .Box {
-			offset.x += child.result.size.x + child.margin.left + child.margin.right
+			offset.x += child.result.size.x + child.style.margin.left + child.style.margin.right
 		} else {
-			offset.y += child.result.size.y + child.margin.bottom + child.margin.top
+			offset.y += child.result.size.y + child.style.margin.bottom + child.style.margin.top
 			offset.x = parent_offset.x
 		}
 
 		prev_child = child
 	}
-}
-
-layout_apply_styles :: proc(layout: ^Layout, style: Style) {
 }
 
 @(test)
@@ -200,19 +144,19 @@ test_layout_compute_block :: proc(t: ^testing.T) {
 	append(&parent.children, &child2)
 
 	parent.type = .Block
-	parent.height = 100
-	parent.padding.left = 30
-	parent.margin.right = 100
-	parent.padding.top = 10
+	parent.style.height = 100
+	parent.style.padding.left = 30
+	parent.style.margin.right = 100
+	parent.style.padding.top = 10
 
 	child1.type = .Block
-	child1.height = 100
-	child1.margin.left = 10
-	child1.margin.right = 10
+	child1.style.height = 100
+	child1.style.margin.left = 10
+	child1.style.margin.right = 10
 
 	child2.type = .Block
-	child2.height = 200
-	child2.border.left = 10
+	child2.style.height = 200
+	child2.style.border.width = 10
 
 	layout_compute(&parent, 500)
 
@@ -237,20 +181,20 @@ test_layout_compute_box :: proc(t: ^testing.T) {
 	append(&parent.children, &child2)
 
 	parent.type = .Box
-	parent.padding.left = 30
-	parent.margin.right = 100
-	parent.padding.top = 10
+	parent.style.padding.left = 30
+	parent.style.margin.right = 100
+	parent.style.padding.top = 10
 
 	child1.type = .Box
-	child1.width = 100
-	child1.height = 100
-	child1.margin.left = 10
-	child1.margin.right = 10
+	child1.style.width = 100
+	child1.style.height = 100
+	child1.style.margin.left = 10
+	child1.style.margin.right = 10
 
 	child2.type = .Box
-	child2.width = 200
-	child2.height = 200
-	child2.border.left = 10
+	child2.style.width = 200
+	child2.style.height = 200
+	child2.style.border.width = 10
 
 	layout_compute(&parent)
 
@@ -281,33 +225,33 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	append(&parent.children, &child2)
 
 	parent.type = .Block
-	parent.height = 100
-	parent.padding.left = 30
-	parent.margin.right = 100
-	parent.padding.top = 10
+	parent.style.height = 100
+	parent.style.padding.left = 30
+	parent.style.margin.right = 100
+	parent.style.padding.top = 10
 
 	child1.type = .Block
-	child1.height = 100
-	child1.margin.left = 10
-	child1.margin.right = 10
-	child1.border.left = 10
-	child1.border.top = 10
+	child1.style.height = 100
+	child1.style.margin.left = 10
+	child1.style.margin.right = 10
+	child1.style.border.width = 10
+	child1.style.border.width = 10
 
 	child2.type = .Block
-	child2.margin.left = 10
-	child2.border.left = 10
-	child2.padding.left = 30
-	child2.border.top = 10
+	child2.style.margin.left = 10
+	child2.style.border.width = 10
+	child2.style.padding.left = 30
+	child2.style.border.width = 10
 
 	child3.type = .Box
-	child3.width = 100
-	child3.height = 100
-	child3.border.left = 10
+	child3.style.width = 100
+	child3.style.height = 100
+	child3.style.border.width = 10
 
 	child4.type = .Box
-	child4.width = 100
-	child4.height = 150
-	child4.margin.left = 10
+	child4.style.width = 100
+	child4.style.height = 150
+	child4.style.margin.left = 10
 
 	layout_compute(&parent, 500)
 	layout_arrange(&parent)

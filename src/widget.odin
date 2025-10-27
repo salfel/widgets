@@ -30,11 +30,11 @@ Widget :: struct {
 	},
 }
 
-widget_make :: proc(style: Style, allocator := context.allocator) -> Widget {
+widget_make :: proc(allocator := context.allocator) -> Widget {
 	return Widget {
 		children = make([dynamic]WidgetId, allocator),
-		layout = layout_make(style, allocator),
 		onclick = proc(widget: ^Widget, position: [2]f32) {},
+		layout = layout_make(allocator),
 	}
 }
 

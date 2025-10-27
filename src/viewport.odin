@@ -1,7 +1,7 @@
 package main
 
 viewport_make :: proc(allocator := context.allocator) -> (widget: Widget, ok: bool) #optional_ok {
-	widget = block_make(map[Property]Value{}, allocator) or_return
+	widget = block_make(allocator) or_return
 	widget.type = .Viewport
 
 	return widget, true

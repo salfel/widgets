@@ -12,34 +12,55 @@ CYAN :: Color{0, 1, 1, 1}
 BLUE :: Color{0, 0, 1, 1}
 MAGENTA :: Color{1, 0, 1, 1}
 
-Side :: enum {
-	Top,
-	Right,
-	Bottom,
-	Left,
+Border :: struct {
+	width: f32,
+	color: Color,
 }
-Sides :: [Side]f32
 
-Property :: enum {
+Sides :: struct {
+	left, right, top, bottom: f32,
+}
+
+sides_make :: proc {
+	sides_make_single,
+	sides_make_multiple,
+}
+
+sides_make_single :: proc(size: f32) -> Sides {
+	return Sides{left = size, right = size, top = size, bottom = size}
+}
+
+sides_make_multiple :: proc(left, right, top, bottom: f32) -> Sides {
+	return Sides{left = left, right = right, top = top, bottom = bottom}
+}
+
+Layout_Style :: struct {
+	width, height:   f32,
+	padding, margin: Sides,
+	border:          Border,
+}
+
+Layout_Style_Property :: enum {
 	Width,
 	Height,
-	Color,
-	Background,
 	Padding,
 	Margin,
 	Border,
-	Rounding,
-	Font_Size,
 }
 
-Value :: union {
-	Color,
-	f32,
-	Sides,
-	Border,
+DEFAULT_LAYOUT_STYLE :: Layout_Style {
+	width = -1,
+	height = -1,
+	padding = {0, 0, 0, 0},
+	margin = {0, 0, 0, 0},
+	border = {width = 0, color = BLACK},
 }
 
-Style :: map[Property]Value
+Box_Style :: struct {
+	background: Color,
+	rounding:   f32,
+	border:     Border,
+}
 
 Text_Style :: struct {
 	font_size: f32,
@@ -49,9 +70,4 @@ Text_Style :: struct {
 DEFAULT_TEXT_STYLE :: Text_Style {
 	color     = BLACK,
 	font_size = 24,
-}
-
-Border :: struct {
-	width: f32,
-	color: Color,
 }
