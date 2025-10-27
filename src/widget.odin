@@ -52,7 +52,7 @@ calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {
 
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
 	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
-	projection := linalg.matrix_ortho3d_f32(0, g_Renderer.window_size.x, g_Renderer.window_size.y, 0, 0, 1)
+	projection := linalg.matrix_ortho3d_f32(0, window_size.x, window_size.y, 0, 0, 1)
 
 	return projection * translation * scale
 }

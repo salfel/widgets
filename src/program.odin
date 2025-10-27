@@ -69,7 +69,8 @@ create_program :: proc(vertex_shader: u32, fragmemt_shader: u32, allocator := co
 
 @(test)
 test_program_creation :: proc(t: ^testing.T) {
-	renderer_init("widgets", "widgets")
+	renderer: Renderer
+	renderer_init(&renderer, "widgets", "widgets")
 
 	vertex_shader, success := compile_shader(gl.VERTEX_SHADER, string(VERTEX_SHADER))
 	testing.expect(t, success)

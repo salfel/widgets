@@ -9,105 +9,112 @@ import "vendor:egl"
 
 
 Renderer :: struct {
-	ctx:         runtime.Context,
-	widget_id:   WidgetId,
-	viewport:    Widget,
-	widgets:     [dynamic]^Widget,
-	wl_state:    Wayland_State,
-	egl_state:   Egl_State,
-	window_size: [2]f32,
-	dirty:       bool,
-	exit:        bool,
+	ctx:          runtime.Context,
+	widget_id:    WidgetId,
+	viewport:     Widget,
+	widgets:      [dynamic]^Widget,
+	dirty:        bool,
+	window_state: Window_State,
 }
 
-g_Renderer: Renderer
-
-renderer_init :: proc(title, app_id: cstring, allocator := context.allocator) {
-	g_Renderer.ctx = context
-
-	wl_init(title, app_id)
-	egl_init()
-
-	g_Renderer.viewport = viewport_make(allocator)
-	g_Renderer.viewport.id = -1
-
-	g_Renderer.widget_id = 0
-	g_Renderer.dirty = true
-	g_Renderer.exit = false
+Window_State :: struct {
+	wl:       Wayland_State,
+	egl:      Egl_State,
+	exit:     bool,
+	renderer: ^Renderer,
 }
 
-renderer_loop :: proc() {
+global_ctx: runtime.Context
+window_size: [2]f32
+
+renderer_init :: proc(renderer: ^Renderer, title, app_id: cstring, allocator := context.allocator) {
+	renderer.ctx = context
+	global_ctx = context
+
+	wl_init(&renderer.window_state, title, app_id)
+	egl_init(&renderer.window_state)
+
+	renderer.viewport = viewport_make(allocator)
+	renderer.viewport.id = -1
+
+	renderer.widget_id = 0
+	renderer.dirty = true
+	renderer.window_state.renderer = renderer
+	renderer.window_state.exit = false
+}
+
+renderer_loop :: proc(renderer: ^Renderer) {
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
-	egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
+	egl.SwapBuffers(renderer.window_state.egl.display, renderer.window_state.egl.surface)
 
-	for wl.display_dispatch(g_Renderer.wl_state.display) != -1 && !g_Renderer.exit {}
+	for wl.display_dispatch(renderer.window_state.wl.display) != -1 && !renderer.window_state.exit {}
 
-	renderer_destroy()
+	renderer_destroy(renderer)
 }
 
-renderer_render :: proc() {
+renderer_render :: proc(renderer: ^Renderer) {
 	gl.ClearColor(0, 0, 0, 0)
 	gl.ClearStencil(0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-	if g_Renderer.dirty {
-		layout_compute(&g_Renderer.viewport.layout, g_Renderer.window_size.x)
-		layout_arrange(&g_Renderer.viewport.layout)
+	if renderer.dirty {
+		layout_compute(&renderer.viewport.layout, window_size.x)
+		layout_arrange(&renderer.viewport.layout)
 
-		g_Renderer.dirty = false
+		renderer.dirty = false
 	}
 
-	renderer_handle_click()
+	renderer_handle_click(renderer)
 
-	viewport_draw(&g_Renderer.viewport)
+	viewport_draw(renderer, &renderer.viewport)
 
-	egl.SwapBuffers(g_Renderer.egl_state.display, g_Renderer.egl_state.surface)
+	egl.SwapBuffers(renderer.window_state.egl.display, renderer.window_state.egl.surface)
 }
 
-renderer_destroy :: proc() {
-	for widget in g_Renderer.widgets {
+renderer_destroy :: proc(renderer: ^Renderer) {
+	for widget in renderer.widgets {
 		delete(widget.layout.children)
 		delete(widget.children)
 		free(widget)
 	}
-	delete(g_Renderer.wl_state.keyboard_state.chars)
-	delete(g_Renderer.widgets)
-	delete(g_Renderer.viewport.children)
-	delete(g_Renderer.viewport.layout.children)
+	delete(renderer.window_state.wl.keyboard_state.chars)
+	delete(renderer.widgets)
+	delete(renderer.viewport.children)
+	delete(renderer.viewport.layout.children)
 }
 
-renderer_handle_click :: proc() {
-	clicked := Pointer_Buttons{.Left} <= g_Renderer.wl_state.pointer_state.clicked
+renderer_handle_click :: proc(renderer: ^Renderer) {
+	clicked := Pointer_Buttons{.Left} <= renderer.window_state.wl.pointer_state.clicked
 	if !clicked {
 		return
 	}
 
-	g_Renderer.wl_state.pointer_state.clicked -= Pointer_Buttons{.Left}
+	renderer.window_state.wl.pointer_state.clicked -= Pointer_Buttons{.Left}
 
-	position := g_Renderer.wl_state.pointer_state.position
+	position := renderer.window_state.wl.pointer_state.position
 
-	for &widget in &g_Renderer.widgets {
+	for &widget in &renderer.widgets {
 		if widget_contains_point(widget, position) && widget.onclick != nil {
 			widget.onclick(widget, position)
 		}
 	}
 }
 
-renderer_register_click :: proc(widget: WidgetId, onclick: On_Click) -> bool {
-	widget := renderer_unsafe_get_widget(widget) or_return
+renderer_register_click :: proc(renderer: ^Renderer, widget: WidgetId, onclick: On_Click) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, widget) or_return
 	widget.onclick = onclick
 
 	return true
 }
 
-renderer_draw_widget :: proc(widget: WidgetId, depth: i32) -> bool {
-	widget := renderer_unsafe_get_widget(widget) or_return
+renderer_draw_widget :: proc(renderer: ^Renderer, widget: WidgetId, depth: i32) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, widget) or_return
 
 	switch widget.type {
 	case .Box, .Block:
-		box_draw(widget, depth)
+		box_draw(renderer, widget, depth)
 	case .Text:
 		text_draw(widget, depth)
 	case .Viewport:
@@ -117,30 +124,37 @@ renderer_draw_widget :: proc(widget: WidgetId, depth: i32) -> bool {
 	return true
 }
 
-renderer_register_widget :: proc(widget: Widget, viewport_child := true) -> WidgetId {
+renderer_register_widget :: proc(renderer: ^Renderer, widget: Widget, viewport_child := true) -> WidgetId {
 	widget := new_clone(widget)
 
-	append(&g_Renderer.widgets, widget)
+	append(&renderer.widgets, widget)
 
-	id := WidgetId(g_Renderer.widget_id)
-	g_Renderer.widget_id += 1
+	id := WidgetId(renderer.widget_id)
+	renderer.widget_id += 1
 
 	widget.id = id
 
 	if viewport_child {
-		append(&g_Renderer.viewport.children, id)
-		append(&g_Renderer.viewport.layout.children, &widget.layout)
-		widget.parent = g_Renderer.viewport.id
+		append(&renderer.viewport.children, id)
+		append(&renderer.viewport.layout.children, &widget.layout)
+		widget.parent = renderer.viewport.id
 	}
 
 	return id
 }
 
-renderer_register_child :: proc(parent_id: WidgetId, child: Widget) -> (child_id: WidgetId, ok: bool) {
-	child_id = renderer_register_widget(child, false)
+renderer_register_child :: proc(
+	renderer: ^Renderer,
+	parent_id: WidgetId,
+	child: Widget,
+) -> (
+	child_id: WidgetId,
+	ok: bool,
+) {
+	child_id = renderer_register_widget(renderer, child, false)
 
-	child := renderer_unsafe_get_widget(child_id) or_return
-	parent := renderer_unsafe_get_widget(parent_id) or_return
+	child := renderer_unsafe_get_widget(renderer, child_id) or_return
+	parent := renderer_unsafe_get_widget(renderer, parent_id) or_return
 
 	append(&parent.children, child_id)
 	append(&parent.layout.children, &child.layout)
@@ -150,8 +164,8 @@ renderer_register_child :: proc(parent_id: WidgetId, child: Widget) -> (child_id
 }
 
 @(private)
-renderer_unsafe_get_widget :: proc(id: WidgetId) -> (^Widget, bool) {
-	for &widget in &g_Renderer.widgets {
+renderer_unsafe_get_widget :: proc(renderer: ^Renderer, id: WidgetId) -> (^Widget, bool) {
+	for &widget in &renderer.widgets {
 		if widget.id == id {
 			return widget, true
 		}

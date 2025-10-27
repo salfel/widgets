@@ -7,8 +7,8 @@ viewport_make :: proc(allocator := context.allocator) -> (widget: Widget, ok: bo
 	return widget, true
 }
 
-viewport_draw :: proc(widget: ^Widget) {
+viewport_draw :: proc(renderer: ^Renderer, widget: ^Widget) {
 	assert(widget.type == .Viewport, "Expected widget to be a viewport")
 
-	box_draw(widget, 1)
+	box_draw(renderer, widget, 1)
 }

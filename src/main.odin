@@ -12,6 +12,7 @@ import "vendor:egl"
 import "vendor:glfw"
 
 count := 1
+renderer: Renderer
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -30,9 +31,10 @@ main :: proc() {
 		}
 	}
 
-	renderer_init("widgets", "widgets")
+	renderer_init(&renderer, "widgets", "widgets")
 
 	parent_id := renderer_register_widget(
+		&renderer,
 		box_make(
 			map[Property]Value {
 				.Background = Color{0, 0, 0.8, 1.0},
@@ -44,6 +46,7 @@ main :: proc() {
 		),
 	)
 	child_id, _ := renderer_register_child(
+		&renderer,
 		parent_id,
 		text_make(
 			"count: 0",
@@ -52,10 +55,10 @@ main :: proc() {
 		),
 	)
 
-	renderer_register_click(child_id, proc(widget: ^Widget, position: [2]f32) {
-		text_change_content(widget.id, fmt.tprint("count: ", count))
+	renderer_register_click(&renderer, child_id, proc(widget: ^Widget, position: [2]f32) {
+		text_change_content(&renderer, widget.id, fmt.tprint("count: ", count))
 		count += 1
 	})
 
-	renderer_loop()
+	renderer_loop(&renderer)
 }

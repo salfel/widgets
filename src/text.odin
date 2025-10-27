@@ -138,8 +138,8 @@ text_apply_styles :: proc(text_data: ^Text_Data, style: Style) {
 	}
 }
 
-text_change_content :: proc(id: WidgetId, content: string) -> bool {
-	widget := renderer_unsafe_get_widget(id) or_return
+text_change_content :: proc(renderer: ^Renderer, id: WidgetId, content: string) -> bool {
+	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	text_data, ok := &widget.data.(Text_Data)
 	assert(ok, "Expected Widget to be of type Text")
 	text_data.content = content
@@ -148,7 +148,7 @@ text_change_content :: proc(id: WidgetId, content: string) -> bool {
 	widget.layout.width = f32(size.x)
 	widget.layout.height = f32(size.y)
 
-	g_Renderer.dirty = true
+	renderer.dirty = true
 
 	return true
 }

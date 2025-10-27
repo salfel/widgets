@@ -16,19 +16,21 @@ Pointer_Button :: enum {
 Pointer_Buttons :: bit_set[Pointer_Button]
 
 Pointer_State :: struct {
-	position: [2]f32,
-	surface:  ^wl.surface,
-	buttons:  Pointer_Buttons,
-	clicked:  Pointer_Buttons,
-	scroll:   [wl.pointer_axis]f32,
+	position:     [2]f32,
+	surface:      ^wl.surface,
+	buttons:      Pointer_Buttons,
+	clicked:      Pointer_Buttons,
+	scroll:       [wl.pointer_axis]f32,
+	window_state: ^Window_State,
 }
 
-pointer_state_make :: proc() -> Pointer_State {
+pointer_state_make :: proc(window_state: ^Window_State) -> Pointer_State {
 	return Pointer_State {
 		position = [2]f32{0, 0},
 		surface = nil,
 		buttons = Pointer_Buttons{},
 		scroll = {.vertical_scroll = 0, .horizontal_scroll = 0},
+		window_state = window_state,
 	}
 }
 
@@ -47,7 +49,7 @@ pointer_enter :: proc "c" (
 
 pointer_leave :: proc "c" (data: rawptr, pointer: ^wl.pointer, serial: uint, surface: ^wl.surface) {
 	pointer_state := cast(^Pointer_State)data
-	context = g_Renderer.ctx
+	context = global_ctx
 
 	assert(pointer_state.surface == surface)
 
@@ -59,7 +61,7 @@ pointer_motion :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, surf
 
 	pointer_state.position = [2]f32{f32(surface_x) / 256.0, f32(surface_y) / 256.0}
 
-	register_callback()
+	register_callback(pointer_state.window_state)
 }
 
 pointer_button :: proc "c" (
@@ -70,7 +72,7 @@ pointer_button :: proc "c" (
 	button: uint,
 	state: wl.pointer_button_state,
 ) {
-	context = g_Renderer.ctx
+	context = global_ctx
 
 	pointer_state := cast(^Pointer_State)data
 
@@ -85,7 +87,7 @@ pointer_button :: proc "c" (
 		}
 	}
 
-	register_callback()
+	register_callback(pointer_state.window_state)
 }
 
 pointer_axis :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, axis: wl.pointer_axis, value: wl.fixed_t) {

@@ -71,7 +71,7 @@ box_make :: proc(style: Style, allocator := context.allocator) -> (widget: Widge
 }
 
 
-box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
+box_draw :: proc(renderer: ^Renderer, widget: ^Widget, depth: i32 = 1) {
 	box_data, ok := &widget.data.(Box_Data)
 	assert(ok, "Expected Box_Data")
 
@@ -111,7 +111,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 
 	for child in widget.children {
-		ok := renderer_draw_widget(child, depth + 1)
+		ok := renderer_draw_widget(renderer, child, depth + 1)
 		assert(ok, fmt.tprint("Couldn't draw child:", child))
 	}
 
