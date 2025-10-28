@@ -20,7 +20,16 @@ Box_Data :: struct {
 	border_width_location, border_color_location: i32,
 	border_radius_location:                       i32,
 	is_stencil_location:                          i32,
+	uniforms:                                     Box_Uniforms,
 }
+
+Box_Uniform :: enum {
+	Size,
+	Background,
+	Rounding,
+	Border,
+}
+Box_Uniforms :: bit_set[Box_Uniform]
 
 box_make :: proc(allocator := context.allocator) -> (widget: Widget, ok: bool = true) #optional_ok {
 	widget = widget_make(allocator)
@@ -29,6 +38,7 @@ box_make :: proc(allocator := context.allocator) -> (widget: Widget, ok: bool = 
 
 	widget.data = Box_Data{}
 	box_data := &widget.data.(Box_Data)
+	box_data.uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
 
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
@@ -69,6 +79,26 @@ box_draw :: proc(renderer: ^Renderer, widget: ^Widget, depth: i32 = 1) {
 	assert(ok, "Expected Box_Data")
 
 	gl.UseProgram(box_data.program)
+
+	for uniform in box_data.uniforms {
+		switch uniform {
+		case .Size:
+			box_data.mp = calculate_mp(widget.layout)
+			gl.UniformMatrix4fv(box_data.mvp_location, 1, false, linalg.matrix_to_ptr(&box_data.mp))
+			gl.Uniform2fv(box_data.size_location, 1, linalg.vector_to_ptr(&widget.layout.result.size))
+			box_data.uniforms -= {.Size}
+		case .Background:
+			gl.Uniform4fv(box_data.color_location, 1, linalg.vector_to_ptr(&box_data.style.background))
+			box_data.uniforms -= {.Background}
+		case .Rounding:
+			gl.Uniform1f(box_data.border_radius_location, box_data.style.rounding)
+			box_data.uniforms -= {.Rounding}
+		case .Border:
+			gl.Uniform1f(box_data.border_width_location, box_data.style.border.width)
+			gl.Uniform3fv(box_data.border_color_location, 1, linalg.vector_to_ptr(&box_data.style.border.color))
+			box_data.uniforms -= {.Border}
+		}
+	}
 
 	box_data.mp = calculate_mp(widget.layout)
 
@@ -125,6 +155,7 @@ box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32) -> bo
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	box_data := (&widget.data.(Box_Data)) or_return
 	widget.layout.style.width = width
+	box_data.uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -135,6 +166,7 @@ box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32) -> 
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	box_data := (&widget.data.(Box_Data)) or_return
 	widget.layout.style.height = height
+	box_data.uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -145,6 +177,7 @@ box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides) -
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	box_data := (&widget.data.(Box_Data)) or_return
 	widget.layout.style.margin = margin
+	box_data.uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -155,6 +188,7 @@ box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides)
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	box_data := (&widget.data.(Box_Data)) or_return
 	widget.layout.style.padding = padding
+	box_data.uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -166,6 +200,7 @@ box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border) 
 	box_data := (&widget.data.(Box_Data)) or_return
 	box_data.style.border = border
 	widget.layout.style.border = border
+	box_data.uniforms += {.Border, .Size}
 
 	renderer.dirty = true
 
@@ -176,6 +211,7 @@ box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	box_data := (&widget.data.(Box_Data)) or_return
 	box_data.style.background = color
+	box_data.uniforms += {.Background}
 
 	return true
 }
@@ -184,6 +220,7 @@ box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32)
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	box_data := (&widget.data.(Box_Data)) or_return
 	box_data.style.rounding = rounding
+	box_data.uniforms += {.Rounding}
 
 	return true
 }
