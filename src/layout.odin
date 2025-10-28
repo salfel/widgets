@@ -57,8 +57,7 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 				children_size.x +
 				layout.style.padding.left +
 				layout.style.padding.right +
-				layout.style.border.width +
-				layout.style.border.width
+				2 * layout.style.border.width
 		} else do layout.result.size.x = layout.style.width + layout.style.border.width + layout.style.border.width
 
 		if layout.style.height == UNDEFINED {
@@ -66,18 +65,16 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 				children_size.y +
 				layout.style.padding.top +
 				layout.style.padding.bottom +
-				layout.style.border.width +
-				layout.style.border.width
+				2 * layout.style.border.width
 		} else do layout.result.size.y = layout.style.height + layout.style.border.width + layout.style.border.width
 
 		return
 	}
 
 	layout.result.size.x = available - layout.style.margin.left - layout.style.margin.right
-	layout.result.size.y = layout.style.height + layout.style.border.width + layout.style.border.width
+	layout.result.size.y = layout.style.height + 2 * layout.style.border.width
 
-	children_height :=
-		layout.style.border.width + layout.style.border.width + layout.style.padding.top + layout.style.padding.bottom
+	children_height := 2 * layout.style.border.width + layout.style.padding.top + layout.style.padding.bottom
 
 	box_height: f32 = 0
 	for &child in layout.children {
@@ -86,8 +83,7 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 			layout.result.size.x -
 			layout.style.padding.left -
 			layout.style.padding.right -
-			layout.style.border.width -
-			layout.style.border.width,
+			2 * layout.style.border.width,
 		)
 
 		child_height := child.result.size.y + child.style.margin.top + child.style.margin.bottom
@@ -160,14 +156,14 @@ test_layout_compute_block :: proc(t: ^testing.T) {
 
 	layout_compute(&parent, 500)
 
-	testing.expect(t, parent.result.size.x == 400)
-	testing.expect(t, parent.result.size.y == 310)
+	testing.expect_value(t, parent.result.size.x, 400)
+	testing.expect_value(t, parent.result.size.y, 330)
 
-	testing.expect(t, child1.result.size.x == 350)
-	testing.expect(t, child1.result.size.y == 100)
+	testing.expect_value(t, child1.result.size.x, 350)
+	testing.expect_value(t, child1.result.size.y, 100)
 
-	testing.expect(t, child2.result.size.x == 370)
-	testing.expect(t, child2.result.size.y == 200)
+	testing.expect_value(t, child2.result.size.x, 370)
+	testing.expect_value(t, child2.result.size.y, 220)
 }
 
 @(test)
@@ -198,14 +194,14 @@ test_layout_compute_box :: proc(t: ^testing.T) {
 
 	layout_compute(&parent)
 
-	testing.expect(t, parent.result.size.x == 360)
-	testing.expect(t, parent.result.size.y == 210)
+	testing.expect_value(t, parent.result.size.x, 370)
+	testing.expect_value(t, parent.result.size.y, 230)
 
-	testing.expect(t, child1.result.size.x == 100)
-	testing.expect(t, child1.result.size.y == 100)
+	testing.expect_value(t, child1.result.size.x, 100)
+	testing.expect_value(t, child1.result.size.y, 100)
 
-	testing.expect(t, child2.result.size.x == 210)
-	testing.expect(t, child2.result.size.y == 200)
+	testing.expect_value(t, child2.result.size.x, 220)
+	testing.expect_value(t, child2.result.size.y, 220)
 }
 
 @(test)
@@ -235,13 +231,11 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	child1.style.margin.left = 10
 	child1.style.margin.right = 10
 	child1.style.border.width = 10
-	child1.style.border.width = 10
 
 	child2.type = .Block
 	child2.style.margin.left = 10
 	child2.style.border.width = 10
 	child2.style.padding.left = 30
-	child2.style.border.width = 10
 
 	child3.type = .Box
 	child3.style.width = 100
@@ -256,18 +250,18 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	layout_compute(&parent, 500)
 	layout_arrange(&parent)
 
-	testing.expect(t, parent.result.position.x == 0)
-	testing.expect(t, parent.result.position.y == 0)
+	testing.expect_value(t, parent.result.position.x, 0)
+	testing.expect_value(t, parent.result.position.y, 0)
 
-	testing.expect(t, child1.result.position.x == 40)
-	testing.expect(t, child1.result.position.y == 10)
+	testing.expect_value(t, child1.result.position.x, 40)
+	testing.expect_value(t, child1.result.position.y, 10)
 
-	testing.expect(t, child2.result.position.x == 40)
-	testing.expect(t, child2.result.position.y == 120)
+	testing.expect_value(t, child2.result.position.x, 40)
+	testing.expect_value(t, child2.result.position.y, 130)
 
-	testing.expect(t, child3.result.position.x == 80)
-	testing.expect(t, child3.result.position.y == 130)
+	testing.expect_value(t, child3.result.position.x, 80)
+	testing.expect_value(t, child3.result.position.y, 140)
 
-	testing.expect(t, child4.result.position.x == 200)
-	testing.expect(t, child4.result.position.y == 130)
+	testing.expect_value(t, child4.result.position.x, 210)
+	testing.expect_value(t, child4.result.position.y, 140)
 }
