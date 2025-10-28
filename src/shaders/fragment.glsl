@@ -5,7 +5,7 @@ in vec2 Position;
 
 uniform vec2 size;
 uniform vec4 color;
-uniform vec3 border_color;
+uniform vec4 border_color;
 uniform float border_width;
 uniform float border_radius;
 uniform int is_stencil;
@@ -59,7 +59,7 @@ void main()
         FragColor = color;
     } else {
         if (isBorder) {
-            FragColor = vec4(border_color, 1.0);
+            FragColor = border_color;
         } else {
             FragColor = color;
         }
