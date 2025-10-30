@@ -17,20 +17,16 @@ Box_Manager :: struct {
 box_manager: Box_Manager
 
 Box :: struct {
-	using widget:                                 Widget,
-
-	// render
-	style:                                        Box_Style,
-	mp:                                           matrix[4, 4]f32,
-	last_window_size:                             [2]f32,
+	using widget:      Widget,
+	style:             Box_Style,
 
 	// OpenGL stuff
-	program:                                      u32,
-	mp_location, size_location, color_location:   i32,
-	border_width_location, border_color_location: i32,
-	border_radius_location:                       i32,
-	is_stencil_location:                          i32,
-	uniforms:                                     Box_Uniforms,
+	program:           u32,
+	mp:                matrix[4, 4]f32,
+	uniform_locations: struct {
+		mp, size, color, border_width, border_color, border_radius, is_stencil: i32,
+	},
+	pending_uniforms:  Box_Uniforms,
 }
 
 Box_Uniform :: enum {
@@ -48,7 +44,7 @@ box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true)
 	box.widget.layout.type = .Box
 
 	box.style = DEFAULT_BOX_STYLE
-	box.uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
+	box.pending_uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
 
 	if !box_manager.init {
 		box_manager_init() or_return
@@ -57,13 +53,15 @@ box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true)
 	box.program = create_program(box_manager.vertex_shader, box_manager.fragment_shader) or_return
 
 	gl.UseProgram(box.program)
-	box.mp_location = gl.GetUniformLocation(box.program, "MP")
-	box.color_location = gl.GetUniformLocation(box.program, "color")
-	box.size_location = gl.GetUniformLocation(box.program, "size")
-	box.border_width_location = gl.GetUniformLocation(box.program, "border_width")
-	box.border_color_location = gl.GetUniformLocation(box.program, "border_color")
-	box.border_radius_location = gl.GetUniformLocation(box.program, "border_radius")
-	box.is_stencil_location = gl.GetUniformLocation(box.program, "is_stencil")
+	box.uniform_locations = {
+		mp            = gl.GetUniformLocation(box.program, "MP"),
+		color         = gl.GetUniformLocation(box.program, "color"),
+		size          = gl.GetUniformLocation(box.program, "size"),
+		border_width  = gl.GetUniformLocation(box.program, "border_width"),
+		border_color  = gl.GetUniformLocation(box.program, "border_color"),
+		border_radius = gl.GetUniformLocation(box.program, "border_radius"),
+		is_stencil    = gl.GetUniformLocation(box.program, "is_stencil"),
+	}
 	gl.UseProgram(0)
 
 	return
@@ -73,27 +71,27 @@ box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true)
 box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 	gl.UseProgram(box.program)
 
-	for uniform in box.uniforms {
+	for uniform in box.pending_uniforms {
 		switch uniform {
 		case .Size:
 			box.mp = calculate_mp(box.widget.layout)
-			gl.UniformMatrix4fv(box.mp_location, 1, false, linalg.matrix_to_ptr(&box.mp))
-			gl.Uniform2fv(box.size_location, 1, linalg.vector_to_ptr(&box.widget.layout.result.size))
-			box.uniforms -= {.Size}
+			gl.UniformMatrix4fv(box.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&box.mp))
+			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&box.widget.layout.result.size))
+			box.pending_uniforms -= {.Size}
 		case .Background:
-			gl.Uniform4fv(box.color_location, 1, linalg.vector_to_ptr(&box.style.background))
-			box.uniforms -= {.Background}
+			gl.Uniform4fv(box.uniform_locations.color, 1, linalg.vector_to_ptr(&box.style.background))
+			box.pending_uniforms -= {.Background}
 		case .Rounding:
-			gl.Uniform1f(box.border_radius_location, box.style.rounding)
-			box.uniforms -= {.Rounding}
+			gl.Uniform1f(box.uniform_locations.border_radius, box.style.rounding)
+			box.pending_uniforms -= {.Rounding}
 		case .Border:
-			gl.Uniform1f(box.border_width_location, box.style.border.width)
-			gl.Uniform4fv(box.border_color_location, 1, linalg.vector_to_ptr(&box.style.border.color))
-			box.uniforms -= {.Border}
+			gl.Uniform1f(box.uniform_locations.border_width, box.style.border.width)
+			gl.Uniform4fv(box.uniform_locations.border_color, 1, linalg.vector_to_ptr(&box.style.border.color))
+			box.pending_uniforms -= {.Border}
 		}
 	}
 
-	gl.Uniform1i(box.is_stencil_location, 0)
+	gl.Uniform1i(box.uniform_locations.is_stencil, 0)
 
 	if depth == 1 {
 		gl.Enable(gl.STENCIL_TEST)
@@ -113,7 +111,7 @@ box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 	gl.StencilOp(gl.KEEP, gl.KEEP, gl.INCR)
 
 	gl.UseProgram(box.program)
-	gl.Uniform1i(box.is_stencil_location, 1)
+	gl.Uniform1i(box.uniform_locations.is_stencil, 1)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
@@ -143,7 +141,7 @@ box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32, loc :
 		return false
 	}
 	box.widget.layout.style.width = width
-	box.uniforms += {.Size}
+	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -158,7 +156,7 @@ box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32, loc
 		return false
 	}
 	box.widget.layout.style.height = height
-	box.uniforms += {.Size}
+	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -173,7 +171,7 @@ box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides, l
 		return false
 	}
 	box.widget.layout.style.margin = margin
-	box.uniforms += {.Size}
+	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -188,7 +186,7 @@ box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides,
 		return false
 	}
 	box.widget.layout.style.padding = padding
-	box.uniforms += {.Size}
+	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
 
@@ -204,7 +202,7 @@ box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border, 
 	}
 	box.style.border = border
 	box.widget.layout.style.border = border
-	box.uniforms += {.Border, .Size}
+	box.pending_uniforms += {.Border, .Size}
 
 	renderer.dirty = true
 
@@ -219,7 +217,7 @@ box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color
 		return false
 	}
 	box.style.background = color
-	box.uniforms += {.Background}
+	box.pending_uniforms += {.Background}
 
 	return true
 }
@@ -232,7 +230,7 @@ box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32,
 		return false
 	}
 	box.style.rounding = rounding
-	box.uniforms += {.Rounding}
+	box.pending_uniforms += {.Rounding}
 
 	return true
 }
