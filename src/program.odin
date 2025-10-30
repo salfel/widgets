@@ -43,8 +43,6 @@ create_program :: proc(vertex_shader: u32, fragmemt_shader: u32, allocator := co
 	defer {
 		gl.DetachShader(program, vertex_shader)
 		gl.DetachShader(program, fragmemt_shader)
-		gl.DeleteShader(vertex_shader)
-		gl.DeleteShader(fragmemt_shader)
 	}
 
 	success: [^]i32 = make([^]i32, 1, allocator)

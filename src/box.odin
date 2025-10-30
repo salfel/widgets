@@ -8,6 +8,14 @@ import gl "vendor:OpenGL"
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
 FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 
+Box_Manager :: struct {
+	init:                           bool,
+	vertex_shader, fragment_shader: u32,
+	vao, vbo:                       u32,
+}
+
+box_manager: Box_Manager
+
 Box :: struct {
 	using widget:                                 Widget,
 
@@ -17,7 +25,7 @@ Box :: struct {
 	last_window_size:                             [2]f32,
 
 	// OpenGL stuff
-	program, vao:                                 u32,
+	program:                                      u32,
 	mvp_location, size_location, color_location:  i32,
 	border_width_location, border_color_location: i32,
 	border_radius_location:                       i32,
@@ -39,27 +47,14 @@ box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true)
 	box.widget.type = .Box
 	box.widget.layout.type = .Box
 
+	box.style = DEFAULT_BOX_STYLE
 	box.uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
 
-	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
+	if !box_manager.init {
+		box_manager_init() or_return
+	}
 
-	vertex_shader := compile_shader(gl.VERTEX_SHADER, VERTEX_SHADER) or_return
-	fragment_shader := compile_shader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER) or_return
-
-	box.program = create_program(vertex_shader, fragment_shader) or_return
-
-	vbo: u32
-	gl.GenBuffers(1, &vbo)
-	gl.GenVertexArrays(1, &box.vao)
-	gl.BindVertexArray(box.vao)
-
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(VERTICES) * size_of(f32), &VERTICES[0], gl.STATIC_DRAW)
-
-	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(0)
-
-	gl.BindVertexArray(0)
+	box.program = create_program(box_manager.vertex_shader, box_manager.fragment_shader) or_return
 
 	gl.UseProgram(box.program)
 	box.mvp_location = gl.GetUniformLocation(box.program, "MVP")
@@ -109,7 +104,7 @@ box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 	gl.StencilFunc(gl.EQUAL, depth - 1, 0xFF)
 	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
 
-	gl.BindVertexArray(box.vao)
+	gl.BindVertexArray(box_manager.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
 	gl.ColorMask(false, false, false, false)
@@ -210,6 +205,30 @@ box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32)
 	box := (widget.(^Box)) or_return
 	box.style.rounding = rounding
 	box.uniforms += {.Rounding}
+
+	return true
+}
+
+box_manager_init :: proc() -> bool {
+	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
+
+	box_manager.vertex_shader = compile_shader(gl.VERTEX_SHADER, VERTEX_SHADER) or_return
+	box_manager.fragment_shader = compile_shader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER) or_return
+
+	vbo: u32
+	gl.GenBuffers(1, &vbo)
+	gl.GenVertexArrays(1, &box_manager.vao)
+	gl.BindVertexArray(box_manager.vao)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(VERTICES) * size_of(f32), &VERTICES[0], gl.STATIC_DRAW)
+
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(0)
+
+	gl.BindVertexArray(0)
+
+	box_manager.init = true
 
 	return true
 }

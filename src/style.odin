@@ -2,6 +2,7 @@ package main
 
 Color :: distinct [4]f32
 
+TRANSPARENT :: Color{0, 0, 0, 0}
 BLACK :: Color{0, 0, 0, 1}
 WHITE :: Color{1, 1, 1, 1}
 
@@ -60,6 +61,12 @@ Box_Style :: struct {
 	background: Color,
 	rounding:   f32,
 	border:     Border,
+}
+
+DEFAULT_BOX_STYLE :: Box_Style {
+	background = TRANSPARENT,
+	rounding   = 0,
+	border     = {},
 }
 
 Text_Style :: struct {

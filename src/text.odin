@@ -1,5 +1,6 @@
 package main
 
+import "base:runtime"
 import "core:fmt"
 import "core:math"
 import "core:math/linalg"
@@ -9,6 +10,14 @@ import "vendor:stb/truetype"
 TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)
 
+Text_Manager :: struct {
+	init:                           bool,
+	fragment_shader, vertex_shader: u32,
+	vao, vbo:                       u32,
+}
+
+text_manager: Text_Manager
+
 Text :: struct {
 	using widget:                              Widget,
 	// style
@@ -16,9 +25,9 @@ Text :: struct {
 	style:                                     Text_Style,
 
 	// OpenGL stuff
-	program, vao, texture:                     u32,
-	mp:                                        matrix[4, 4]f32,
+	program, texture:                          u32,
 	mp_location, tex_location, color_location: i32,
+	mp:                                        matrix[4, 4]f32,
 	uniforms:                                  Text_Uniforms,
 }
 
@@ -39,35 +48,20 @@ text_make :: proc(content, font: string, allocator := context.allocator) -> (tex
 	text.style = DEFAULT_TEXT_STYLE
 	text.uniforms = Text_Uniforms{.Tex_MP, .Color}
 
-	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
-
-	vertex_shader := compile_shader(gl.VERTEX_SHADER, TEXT_VERTEX_SHADER) or_return
-	fragment_shader := compile_shader(gl.FRAGMENT_SHADER, TEXT_FRAGMENT_SHADER) or_return
-
-	text.program = create_program(vertex_shader, fragment_shader) or_return
-
-	vbo: u32
-	gl.GenBuffers(1, &vbo)
-	gl.GenVertexArrays(1, &text.vao)
-	gl.BindVertexArray(text.vao)
-
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(VERTICES) * size_of(f32), &VERTICES[0], gl.STATIC_DRAW)
-
-	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(0)
-
-	gl.BindVertexArray(0)
-
 	size := text_generate_texture(text, allocator) or_return
 	text.widget.layout.style.width = f32(size.x)
 	text.widget.layout.style.height = f32(size.y)
 
-	gl.UseProgram(text.program)
+
+	if !text_manager.init {
+		text_manager_init() or_return
+	}
+
+	text.program = create_program(text_manager.vertex_shader, text_manager.fragment_shader) or_return
+
 	text.mp_location = gl.GetUniformLocation(text.program, "MP")
 	text.tex_location = gl.GetUniformLocation(text.program, "tex")
 	text.color_location = gl.GetUniformLocation(text.program, "color")
-	gl.UseProgram(0)
 
 	return
 }
@@ -93,7 +87,7 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (s
 
 text_draw :: proc(text: ^Text, depth: i32 = 1) {
 	gl.UseProgram(text.program)
-	gl.BindVertexArray(text.vao)
+	gl.BindVertexArray(text_manager.vao)
 
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
@@ -164,4 +158,35 @@ text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string) -> 
 	renderer.dirty = true
 
 	return true
+}
+
+text_manager_init :: proc() -> bool {
+	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
+
+	text_manager.vertex_shader = compile_shader(gl.VERTEX_SHADER, TEXT_VERTEX_SHADER) or_return
+	text_manager.fragment_shader = compile_shader(gl.FRAGMENT_SHADER, TEXT_FRAGMENT_SHADER) or_return
+
+	gl.GenBuffers(1, &text_manager.vbo)
+	gl.GenVertexArrays(1, &text_manager.vao)
+	gl.BindVertexArray(text_manager.vao)
+
+	gl.BindBuffer(gl.ARRAY_BUFFER, text_manager.vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(VERTICES) * size_of(f32), &VERTICES[0], gl.STATIC_DRAW)
+
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(0)
+
+	gl.BindVertexArray(0)
+
+	text_manager.init = true
+
+	return true
+}
+
+@(fini)
+text_manager_destroy :: proc "contextless" () {
+	gl.DeleteBuffers(1, &text_manager.vbo)
+	gl.DeleteVertexArrays(1, &text_manager.vao)
+	gl.DeleteShader(text_manager.fragment_shader)
+	gl.DeleteShader(text_manager.vertex_shader)
 }
