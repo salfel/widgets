@@ -121,18 +121,26 @@ text_style_set :: proc {
 	text_style_set_font_size,
 }
 
-text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color) -> bool {
+text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text := (widget.(^Text)) or_return
+	text, ok := (widget.(^Text))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	text.style.color = color
 	text.uniforms += {.Color}
 
 	return true
 }
 
-text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f32) -> bool {
+text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text := (widget.(^Text)) or_return
+	text, ok := (widget.(^Text))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	text.style.font_size = font_size
 	size := text_generate_texture(text) or_return
 	text.uniforms += {.Tex_MP}
@@ -145,9 +153,13 @@ text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f
 	return true
 }
 
-text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string) -> bool {
+text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text := (widget.(^Text)) or_return
+	text, ok := (widget.(^Text))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	text.content = content
 	size := text_generate_texture(text) or_return
 	text.uniforms += {.Tex_MP}

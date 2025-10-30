@@ -135,9 +135,13 @@ box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32) -> bool {
+box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.widget.layout.style.width = width
 	box.uniforms += {.Size}
 
@@ -146,9 +150,13 @@ box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32) -> bo
 	return true
 }
 
-box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32) -> bool {
+box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.widget.layout.style.height = height
 	box.uniforms += {.Size}
 
@@ -157,9 +165,13 @@ box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32) -> 
 	return true
 }
 
-box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides) -> bool {
+box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.widget.layout.style.margin = margin
 	box.uniforms += {.Size}
 
@@ -168,9 +180,13 @@ box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides) -
 	return true
 }
 
-box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides) -> bool {
+box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.widget.layout.style.padding = padding
 	box.uniforms += {.Size}
 
@@ -179,9 +195,13 @@ box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides)
 	return true
 }
 
-box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border) -> bool {
+box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.style.border = border
 	box.widget.layout.style.border = border
 	box.uniforms += {.Border, .Size}
@@ -191,18 +211,26 @@ box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border) 
 	return true
 }
 
-box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color) -> bool {
+box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.style.background = color
 	box.uniforms += {.Background}
 
 	return true
 }
 
-box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32) -> bool {
+box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box := (widget.(^Box)) or_return
+	box, ok := (widget.(^Box))
+	if !ok {
+		fmt.println("invalid widget type", loc)
+		return false
+	}
 	box.style.rounding = rounding
 	box.uniforms += {.Rounding}
 
