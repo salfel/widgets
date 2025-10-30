@@ -26,7 +26,7 @@ Box :: struct {
 
 	// OpenGL stuff
 	program:                                      u32,
-	mvp_location, size_location, color_location:  i32,
+	mp_location, size_location, color_location:   i32,
 	border_width_location, border_color_location: i32,
 	border_radius_location:                       i32,
 	is_stencil_location:                          i32,
@@ -57,7 +57,7 @@ box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true)
 	box.program = create_program(box_manager.vertex_shader, box_manager.fragment_shader) or_return
 
 	gl.UseProgram(box.program)
-	box.mvp_location = gl.GetUniformLocation(box.program, "MVP")
+	box.mp_location = gl.GetUniformLocation(box.program, "MP")
 	box.color_location = gl.GetUniformLocation(box.program, "color")
 	box.size_location = gl.GetUniformLocation(box.program, "size")
 	box.border_width_location = gl.GetUniformLocation(box.program, "border_width")
@@ -77,7 +77,7 @@ box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 		switch uniform {
 		case .Size:
 			box.mp = calculate_mp(box.widget.layout)
-			gl.UniformMatrix4fv(box.mvp_location, 1, false, linalg.matrix_to_ptr(&box.mp))
+			gl.UniformMatrix4fv(box.mp_location, 1, false, linalg.matrix_to_ptr(&box.mp))
 			gl.Uniform2fv(box.size_location, 1, linalg.vector_to_ptr(&box.widget.layout.result.size))
 			box.uniforms -= {.Size}
 		case .Background:
