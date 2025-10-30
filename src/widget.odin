@@ -20,22 +20,28 @@ Widget :: struct {
 
 	// layout
 	layout:   Layout,
-	children: [dynamic]WidgetId,
+	children: [dynamic]^Widget,
 	parent:   WidgetId,
+	data:     union {
+		Box,
+		Text,
+	},
+
+	// internal functions
+	draw:     proc(widget: ^Widget, depth: i32 = 1),
+
+	// handlers
 	onclick:  On_Click,
 }
 
-Widget_Storage :: union {
-	^Box,
-	^Text,
-}
+widget_make :: proc(allocator := context.allocator) -> ^Widget {
+	widget := new(Widget)
 
-widget_make :: proc(allocator := context.allocator) -> Widget {
-	return Widget {
-		children = make([dynamic]WidgetId, allocator),
-		onclick = proc(widget: ^Widget, position: [2]f32) {},
-		layout = layout_make(allocator),
-	}
+	widget.children = make([dynamic]^Widget, allocator)
+	widget.onclick = proc(widget: ^Widget, position: [2]f32) {}
+	widget.layout = layout_make(allocator)
+
+	return widget
 }
 
 widget_contains_point :: proc(widget: ^Widget, position: [2]f32) -> bool {
@@ -48,29 +54,9 @@ widget_contains_point :: proc(widget: ^Widget, position: [2]f32) -> bool {
 }
 
 widget_add_child :: proc(parent: ^Widget, child: ^Widget) {
-	append(&parent.children, child.id)
+	append(&parent.children, child)
 	append(&parent.layout.children, &child.layout)
 	child.parent = parent.id
-}
-
-widget_free :: proc(widget: Widget_Storage) {
-	switch w in widget {
-	case ^Box:
-		free(w)
-	case ^Text:
-		free(w)
-	}
-}
-
-widget_storage_get_widget :: proc(widget: Widget_Storage) -> ^Widget {
-	switch widget in widget {
-	case ^Box:
-		return &widget.widget
-	case ^Text:
-		return &widget.widget
-	}
-
-	return nil
 }
 
 calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {

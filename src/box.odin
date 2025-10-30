@@ -17,7 +17,6 @@ Box_Manager :: struct {
 box_manager: Box_Manager
 
 Box :: struct {
-	using widget:      Widget,
 	style:             Box_Style,
 
 	// OpenGL stuff
@@ -37,12 +36,14 @@ Box_Uniform :: enum {
 }
 Box_Uniforms :: bit_set[Box_Uniform]
 
-box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true) #optional_ok {
-	box = new(Box)
-	box.widget = widget_make(allocator)
-	box.widget.type = .Box
-	box.widget.layout.type = .Box
+box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool = true) #optional_ok {
+	widget = widget_make(allocator)
+	widget.type = .Box
+	widget.layout.type = .Box
+	widget.draw = box_draw
+	widget.data = Box{}
 
+	box := &widget.data.(Box)
 	box.style = DEFAULT_BOX_STYLE
 	box.pending_uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
 
@@ -68,15 +69,21 @@ box_make :: proc(allocator := context.allocator) -> (box: ^Box, ok: bool = true)
 }
 
 
-box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
+box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
+	box, ok := (&widget.data.(Box))
+	if !ok {
+		fmt.println("invalid widget type, expected Box, got:", widget.type)
+		return
+	}
+
 	gl.UseProgram(box.program)
 
 	for uniform in box.pending_uniforms {
 		switch uniform {
 		case .Size:
-			box.mp = calculate_mp(box.widget.layout)
+			box.mp = calculate_mp(widget.layout)
 			gl.UniformMatrix4fv(box.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&box.mp))
-			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&box.widget.layout.result.size))
+			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&widget.layout.result.size))
 			box.pending_uniforms -= {.Size}
 		case .Background:
 			gl.Uniform4fv(box.uniform_locations.color, 1, linalg.vector_to_ptr(&box.style.background))
@@ -116,9 +123,8 @@ box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 	gl.BindVertexArray(0)
 	gl.UseProgram(0)
 
-	for child in box.widget.children {
-		ok := renderer_draw_widget(renderer, child, depth + 1)
-		assert(ok, fmt.tprint("Couldn't draw child:", child))
+	for child in widget.children {
+		child->draw(depth + 1)
 	}
 
 	if depth == 1 {
@@ -135,12 +141,12 @@ box_draw :: proc(renderer: ^Renderer, box: ^Box, depth: i32 = 1) {
 
 box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	box.widget.layout.style.width = width
+	widget.layout.style.width = width
 	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
@@ -150,12 +156,12 @@ box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32, loc :
 
 box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	box.widget.layout.style.height = height
+	widget.layout.style.height = height
 	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
@@ -165,12 +171,12 @@ box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32, loc
 
 box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	box.widget.layout.style.margin = margin
+	widget.layout.style.margin = margin
 	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
@@ -180,12 +186,12 @@ box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides, l
 
 box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	box.widget.layout.style.padding = padding
+	widget.layout.style.padding = padding
 	box.pending_uniforms += {.Size}
 
 	renderer.dirty = true
@@ -195,13 +201,13 @@ box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides,
 
 box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
 	}
+	widget.layout.style.border = border
 	box.style.border = border
-	box.widget.layout.style.border = border
 	box.pending_uniforms += {.Border, .Size}
 
 	renderer.dirty = true
@@ -211,7 +217,7 @@ box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border, 
 
 box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
@@ -224,7 +230,7 @@ box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color
 
 box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	box, ok := (widget.(^Box))
+	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false

@@ -19,7 +19,6 @@ Text_Manager :: struct {
 text_manager: Text_Manager
 
 Text :: struct {
-	using widget:                              Widget,
 	// style
 	content, font:                             string,
 	style:                                     Text_Style,
@@ -37,20 +36,28 @@ Text_Uniform :: enum {
 }
 Text_Uniforms :: bit_set[Text_Uniform]
 
-text_make :: proc(content, font: string, allocator := context.allocator) -> (text: ^Text, ok := true) #optional_ok {
-	text = new(Text)
-	text.widget = widget_make(allocator)
-	text.widget.type = .Text
-	text.widget.layout.type = .Box
+text_make :: proc(
+	content, font: string,
+	allocator := context.allocator,
+) -> (
+	widget: ^Widget,
+	ok := true,
+) #optional_ok {
+	widget = widget_make(allocator)
+	widget.type = .Text
+	widget.layout.type = .Box
+	widget.draw = text_draw
+	widget.data = Text{}
 
+	text := &widget.data.(Text)
 	text.content = content
 	text.font = font
 	text.style = DEFAULT_TEXT_STYLE
 	text.uniforms = Text_Uniforms{.Tex_MP, .Color}
 
 	size := text_generate_texture(text, allocator) or_return
-	text.widget.layout.style.width = f32(size.x)
-	text.widget.layout.style.height = f32(size.y)
+	widget.layout.style.width = f32(size.x)
+	widget.layout.style.height = f32(size.y)
 
 
 	if !text_manager.init {
@@ -85,7 +92,13 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (s
 	return
 }
 
-text_draw :: proc(text: ^Text, depth: i32 = 1) {
+text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
+	text, ok := (&widget.data.(Text))
+	if !ok {
+		fmt.println("invalid widget type, expected Text, got:", widget.type)
+		return
+	}
+
 	gl.UseProgram(text.program)
 	gl.BindVertexArray(text_manager.vao)
 
@@ -95,7 +108,7 @@ text_draw :: proc(text: ^Text, depth: i32 = 1) {
 	for uniform in text.uniforms {
 		switch uniform {
 		case .Tex_MP:
-			text.mp = calculate_mp(text.widget.layout)
+			text.mp = calculate_mp(widget.layout)
 			gl.UniformMatrix4fv(text.mp_location, 1, false, linalg.matrix_to_ptr(&text.mp))
 			gl.Uniform1i(text.tex_location, 0)
 			text.uniforms -= {.Tex_MP}
@@ -123,7 +136,7 @@ text_style_set :: proc {
 
 text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text, ok := (widget.(^Text))
+	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
@@ -136,7 +149,7 @@ text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, lo
 
 text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f32, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text, ok := (widget.(^Text))
+	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
@@ -145,8 +158,8 @@ text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f
 	size := text_generate_texture(text) or_return
 	text.uniforms += {.Tex_MP}
 
-	text.widget.layout.style.width = f32(size.x)
-	text.widget.layout.style.height = f32(size.y)
+	widget.layout.style.width = f32(size.x)
+	widget.layout.style.height = f32(size.y)
 
 	renderer.dirty = true
 
@@ -155,7 +168,7 @@ text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f
 
 text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
-	text, ok := (widget.(^Text))
+	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
@@ -164,8 +177,8 @@ text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string, loc
 	size := text_generate_texture(text) or_return
 	text.uniforms += {.Tex_MP}
 
-	text.widget.layout.style.width = f32(size.x)
-	text.widget.layout.style.height = f32(size.y)
+	widget.layout.style.width = f32(size.x)
+	widget.layout.style.height = f32(size.y)
 
 	renderer.dirty = true
 

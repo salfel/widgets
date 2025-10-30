@@ -11,8 +11,8 @@ import "vendor:egl"
 Renderer :: struct {
 	ctx:          runtime.Context,
 	widget_id:    WidgetId,
-	viewport:     ^Box,
-	widgets:      map[WidgetId]Widget_Storage,
+	viewport:     ^Widget,
+	widgets:      map[WidgetId]^Widget,
 	dirty:        bool,
 	window_state: Window_State,
 }
@@ -68,24 +68,22 @@ renderer_render :: proc(renderer: ^Renderer) {
 
 	renderer_handle_click(renderer)
 
-	box_draw(renderer, renderer.viewport)
+	renderer.viewport->draw(1)
 
 	egl.SwapBuffers(renderer.window_state.egl.display, renderer.window_state.egl.surface)
 }
 
 renderer_destroy :: proc(renderer: ^Renderer) {
-	for _, widget_ in renderer.widgets {
-		widget := widget_storage_get_widget(widget_)
-
+	for _, widget in renderer.widgets {
 		delete(widget.layout.children)
 		delete(widget.children)
-		widget_free(widget_)
+		free(widget)
 	}
 	delete(renderer.window_state.wl.keyboard_state.chars)
 	delete(renderer.widgets)
 	delete(renderer.viewport.children)
 	delete(renderer.viewport.layout.children)
-	widget_free(renderer.viewport)
+	free(renderer.viewport)
 }
 
 renderer_handle_click :: proc(renderer: ^Renderer) {
@@ -98,8 +96,7 @@ renderer_handle_click :: proc(renderer: ^Renderer) {
 
 	position := renderer.window_state.wl.pointer_state.position
 
-	for _, widget_ in renderer.widgets {
-		widget := widget_storage_get_widget(widget_)
+	for _, widget in renderer.widgets {
 		if widget_contains_point(widget, position) && widget.onclick != nil {
 			widget.onclick(widget, position)
 		}
@@ -107,33 +104,13 @@ renderer_handle_click :: proc(renderer: ^Renderer) {
 }
 
 renderer_register_click :: proc(renderer: ^Renderer, widget: WidgetId, onclick: On_Click) -> bool {
-	widget_ := renderer_unsafe_get_widget(renderer, widget) or_return
-	widget := widget_storage_get_widget(widget_)
+	widget := renderer_unsafe_get_widget(renderer, widget) or_return
 	widget.onclick = onclick
 
 	return true
 }
 
-renderer_draw_widget :: proc(renderer: ^Renderer, widget: WidgetId, depth: i32) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, widget) or_return
-
-	switch widget in widget {
-	case ^Box:
-		box_draw(renderer, widget, depth)
-	case ^Text:
-		text_draw(widget, depth)
-	}
-
-	return true
-}
-
-renderer_register_widget :: proc(
-	renderer: ^Renderer,
-	widget: $T,
-	viewport_child := true,
-) -> WidgetId where intrinsics.type_is_variant_of(Widget_Storage, T) ||
-	T == Widget_Storage {
-
+renderer_register_widget :: proc(renderer: ^Renderer, widget: ^Widget, viewport_child := true) -> WidgetId {
 	id := WidgetId(renderer.widget_id)
 	renderer.widget_id += 1
 
@@ -142,7 +119,7 @@ renderer_register_widget :: proc(
 	widget.id = id
 
 	if viewport_child {
-		append(&renderer.viewport.children, id)
+		append(&renderer.viewport.children, widget)
 		append(&renderer.viewport.layout.children, &widget.layout)
 		widget.parent = renderer.viewport.id
 	}
@@ -153,23 +130,22 @@ renderer_register_widget :: proc(
 renderer_register_child :: proc(
 	renderer: ^Renderer,
 	parent_id: WidgetId,
-	child: $T,
+	child: ^Widget,
 ) -> (
 	child_id: WidgetId,
 	ok: bool,
-) where intrinsics.type_is_variant_of(Widget_Storage, T) ||
-	T == Widget_Storage {
+) {
 	child_id = renderer_register_widget(renderer, child, false)
 
 	child := renderer_unsafe_get_widget(renderer, child_id) or_return
 	parent := renderer_unsafe_get_widget(renderer, parent_id) or_return
 
-	widget_add_child(widget_storage_get_widget(parent), widget_storage_get_widget(child))
+	widget_add_child(parent, child)
 
 	return
 }
 
 @(private)
-renderer_unsafe_get_widget :: proc(renderer: ^Renderer, id: WidgetId) -> (Widget_Storage, bool) {
+renderer_unsafe_get_widget :: proc(renderer: ^Renderer, id: WidgetId) -> (^Widget, bool) {
 	return renderer.widgets[id]
 }
