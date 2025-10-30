@@ -2,6 +2,7 @@ package main
 
 import "base:intrinsics"
 import "core:math/linalg"
+import gl "vendor:OpenGL"
 
 WidgetId :: distinct int
 
@@ -32,6 +33,12 @@ Widget :: struct {
 
 	// handlers
 	onclick:  On_Click,
+}
+
+Widget_Cache :: struct {
+	init:                           bool,
+	fragment_shader, vertex_shader: u32,
+	vao, vbo:                       u32,
 }
 
 widget_make :: proc(allocator := context.allocator) -> ^Widget {
@@ -67,4 +74,11 @@ calculate_mp :: proc(layout: Layout) -> matrix[4, 4]f32 {
 	projection := linalg.matrix_ortho3d_f32(0, window_size.x, window_size.y, 0, 0, 1)
 
 	return projection * translation * scale
+}
+
+widget_cache_destroy :: proc "contextless" (widget_cache: ^Widget_Cache) {
+	gl.DeleteBuffers(1, &widget_cache.vbo)
+	gl.DeleteVertexArrays(1, &widget_cache.vao)
+	gl.DeleteShader(widget_cache.fragment_shader)
+	gl.DeleteShader(widget_cache.vertex_shader)
 }

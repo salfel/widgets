@@ -8,13 +8,7 @@ import gl "vendor:OpenGL"
 VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
 FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 
-Box_Manager :: struct {
-	init:                           bool,
-	vertex_shader, fragment_shader: u32,
-	vao, vbo:                       u32,
-}
-
-box_manager: Box_Manager
+box_cache: Widget_Cache
 
 Box :: struct {
 	style:             Box_Style,
@@ -47,11 +41,11 @@ box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool =
 	box.style = DEFAULT_BOX_STYLE
 	box.pending_uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
 
-	if !box_manager.init {
-		box_manager_init() or_return
+	if !box_cache.init {
+		box_cache_init() or_return
 	}
 
-	box.program = create_program(box_manager.vertex_shader, box_manager.fragment_shader) or_return
+	box.program = create_program(box_cache.vertex_shader, box_cache.fragment_shader) or_return
 
 	gl.UseProgram(box.program)
 	box.uniform_locations = {
@@ -109,7 +103,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.StencilFunc(gl.EQUAL, depth - 1, 0xFF)
 	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
 
-	gl.BindVertexArray(box_manager.vao)
+	gl.BindVertexArray(box_cache.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
 	gl.ColorMask(false, false, false, false)
@@ -241,16 +235,16 @@ box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32,
 	return true
 }
 
-box_manager_init :: proc() -> bool {
+box_cache_init :: proc() -> bool {
 	VERTICES := []f32{0, 0, 1, 0, 0, 1, 1, 1}
 
-	box_manager.vertex_shader = compile_shader(gl.VERTEX_SHADER, VERTEX_SHADER) or_return
-	box_manager.fragment_shader = compile_shader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER) or_return
+	box_cache.vertex_shader = compile_shader(gl.VERTEX_SHADER, VERTEX_SHADER) or_return
+	box_cache.fragment_shader = compile_shader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER) or_return
 
 	vbo: u32
 	gl.GenBuffers(1, &vbo)
-	gl.GenVertexArrays(1, &box_manager.vao)
-	gl.BindVertexArray(box_manager.vao)
+	gl.GenVertexArrays(1, &box_cache.vao)
+	gl.BindVertexArray(box_cache.vao)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.BufferData(gl.ARRAY_BUFFER, len(VERTICES) * size_of(f32), &VERTICES[0], gl.STATIC_DRAW)
@@ -260,7 +254,12 @@ box_manager_init :: proc() -> bool {
 
 	gl.BindVertexArray(0)
 
-	box_manager.init = true
+	box_cache.init = true
 
 	return true
+}
+
+@(fini)
+box_cache_destroy :: proc "contextless" () {
+	widget_cache_destroy(&box_cache)
 }
