@@ -85,9 +85,6 @@ xdg_toplevel_configure_bounds :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel
 }
 
 xdg_toplevel_wm_capabilities :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel, capabilities: wl.array) {
-	context = global_ctx
-
-	fmt.println(capabilities.size)
 }
 
 xdg_toplevel_close :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel) {
