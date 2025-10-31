@@ -57,11 +57,13 @@ pointer_leave :: proc "c" (data: rawptr, pointer: ^wl.pointer, serial: uint, sur
 }
 
 pointer_motion :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, surface_x, surface_y: wl.fixed_t) {
+	context = global_ctx
 	pointer_state := cast(^Pointer_State)data
 
-	pointer_state.position = [2]f32{f32(surface_x) / 256.0, f32(surface_y) / 256.0}
-
-	register_callback(pointer_state.window_state)
+	renderer_add_event(
+		pointer_state.window_state.renderer,
+		Event{type = .Pointer_Move, data = [2]f32{f32(surface_x) / 256.0, f32(surface_y) / 256.0}},
+	)
 }
 
 pointer_button :: proc "c" (
@@ -82,12 +84,13 @@ pointer_button :: proc "c" (
 				pointer_state.buttons += Pointer_Buttons{ptr_button}
 			} else {
 				pointer_state.buttons -= Pointer_Buttons{ptr_button}
-				pointer_state.clicked += Pointer_Buttons{ptr_button}
+				renderer_add_event(
+					pointer_state.window_state.renderer,
+					Event{type = .Pointer_Button, data = ptr_button},
+				)
 			}
 		}
 	}
-
-	register_callback(pointer_state.window_state)
 }
 
 pointer_axis :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, axis: wl.pointer_axis, value: wl.fixed_t) {

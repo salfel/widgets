@@ -21,7 +21,7 @@ Text :: struct {
 	program, texture:                          u32,
 	mp_location, tex_location, color_location: i32,
 	mp:                                        matrix[4, 4]f32,
-	uniforms:                                  Text_Uniforms,
+	pending_uniforms:                          Text_Uniforms,
 }
 
 Text_Uniform :: enum {
@@ -41,13 +41,14 @@ text_make :: proc(
 	widget.type = .Text
 	widget.layout.type = .Box
 	widget.draw = text_draw
+	widget.on_window_resize = text_on_window_resize
 	widget.data = Text{}
 
 	text := &widget.data.(Text)
 	text.content = content
 	text.font = font
 	text.style = DEFAULT_TEXT_STYLE
-	text.uniforms = Text_Uniforms{.Tex_MP, .Color}
+	text.pending_uniforms = Text_Uniforms{.Tex_MP, .Color}
 
 	size := text_generate_texture(text, allocator) or_return
 	widget.layout.style.width = f32(size.x)
@@ -80,16 +81,16 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
 
-	for uniform in text.uniforms {
+	for uniform in text.pending_uniforms {
 		switch uniform {
 		case .Tex_MP:
 			text.mp = calculate_mp(widget.layout)
 			gl.UniformMatrix4fv(text.mp_location, 1, false, linalg.matrix_to_ptr(&text.mp))
 			gl.Uniform1i(text.tex_location, 0)
-			text.uniforms -= {.Tex_MP}
+			text.pending_uniforms -= {.Tex_MP}
 		case .Color:
 			gl.Uniform4fv(text.color_location, 1, linalg.vector_to_ptr(&text.style.color))
-			text.uniforms -= {.Color}
+			text.pending_uniforms -= {.Color}
 		}
 	}
 
@@ -123,6 +124,21 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (s
 	return
 }
 
+text_on_window_resize :: proc(widget: ^Widget, size: [2]f32) {
+	text, ok := (&widget.data.(Text))
+	if !ok {
+		fmt.println("invalid widget type, expected Text, got:", widget.type)
+		return
+	}
+
+	text.mp = calculate_mp(widget.layout)
+	text.pending_uniforms += {.Tex_MP}
+
+	renderer.dirty = true
+
+	return
+}
+
 text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, id) or_return
 	text, ok := (&widget.data.(Text))
@@ -131,7 +147,7 @@ text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, lo
 		return false
 	}
 	text.style.color = color
-	text.uniforms += {.Color}
+	text.pending_uniforms += {.Color}
 
 	return true
 }
@@ -145,7 +161,7 @@ text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f
 	}
 	text.style.font_size = font_size
 	size := text_generate_texture(text) or_return
-	text.uniforms += {.Tex_MP}
+	text.pending_uniforms += {.Tex_MP}
 
 	widget.layout.style.width = f32(size.x)
 	widget.layout.style.height = f32(size.y)
@@ -164,7 +180,7 @@ text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string, loc
 	}
 	text.content = content
 	size := text_generate_texture(text) or_return
-	text.uniforms += {.Tex_MP}
+	text.pending_uniforms += {.Tex_MP}
 
 	widget.layout.style.width = f32(size.x)
 	widget.layout.style.height = f32(size.y)

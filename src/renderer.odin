@@ -3,25 +3,43 @@ package main
 import wl "../lib/wayland"
 import "base:intrinsics"
 import "base:runtime"
+import "core:container/queue"
 import "core:fmt"
 import "core:math"
 import gl "vendor:OpenGL"
 import "vendor:egl"
 
 Renderer :: struct {
-	ctx:          runtime.Context,
-	widget_id:    WidgetId,
-	viewport:     ^Widget,
-	widgets:      map[WidgetId]^Widget,
-	dirty:        bool,
-	window_state: Window_State,
+	ctx:              runtime.Context,
+	widget_id:        WidgetId,
+	viewport:         ^Widget,
+	widgets:          map[WidgetId]^Widget,
+	dirty:            bool,
+	window_state:     Window_State,
+	events:           queue.Queue(Event),
+	pointer_position: [2]f32,
+	exit:             bool,
 }
 
 Window_State :: struct {
 	wl:       Wayland_State,
 	egl:      Egl_State,
-	exit:     bool,
 	renderer: ^Renderer,
+}
+
+Event :: struct {
+	type: Event_Type,
+	data: union {
+		[2]f32,
+		Pointer_Button,
+	},
+}
+
+Event_Type :: enum {
+	Window_Close,
+	Window_Resize,
+	Pointer_Button,
+	Pointer_Move,
 }
 
 global_ctx: runtime.Context
@@ -31,7 +49,7 @@ renderer_init :: proc(renderer: ^Renderer, title, app_id: cstring, allocator := 
 	renderer.ctx = context
 	global_ctx = context
 
-	wl_init(&renderer.window_state, title, app_id)
+	wl_init(renderer, title, app_id)
 	egl_init(&renderer.window_state)
 
 	renderer.viewport = box_make()
@@ -40,7 +58,6 @@ renderer_init :: proc(renderer: ^Renderer, title, app_id: cstring, allocator := 
 	renderer.widget_id = 0
 	renderer.dirty = true
 	renderer.window_state.renderer = renderer
-	renderer.window_state.exit = false
 }
 
 renderer_loop :: proc(renderer: ^Renderer) {
@@ -49,7 +66,9 @@ renderer_loop :: proc(renderer: ^Renderer) {
 
 	egl.SwapBuffers(renderer.window_state.egl.display, renderer.window_state.egl.surface)
 
-	for wl.display_dispatch(renderer.window_state.wl.display) != -1 && !renderer.window_state.exit {}
+	for wl.display_dispatch(renderer.window_state.wl.display) != -1 && !renderer.exit {
+		renderer_handle_events(renderer)
+	}
 
 	renderer_destroy(renderer)
 }
@@ -65,8 +84,6 @@ renderer_render :: proc(renderer: ^Renderer) {
 
 		renderer.dirty = false
 	}
-
-	renderer_handle_click(renderer)
 
 	renderer.viewport->draw(1)
 
@@ -84,28 +101,16 @@ renderer_destroy :: proc(renderer: ^Renderer) {
 	delete(renderer.viewport.children)
 	delete(renderer.viewport.layout.children)
 	free(renderer.viewport)
+
+	queue.destroy(&renderer.events)
 }
 
 renderer_handle_click :: proc(renderer: ^Renderer) {
-	clicked := Pointer_Buttons{.Left} <= renderer.window_state.wl.pointer_state.clicked
-	if !clicked {
-		return
-	}
-
-	renderer.window_state.wl.pointer_state.clicked -= Pointer_Buttons{.Left}
-
-	position := renderer.window_state.wl.pointer_state.position
-
-	for _, widget in renderer.widgets {
-		if widget_contains_point(widget, position) && widget.onclick != nil {
-			widget.onclick(widget, position)
-		}
-	}
 }
 
 renderer_register_click :: proc(renderer: ^Renderer, widget: WidgetId, onclick: On_Click) -> bool {
 	widget := renderer_unsafe_get_widget(renderer, widget) or_return
-	widget.onclick = onclick
+	widget.on_click = onclick
 
 	return true
 }
@@ -148,4 +153,52 @@ renderer_register_child :: proc(
 @(private)
 renderer_unsafe_get_widget :: proc(renderer: ^Renderer, id: WidgetId) -> (^Widget, bool) {
 	return renderer.widgets[id]
+}
+
+renderer_add_event :: proc(renderer: ^Renderer, event: Event) {
+	queue.push(&renderer.events, event)
+
+	register_callback(&renderer.window_state)
+}
+
+renderer_handle_events :: proc(renderer: ^Renderer) {
+	for queue.len(renderer.events) != 0 {
+		event := queue.pop_front(&renderer.events)
+
+		#partial switch event.type {
+		case .Window_Close:
+			renderer.exit = true
+		case .Window_Resize:
+			size, ok := event.data.([2]f32)
+			assert(ok, "Invalid data for window resize event.")
+			window_size = size
+
+			wl.egl_window_resize(renderer.window_state.egl.window, int(window_size.x), int(window_size.y), 0, 0)
+			gl.Viewport(0, 0, i32(window_size.x), i32(window_size.y))
+
+			for _, widget in renderer.widgets {
+				widget->on_window_resize(window_size)
+			}
+
+			renderer.viewport->on_window_resize(window_size)
+		case .Pointer_Move:
+			position, ok := event.data.([2]f32)
+			assert(ok, "Invalid data for pointer move event.")
+
+			renderer.pointer_position = position
+		case .Pointer_Button:
+			button, ok := event.data.(Pointer_Button)
+			assert(ok, "Invalid data for pointer button event.")
+
+			if button != .Left do return
+
+			position := renderer.pointer_position
+
+			for _, widget in renderer.widgets {
+				if widget_contains_point(widget, position) && widget.on_click != nil {
+					widget.on_click(widget, position)
+				}
+			}
+		}
+	}
 }
