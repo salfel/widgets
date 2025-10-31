@@ -35,7 +35,7 @@ box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool =
 	widget.type = .Box
 	widget.layout.type = .Box
 	widget.draw = box_draw
-	widget.on_window_resize = box_on_window_resize
+	widget.recalculate_mp = box_recalculate_mp
 	widget.data = Box{}
 
 	box := &widget.data.(Box)
@@ -134,7 +134,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-box_on_window_resize :: proc(widget: ^Widget, size: [2]f32) {
+box_recalculate_mp :: proc(widget: ^Widget) {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type, expected Box, got:", widget.type)

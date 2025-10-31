@@ -16,24 +16,24 @@ Widget_Type :: enum {
 On_Click :: proc(widget: ^Widget, position: [2]f32)
 
 Widget :: struct {
-	type:             Widget_Type,
-	id:               WidgetId,
+	type:           Widget_Type,
+	id:             WidgetId,
 
 	// layout
-	layout:           Layout,
-	children:         [dynamic]^Widget,
-	parent:           WidgetId,
-	data:             union {
+	layout:         Layout,
+	children:       [dynamic]^Widget,
+	parent:         WidgetId,
+	data:           union {
 		Box,
 		Text,
 	},
 
 	// internal functions
-	draw:             proc(widget: ^Widget, depth: i32 = 1),
-	on_window_resize: proc(widget: ^Widget, size: [2]f32),
+	draw:           proc(widget: ^Widget, depth: i32 = 1),
+	recalculate_mp: proc(widget: ^Widget),
 
 	// handlers
-	on_click:         On_Click,
+	on_click:       On_Click,
 }
 
 Widget_Cache :: struct {

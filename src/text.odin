@@ -41,7 +41,7 @@ text_make :: proc(
 	widget.type = .Text
 	widget.layout.type = .Box
 	widget.draw = text_draw
-	widget.on_window_resize = text_on_window_resize
+	widget.recalculate_mp = text_recalculate_mp
 	widget.data = Text{}
 
 	text := &widget.data.(Text)
@@ -124,7 +124,7 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (s
 	return
 }
 
-text_on_window_resize :: proc(widget: ^Widget, size: [2]f32) {
+text_recalculate_mp :: proc(widget: ^Widget) {
 	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type, expected Text, got:", widget.type)

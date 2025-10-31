@@ -82,6 +82,12 @@ renderer_render :: proc(renderer: ^Renderer) {
 		layout_compute(&renderer.viewport.layout, window_size.x)
 		layout_arrange(&renderer.viewport.layout)
 
+		for _, widget in renderer.widgets {
+			if widget.layout.result.dirty {
+				widget->recalculate_mp()
+			}
+		}
+
 		renderer.dirty = false
 	}
 
@@ -177,10 +183,10 @@ renderer_handle_events :: proc(renderer: ^Renderer) {
 			gl.Viewport(0, 0, i32(window_size.x), i32(window_size.y))
 
 			for _, widget in renderer.widgets {
-				widget->on_window_resize(window_size)
+				widget->recalculate_mp()
 			}
 
-			renderer.viewport->on_window_resize(window_size)
+			renderer.viewport->recalculate_mp()
 		case .Pointer_Move:
 			position, ok := event.data.([2]f32)
 			assert(ok, "Invalid data for pointer move event.")

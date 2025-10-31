@@ -21,6 +21,7 @@ Layout :: struct {
 	result:   struct {
 		size:     [2]f32,
 		position: [2]f32,
+		dirty:    bool,
 	},
 }
 
@@ -40,6 +41,9 @@ layout_destroy :: proc(layout: ^Layout) {
 }
 
 layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
+	initial := layout.result.size
+	layout.result.dirty = false
+
 	if layout.type == .Box {
 		children_size := [2]f32{0, 0}
 		for &child in layout.children {
@@ -67,6 +71,8 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 				layout.style.padding.bottom +
 				2 * layout.style.border.width
 		} else do layout.result.size.y = layout.style.height + layout.style.border.width + layout.style.border.width
+
+		if layout.result.size != initial do layout.result.dirty = true
 
 		return
 	}
@@ -99,9 +105,13 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 	}
 
 	layout.result.size.y = math.max(layout.result.size.y, children_height)
+
+	if layout.result.size != initial do layout.result.dirty = true
 }
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
+	initial := layout.result.position
+
 	parent_offset := [2]f32{offset.x + layout.style.margin.left, offset.y + layout.style.margin.top}
 	layout.result.position = parent_offset
 	parent_offset.x += layout.style.padding.left + layout.style.border.width
@@ -127,6 +137,8 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
 
 		prev_child = child
 	}
+
+	if layout.result.position != initial do layout.result.dirty = true
 }
 
 @(test)
