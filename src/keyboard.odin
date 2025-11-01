@@ -18,24 +18,22 @@ Modifier :: enum {
 Modifiers :: bit_set[Modifier]
 
 Keyboard_State :: struct {
-	xkb:          struct {
+	xkb:         struct {
 		ctx:    ^xkb.ctx,
 		keymap: ^xkb.keymap,
 		state:  ^xkb.state,
 	},
-	modifiers:    Modifiers,
-	mod_indices:  [Modifier]u32,
-	chars:        [dynamic]rune,
-	window_state: ^Window_State,
+	modifiers:   Modifiers,
+	mod_indices: [Modifier]u32,
+	chars:       [dynamic]rune,
 }
 
-keyboard_state_make :: proc(window_state: ^Window_State, allocator := context.allocator) -> Keyboard_State {
+keyboard_state_make :: proc(allocator := context.allocator) -> Keyboard_State {
 	return Keyboard_State {
 		xkb = {},
 		modifiers = Modifiers{},
 		mod_indices = [Modifier]u32{},
 		chars = make([dynamic]rune, allocator),
-		window_state = window_state,
 	}
 }
 
@@ -46,8 +44,9 @@ handle_keymap :: proc "c" (
 	fd: int,
 	size: uint,
 ) {
-	keyboard_state := cast(^Keyboard_State)data
 	context = global_ctx
+	app_context := cast(^App_Context)data
+	keyboard_state := &app_context.window.wl.keyboard_state
 
 	defer os.close(cast(os.Handle)fd)
 
@@ -76,8 +75,9 @@ handle_enter :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, su
 handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface) {}
 
 handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key: uint, _state: wl.keyboard_key_state) {
-	keyboard_state := cast(^Keyboard_State)data
 	context = global_ctx
+	app_context := cast(^App_Context)data
+	keyboard_state := &app_context.window.wl.keyboard_state
 
 	if _state != .PRESSED {
 		return
@@ -103,7 +103,7 @@ handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key:
 
 	append(&keyboard_state.chars, r)
 
-	register_callback(keyboard_state.window_state)
+	wl_register_callback(&app_context.window)
 }
 
 handle_modifiers :: proc "c" (
@@ -115,8 +115,9 @@ handle_modifiers :: proc "c" (
 	mods_locked: uint,
 	group: uint,
 ) {
-	keyboard_state := cast(^Keyboard_State)data
 	context = global_ctx
+	app_context := cast(^App_Context)data
+	keyboard_state := &app_context.window.wl.keyboard_state
 
 	xkb.state_update_mask(
 		keyboard_state.xkb.state,
@@ -143,7 +144,7 @@ handle_modifiers :: proc "c" (
 		}
 	}
 
-	register_callback(keyboard_state.window_state)
+	wl_register_callback(&app_context.window)
 }
 
 handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}

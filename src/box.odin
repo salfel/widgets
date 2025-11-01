@@ -64,7 +64,7 @@ box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool =
 }
 
 
-box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
+box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type, expected Box, got:", widget.type)
@@ -76,7 +76,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	for uniform in box.pending_uniforms {
 		switch uniform {
 		case .Size:
-			box.mp = calculate_mp(widget.layout)
+			box.mp = calculate_mp(widget.layout, app_context)
 			gl.UniformMatrix4fv(box.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&box.mp))
 			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&widget.layout.result.size))
 			box.pending_uniforms -= {.Size}
@@ -119,7 +119,7 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 
 	for child in widget.children {
-		child->draw(depth + 1)
+		child->draw(app_context, depth + 1)
 	}
 
 	if depth == 1 {
@@ -134,23 +134,22 @@ box_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-box_recalculate_mp :: proc(widget: ^Widget) {
+box_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type, expected Box, got:", widget.type)
 		return
 	}
 
-	box.mp = calculate_mp(widget.layout)
+	box.mp = calculate_mp(widget.layout, app_context)
 	box.pending_uniforms += {.Size}
 
-	renderer.dirty = true
+	app_context.renderer.dirty = true
 
 	return
 }
 
-box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_width :: proc(widget: ^Widget, width: f32, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -164,8 +163,7 @@ box_style_set_width :: proc(renderer: ^Renderer, id: WidgetId, width: f32, loc :
 	return true
 }
 
-box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_height :: proc(widget: ^Widget, height: f32, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -179,8 +177,7 @@ box_style_set_height :: proc(renderer: ^Renderer, id: WidgetId, height: f32, loc
 	return true
 }
 
-box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_margin :: proc(widget: ^Widget, margin: Sides, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -194,8 +191,7 @@ box_style_set_margin :: proc(renderer: ^Renderer, id: WidgetId, margin: Sides, l
 	return true
 }
 
-box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_padding :: proc(widget: ^Widget, padding: Sides, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -209,8 +205,7 @@ box_style_set_padding :: proc(renderer: ^Renderer, id: WidgetId, padding: Sides,
 	return true
 }
 
-box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_border :: proc(widget: ^Widget, border: Border, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -225,8 +220,7 @@ box_style_set_border :: proc(renderer: ^Renderer, id: WidgetId, border: Border, 
 	return true
 }
 
-box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_background :: proc(widget: ^Widget, color: Color, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -238,8 +232,7 @@ box_style_set_background :: proc(renderer: ^Renderer, id: WidgetId, color: Color
 	return true
 }
 
-box_style_set_rounding :: proc(renderer: ^Renderer, id: WidgetId, rounding: f32, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+box_style_set_rounding :: proc(widget: ^Widget, rounding: f32, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)

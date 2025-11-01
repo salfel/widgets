@@ -68,7 +68,7 @@ text_make :: proc(
 	return
 }
 
-text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
+text_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type, expected Text, got:", widget.type)
@@ -84,7 +84,7 @@ text_draw :: proc(widget: ^Widget, depth: i32 = 1) {
 	for uniform in text.pending_uniforms {
 		switch uniform {
 		case .Tex_MP:
-			text.mp = calculate_mp(widget.layout)
+			text.mp = calculate_mp(widget.layout, app_context)
 			gl.UniformMatrix4fv(text.mp_location, 1, false, linalg.matrix_to_ptr(&text.mp))
 			gl.Uniform1i(text.tex_location, 0)
 			text.pending_uniforms -= {.Tex_MP}
@@ -124,23 +124,22 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (s
 	return
 }
 
-text_recalculate_mp :: proc(widget: ^Widget) {
+text_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type, expected Text, got:", widget.type)
 		return
 	}
 
-	text.mp = calculate_mp(widget.layout)
+	text.mp = calculate_mp(widget.layout, app_context)
 	text.pending_uniforms += {.Tex_MP}
 
-	renderer.dirty = true
+	app_context.renderer.dirty = true
 
 	return
 }
 
-text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+text_style_set_color :: proc(widget: ^Widget, color: Color, renderer: ^Renderer, loc := #caller_location) -> bool {
 	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -152,8 +151,12 @@ text_style_set_color :: proc(renderer: ^Renderer, id: WidgetId, color: Color, lo
 	return true
 }
 
-text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f32, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+text_style_set_font_size :: proc(
+	widget: ^Widget,
+	font_size: f32,
+	renderer: ^Renderer,
+	loc := #caller_location,
+) -> bool {
 	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type", loc)
@@ -171,8 +174,7 @@ text_style_set_font_size :: proc(renderer: ^Renderer, id: WidgetId, font_size: f
 	return true
 }
 
-text_set_content :: proc(renderer: ^Renderer, id: WidgetId, content: string, loc := #caller_location) -> bool {
-	widget := renderer_unsafe_get_widget(renderer, id) or_return
+text_set_content :: proc(widget: ^Widget, content: string, renderer: ^Renderer, loc := #caller_location) -> bool {
 	text, ok := (&widget.data.(Text))
 	if !ok {
 		fmt.println("invalid widget type", loc)

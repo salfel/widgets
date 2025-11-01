@@ -9,7 +9,6 @@ import "vendor:egl"
 import "vendor:glfw"
 
 count := 1
-renderer: Renderer
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -28,33 +27,42 @@ main :: proc() {
 		}
 	}
 
-	renderer_init(&renderer, "widgets", "widgets")
+	app_context: App_Context
+	app_context_init(&app_context, "widgets", "widgets")
+	defer app_context_destroy(&app_context)
 
-	parent_id := renderer_register_widget(&renderer, box_make())
-	box_style_set_width(&renderer, parent_id, 800)
-	box_style_set_height(&renderer, parent_id, 700)
-	box_style_set_rounding(&renderer, parent_id, 10)
-	box_style_set_border(&renderer, parent_id, Border{width = 10, color = RED})
-	box_style_set_background(&renderer, parent_id, BLUE)
-	box_style_set_margin(&renderer, parent_id, sides_make(30))
-	box_style_set_padding(&renderer, parent_id, sides_make(50))
+	parent := box_make()
+	widget_register(parent, &app_context.widget_manager)
+	widget_attach_to_viewport(parent, &app_context.widget_manager)
+	box_style_set_width(parent, 800, &app_context.renderer)
+	box_style_set_height(parent, 700, &app_context.renderer)
+	box_style_set_rounding(parent, 10, &app_context.renderer)
+	box_style_set_border(parent, Border{width = 10, color = RED}, &app_context.renderer)
+	box_style_set_background(parent, BLUE, &app_context.renderer)
+	box_style_set_margin(parent, sides_make(30), &app_context.renderer)
+	box_style_set_padding(parent, sides_make(50), &app_context.renderer)
 
-	child1_id, _ := renderer_register_child(&renderer, parent_id, text_make("count: 0", "font.ttf"))
-	text_style_set_color(&renderer, child1_id, WHITE)
-	text_style_set_font_size(&renderer, child1_id, 96)
+	child1 := text_make("count: 0", "font.ttf")
+	widget_register(child1, &app_context.widget_manager)
+	widget_add_child(parent, child1)
+	text_style_set_color(child1, WHITE, &app_context.renderer)
+	text_style_set_font_size(child1, 96, &app_context.renderer)
 
-	child2_id, _ := renderer_register_child(&renderer, parent_id, box_make())
-	box_style_set_width(&renderer, child2_id, 200)
-	box_style_set_height(&renderer, child2_id, 200)
-	box_style_set_background(&renderer, child2_id, GREEN)
-	box_style_set_rounding(&renderer, child2_id, 50)
-	box_style_set_margin(&renderer, child2_id, sides_make(10))
-	box_style_set_border(&renderer, child2_id, Border{width = 10, color = RED})
+	child2 := box_make()
+	widget_register(child2, &app_context.widget_manager)
+	widget_add_child(parent, child2)
 
-	renderer_register_click(&renderer, child1_id, proc(widget: ^Widget, position: [2]f32) {
-		text_set_content(&renderer, widget.id, fmt.tprint("count: ", count))
+	box_style_set_width(child2, 200, &app_context.renderer)
+	box_style_set_height(child2, 200, &app_context.renderer)
+	box_style_set_background(child2, GREEN, &app_context.renderer)
+	box_style_set_rounding(child2, 50, &app_context.renderer)
+	box_style_set_margin(child2, sides_make(10), &app_context.renderer)
+	box_style_set_border(child2, Border{width = 10, color = RED}, &app_context.renderer)
+
+	widget_set_onclick(child1, proc(widget: ^Widget, position: [2]f32, app_context: ^App_Context) {
+		text_set_content(widget, fmt.tprint("count: ", count), &app_context.renderer)
 		count += 1
 	})
 
-	renderer_loop(&renderer)
+	renderer_loop(&app_context)
 }

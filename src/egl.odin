@@ -16,7 +16,7 @@ Egl_State :: struct {
 }
 
 
-egl_init :: proc(window_state: ^Window_State) {
+egl_init :: proc(window_context: ^Window_Context) {
 	major, minor: i32
 	egl.BindAPI(egl.OPENGL_API)
 	config_attribs := []i32 {
@@ -37,29 +37,34 @@ egl_init :: proc(window_state: ^Window_State) {
 		egl.NONE,
 	}
 
-	window_state.egl.display = egl.GetDisplay(cast(egl.NativeDisplayType)window_state.wl.display)
-	if window_state.egl.display == nil {
+	window_context.egl.display = egl.GetDisplay(cast(egl.NativeDisplayType)window_context.wl.display)
+	if window_context.egl.display == nil {
 		fmt.println("Failed to get EGL display")
 		return
 	}
 
-	egl.Initialize(window_state.egl.display, &major, &minor)
+	egl.Initialize(window_context.egl.display, &major, &minor)
 
 	config: egl.Config
 	num_config: i32
 
-	egl.ChooseConfig(window_state.egl.display, raw_data(config_attribs), &config, 1, &num_config)
-	window_state.egl.ctx = egl.CreateContext(window_state.egl.display, config, nil, nil)
-	window_state.egl.window = wl.egl_window_create(window_state.wl.surface, 1280, 720)
-	window_state.egl.surface = egl.CreateWindowSurface(
-		window_state.egl.display,
+	egl.ChooseConfig(window_context.egl.display, raw_data(config_attribs), &config, 1, &num_config)
+	window_context.egl.ctx = egl.CreateContext(window_context.egl.display, config, nil, nil)
+	window_context.egl.window = wl.egl_window_create(window_context.wl.surface, 1280, 720)
+	window_context.egl.surface = egl.CreateWindowSurface(
+		window_context.egl.display,
 		config,
-		cast(egl.NativeWindowType)window_state.egl.window,
+		cast(egl.NativeWindowType)window_context.egl.window,
 		nil,
 	)
-	wl.surface_commit(window_state.wl.surface)
-	egl.MakeCurrent(window_state.egl.display, window_state.egl.surface, window_state.egl.surface, window_state.egl.ctx)
+	wl.surface_commit(window_context.wl.surface)
+	egl.MakeCurrent(
+		window_context.egl.display,
+		window_context.egl.surface,
+		window_context.egl.surface,
+		window_context.egl.ctx,
+	)
 	gl.load_up_to(GL_MAJOR_VERSION, GL_MINOR_VERSION, egl.gl_set_proc_address)
 
-	egl.SwapInterval(window_state.egl.display, 1)
+	egl.SwapInterval(window_context.egl.display, 1)
 }

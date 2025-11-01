@@ -11,7 +11,7 @@ BlurBuffer :: struct {
 	program, vao:     u32,
 }
 
-blur_buffer_make :: proc() -> (blur_buffer: BlurBuffer) {
+blur_buffer_make :: proc() -> (blur_buffer: BlurBuffer, app_context: ^App_Context) {
 	VERTICES := []f32{-1, -1, 1, -1, -1, 1, 1, 1}
 
 	vertex_shader, _ := compile_shader(gl.VERTEX_SHADER, BLUR_VERTEX_SHADER)
@@ -32,13 +32,13 @@ blur_buffer_make :: proc() -> (blur_buffer: BlurBuffer) {
 
 	gl.BindVertexArray(0)
 
-	blur_buffer_update(&blur_buffer)
+	blur_buffer_update(&blur_buffer, app_context)
 
 	return
 }
 
-blur_buffer_bind :: proc(blur_buffer: ^BlurBuffer) {
-	blur_buffer_update(blur_buffer)
+blur_buffer_bind :: proc(blur_buffer: ^BlurBuffer, app_context: ^App_Context) {
+	blur_buffer_update(blur_buffer, app_context)
 
 	gl.BindFramebuffer(gl.FRAMEBUFFER, blur_buffer.fbo[0])
 }
@@ -80,15 +80,21 @@ blur_buffer_render :: proc(blur_buffer: BlurBuffer) {
 	gl.UseProgram(0)
 }
 
-blur_buffer_update :: proc(blur_buffer: ^BlurBuffer) {
-	if blur_buffer.size == window_size {
+blur_buffer_update :: proc(blur_buffer: ^BlurBuffer, app_context: ^App_Context) {
+	if blur_buffer.size == app_context.window.size {
 		return
 	}
 
-	blur_buffer.fbo[0], blur_buffer.fbo_texture[0] = framebuffer_make(i32(window_size.x), i32(window_size.y))
-	blur_buffer.fbo[1], blur_buffer.fbo_texture[1] = framebuffer_make(i32(window_size.x), i32(window_size.y))
+	blur_buffer.fbo[0], blur_buffer.fbo_texture[0] = framebuffer_make(
+		i32(app_context.window.size.x),
+		i32(app_context.window.size.y),
+	)
+	blur_buffer.fbo[1], blur_buffer.fbo_texture[1] = framebuffer_make(
+		i32(app_context.window.size.x),
+		i32(app_context.window.size.y),
+	)
 
-	blur_buffer.size = window_size
+	blur_buffer.size = app_context.window.size
 }
 
 
