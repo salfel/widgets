@@ -25,15 +25,13 @@
           nativeBuildInputs = with pkgs; [odin];
 
           buildInputs = with pkgs; [
-            glfw
+            libGL
             wayland
-            libdecor
-            stb
             libxkbcommon
           ];
 
           buildPhase = ''
-            odin build src --out:${name}
+            odin build src --out:${name} -collection:lib=lib
           '';
 
           installPhase = ''
