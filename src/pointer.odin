@@ -1,8 +1,8 @@
 package main
 
-import wl "../lib/wayland"
 import "base:runtime"
 import "core:fmt"
+import wl "lib:wayland"
 
 Pointer_Button :: enum {
 	Left    = 0x110,

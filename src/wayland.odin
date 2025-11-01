@@ -1,10 +1,10 @@
 package main
 
-import wl "../lib/wayland"
-import "../lib/wayland/xdg"
 import "core:fmt"
 import "core:math"
 import "core:slice"
+import wl "lib:wayland"
+import "lib:wayland/xdg"
 import gl "vendor:OpenGL"
 
 Wayland_State :: struct {

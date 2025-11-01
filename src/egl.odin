@@ -1,7 +1,7 @@
 package main
 
-import wl "../lib/wayland"
 import "core:fmt"
+import wl "lib:wayland"
 import gl "vendor:OpenGL"
 import "vendor:egl"
 

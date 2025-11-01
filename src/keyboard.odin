@@ -1,12 +1,12 @@
 package main
 
-import wl "../lib/wayland"
-import xkb "../lib/xkbcommon"
 import "base:runtime"
 import "core:fmt"
 import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
+import wl "lib:wayland"
+import xkb "lib:xkbcommon"
 
 
 Modifier :: enum {
