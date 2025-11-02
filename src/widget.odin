@@ -12,7 +12,7 @@ Widget_Type :: enum {
 	Text,
 }
 
-Handler :: struct($T: typeid) {
+Handler :: struct($T: typeid) where intrinsics.type_is_proc(T) {
 	handler: T,
 	data:    rawptr,
 }
