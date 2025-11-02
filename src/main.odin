@@ -8,8 +8,6 @@ import gl "vendor:OpenGL"
 import "vendor:egl"
 import "vendor:glfw"
 
-count := 1
-
 main :: proc() {
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
@@ -59,10 +57,15 @@ main :: proc() {
 	box_style_set_margin(child2, sides_make(10), &app_context.renderer)
 	box_style_set_border(child2, Border{width = 10, color = RED}, &app_context.renderer)
 
-	widget_set_onclick(child1, proc(widget: ^Widget, position: [2]f32, app_context: ^App_Context) {
-		text_set_content(widget, fmt.tprint("count: ", count), &app_context.renderer)
-		count += 1
-	})
+	count := 1
+
+	widget_set_onclick(child1, proc(widget: ^Widget, position: [2]f32, count: rawptr, app_context: ^App_Context) {
+			count := cast(^int)count
+
+			text_set_content(widget, fmt.tprint("count: ", count^), &app_context.renderer)
+
+			count^ += 1
+		}, &count)
 
 	renderer_loop(&app_context)
 }

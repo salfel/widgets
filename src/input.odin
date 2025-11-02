@@ -21,8 +21,8 @@ input_handle_pointer_button :: proc(button: Pointer_Button, pressed: bool, app_c
 
 	// handle click
 	for _, widget in app_context.widget_manager.widgets {
-		if widget_contains_point(widget, app_context.input.pointer.position) && widget.on_click != nil {
-			widget.on_click(widget, app_context.input.pointer.position, app_context)
+		if widget_contains_point(widget, app_context.input.pointer.position) && widget.on_click.handler != nil {
+			widget.on_click.handler(widget, app_context.input.pointer.position, widget.on_click.data, app_context)
 		}
 	}
 }

@@ -12,7 +12,12 @@ Widget_Type :: enum {
 	Text,
 }
 
-On_Click :: proc(widget: ^Widget, position: [2]f32, app_context: ^App_Context)
+Handler :: struct($T: typeid) {
+	handler: T,
+	data:    rawptr,
+}
+
+On_Click :: proc(widget: ^Widget, position: [2]f32, user_ptr: rawptr, app_context: ^App_Context)
 
 Widget :: struct {
 	type:           Widget_Type,
@@ -32,7 +37,7 @@ Widget :: struct {
 	recalculate_mp: proc(widget: ^Widget, app_context: ^App_Context),
 
 	// handlers
-	on_click:       On_Click,
+	on_click:       Handler(On_Click),
 }
 
 Widget_Cache :: struct {
@@ -83,15 +88,21 @@ widget_attach_to_viewport :: proc(widget: ^Widget, widget_manager: ^Widget_Manag
 	widget_add_child(widget_manager.viewport, widget)
 }
 
-widget_set_onclick :: proc(widget: ^Widget, onclick: On_Click) {
-	widget.on_click = onclick
+widget_set_onclick :: proc(widget: ^Widget, onclick: On_Click, user_ptr: rawptr) {
+	widget.on_click = {
+		handler = onclick,
+		data    = user_ptr,
+	}
 }
 
 widget_make :: proc(allocator := context.allocator) -> ^Widget {
 	widget := new(Widget)
 
 	widget.children = make([dynamic]^Widget, allocator)
-	widget.on_click = nil
+	widget.on_click = {
+		handler = nil,
+		data    = nil,
+	}
 	widget.layout = layout_make(allocator)
 
 	return widget
