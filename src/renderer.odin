@@ -1,10 +1,6 @@
 package main
 
-import "base:intrinsics"
-import "base:runtime"
-import "core:container/queue"
 import "core:fmt"
-import "core:math"
 import wl "lib:wayland"
 import gl "vendor:OpenGL"
 import "vendor:egl"
