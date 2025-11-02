@@ -7,7 +7,6 @@ import gl "vendor:OpenGL"
 WidgetId :: distinct int
 
 Widget_Type :: enum {
-	Viewport,
 	Box,
 	Block,
 	Text,
