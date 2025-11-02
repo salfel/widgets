@@ -23,18 +23,7 @@ Keyboard_State :: struct {
 		keymap: ^xkb.keymap,
 		state:  ^xkb.state,
 	},
-	modifiers:   Modifiers,
 	mod_indices: [Modifier]u32,
-	chars:       [dynamic]rune,
-}
-
-keyboard_state_make :: proc(allocator := context.allocator) -> Keyboard_State {
-	return Keyboard_State {
-		xkb = {},
-		modifiers = Modifiers{},
-		mod_indices = [Modifier]u32{},
-		chars = make([dynamic]rune, allocator),
-	}
 }
 
 handle_keymap :: proc "c" (
@@ -101,9 +90,7 @@ handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key:
 		return
 	}
 
-	append(&keyboard_state.chars, r)
-
-	wl_register_callback(&app_context.window)
+	event_register(Event{type = .Keyboard_Char, data = r}, app_context)
 }
 
 handle_modifiers :: proc "c" (
@@ -138,13 +125,11 @@ handle_modifiers :: proc "c" (
 
 	for mod in Modifier {
 		if mods & (1 << keyboard_state.mod_indices[mod]) != 0 {
-			keyboard_state.modifiers += Modifiers{mod}
-		} else if mod in keyboard_state.modifiers {
-			keyboard_state.modifiers -= Modifiers{mod}
+			event_register(Event{type = .Keyboard_Modifier_Activated, data = mod}, app_context)
+		} else {
+			event_register(Event{type = .Keyboard_Modifier_Deactivated, data = mod}, app_context)
 		}
 	}
-
-	wl_register_callback(&app_context.window)
 }
 
 handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}

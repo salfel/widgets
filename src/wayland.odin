@@ -39,9 +39,9 @@ registry_handle_global :: proc "c" (
 		wl_state.compositor = cast(^wl.compositor)wl.registry_bind(registry, name, &wl.compositor_interface, 4)
 	case wl.seat_interface.name:
 		wl_state.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 1)
-		// keyboard := wl.seat_get_keyboard(wl_state.seat)
+		keyboard := wl.seat_get_keyboard(wl_state.seat)
 		pointer := wl.seat_get_pointer(wl_state.seat)
-		// wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, app_context)
+		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, app_context)
 		wl.pointer_add_listener(pointer, &wl_pointer_listener, app_context)
 	case xdg.wm_base_interface.name:
 		wl_state.xdg.wm_base = cast(^xdg.wm_base)wl.registry_bind(registry, name, &xdg.wm_base_interface, 7)
@@ -132,9 +132,6 @@ wl_register_callback :: proc "contextless" (window_context: ^Window_Context) {
 
 wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 	wl_state := &app_context.window.wl
-
-	app_context.window.wl.pointer_state = pointer_state_make()
-	app_context.window.wl.keyboard_state = keyboard_state_make()
 
 	wl_state.display = wl.display_connect(nil)
 

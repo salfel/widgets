@@ -13,14 +13,20 @@ Event :: struct {
 	data: union {
 		[2]f32,
 		Pointer_Button,
+		Modifier,
+		rune,
 	},
 }
 
 Event_Type :: enum {
 	Window_Close,
 	Window_Resize,
-	Pointer_Button,
+	Pointer_Press,
+	Pointer_Release,
 	Pointer_Move,
+	Keyboard_Modifier_Activated,
+	Keyboard_Modifier_Deactivated,
+	Keyboard_Char,
 }
 
 
@@ -42,7 +48,7 @@ handle_events :: proc(app_context: ^App_Context) {
 	for queue.len(app_context.event_manager.events) != 0 {
 		event := queue.pop_front(&app_context.event_manager.events)
 
-		#partial switch event.type {
+		switch event.type {
 		case .Window_Close:
 			app_context.renderer.exit = true
 		case .Window_Resize:
@@ -69,19 +75,26 @@ handle_events :: proc(app_context: ^App_Context) {
 			assert(ok, "Invalid data for pointer move event.")
 
 			app_context.input.pointer.position = position
-		case .Pointer_Button:
+		case .Pointer_Press, .Pointer_Release:
 			button, ok := event.data.(Pointer_Button)
 			assert(ok, "Invalid data for pointer button event.")
 
-			if button != .Left do return
+			input_handle_pointer_button(button, event.type == .Pointer_Press, app_context)
+		case .Keyboard_Modifier_Activated:
+			modifier, ok := event.data.(Modifier)
+			assert(ok, "Invalid data for keyboard modifier activated event.")
 
-			position := app_context.input.pointer.position
+			app_context.input.keyboard.modifiers += {modifier}
+		case .Keyboard_Modifier_Deactivated:
+			modifier, ok := event.data.(Modifier)
+			assert(ok, "Invalid data for keyboard modifier deactivated event.")
 
-			for _, widget in app_context.widget_manager.widgets {
-				if widget_contains_point(widget, position) && widget.on_click != nil {
-					widget.on_click(widget, position, app_context)
-				}
-			}
+			app_context.input.keyboard.modifiers -= {modifier}
+		case .Keyboard_Char:
+			char, ok := event.data.(rune)
+			assert(ok, "Invalid data for keyboard char event.")
+
+			queue.push(&app_context.input.keyboard.chars, char)
 		}
 	}
 }
