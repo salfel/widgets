@@ -32,7 +32,7 @@ Box :: struct {
 }
 
 Box_Uniform :: enum {
-	Size,
+	MP,
 	Background,
 	Background_Image,
 	Rounding,
@@ -51,7 +51,7 @@ box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool =
 
 	box := &widget.data.(Box)
 	box.style = DEFAULT_BOX_STYLE
-	box.pending_uniforms = Box_Uniforms{.Size, .Background, .Rounding, .Border}
+	box.pending_uniforms = Box_Uniforms{.MP, .Background, .Rounding, .Border}
 
 	if !box_cache.init {
 		box_cache_init() or_return
@@ -103,11 +103,11 @@ box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 
 	for uniform in box.pending_uniforms {
 		switch uniform {
-		case .Size:
+		case .MP:
 			box.mp = calculate_mp(widget.layout, app_context)
 			gl.UniformMatrix4fv(box.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&box.mp))
 			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&widget.layout.result.size))
-			box.pending_uniforms -= {.Size}
+			box.pending_uniforms -= {.MP}
 		case .Background:
 			gl.Uniform4fv(box.uniform_locations.background, 1, linalg.vector_to_ptr(&box.style.background))
 			box.pending_uniforms -= {.Background}
@@ -183,8 +183,7 @@ box_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 		return
 	}
 
-	box.mp = calculate_mp(widget.layout, app_context)
-	box.pending_uniforms += {.Size}
+	box.pending_uniforms += {.MP}
 
 	app_context.renderer.dirty = true
 
@@ -198,7 +197,7 @@ box_style_set_width :: proc(widget: ^Widget, width: f32, renderer: ^Renderer, lo
 		return false
 	}
 	widget.layout.style.width = width
-	box.pending_uniforms += {.Size}
+	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
 
@@ -212,7 +211,7 @@ box_style_set_height :: proc(widget: ^Widget, height: f32, renderer: ^Renderer, 
 		return false
 	}
 	widget.layout.style.height = height
-	box.pending_uniforms += {.Size}
+	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
 
@@ -226,7 +225,7 @@ box_style_set_margin :: proc(widget: ^Widget, margin: Sides, renderer: ^Renderer
 		return false
 	}
 	widget.layout.style.margin = margin
-	box.pending_uniforms += {.Size}
+	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
 
@@ -240,7 +239,7 @@ box_style_set_padding :: proc(widget: ^Widget, padding: Sides, renderer: ^Render
 		return false
 	}
 	widget.layout.style.padding = padding
-	box.pending_uniforms += {.Size}
+	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
 
@@ -255,7 +254,7 @@ box_style_set_border :: proc(widget: ^Widget, border: Border, renderer: ^Rendere
 	}
 	widget.layout.style.border = border
 	box.style.border = border
-	box.pending_uniforms += {.Border, .Size}
+	box.pending_uniforms += {.Border, .MP}
 
 	renderer.dirty = true
 
