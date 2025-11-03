@@ -13,6 +13,14 @@ Input :: struct {
 	},
 }
 
+input_init :: proc(input: ^Input, allocator := context.allocator) {
+	queue.init(&input.keyboard.chars, allocator = allocator)
+}
+
+input_destroy :: proc(input: ^Input) {
+	queue.destroy(&input.keyboard.chars)
+}
+
 input_handle_pointer_button :: proc(button: Pointer_Button, pressed: bool, app_context: ^App_Context) {
 	was_pressed := Pointer_Buttons{button} <= app_context.input.pointer.buttons
 	if pressed do app_context.input.pointer.buttons += {button}
