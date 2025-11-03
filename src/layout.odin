@@ -102,7 +102,7 @@ layout_compute :: proc(layout: ^Layout, available: f32 = 0) {
 		}
 	}
 
-	layout.result.size.y = math.max(layout.result.size.y, children_height)
+	if layout.style.height == UNDEFINED do layout.result.size.y = math.max(layout.result.size.y, children_height)
 
 	if layout.result.size != initial do layout.result.dirty = true
 }
