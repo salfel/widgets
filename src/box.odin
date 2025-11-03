@@ -44,6 +44,7 @@ box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool =
 	widget = widget_make(allocator)
 	widget.type = .Box
 	widget.layout.type = .Box
+	widget.allow_children = true
 	widget.draw = box_draw
 	widget.recalculate_mp = box_recalculate_mp
 	widget.destroy = box_destroy

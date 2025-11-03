@@ -37,6 +37,7 @@ text_make :: proc(
 	widget = widget_make(allocator)
 	widget.type = .Text
 	widget.layout.type = .Box
+	widget.allow_children = false
 	widget.draw = text_draw
 	widget.recalculate_mp = text_recalculate_mp
 	widget.data = Text{}

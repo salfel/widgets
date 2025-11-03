@@ -1,6 +1,7 @@
 package main
 
 import "base:intrinsics"
+import "core:fmt"
 import "core:math/linalg"
 import gl "vendor:OpenGL"
 
@@ -27,6 +28,7 @@ Widget :: struct {
 	// layout
 	layout:         Layout,
 	children:       [dynamic]^Widget,
+	allow_children: bool,
 	parent:         ^Widget,
 	data:           union {
 		Box,
@@ -82,6 +84,11 @@ widget_register :: proc(widget: ^Widget, widget_manager: ^Widget_Manager) {
 }
 
 widget_add_child :: proc(parent: ^Widget, child: ^Widget) {
+	if !parent.allow_children {
+		fmt.eprintln("can't add children to widget of type", parent.type)
+		return
+	}
+
 	append(&parent.children, child)
 	append(&parent.layout.children, &child.layout)
 

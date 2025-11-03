@@ -39,6 +39,7 @@ image_make :: proc(path: string, allocator := context.allocator) -> (widget: ^Wi
 	widget = widget_make(allocator)
 	widget.type = .Image
 	widget.layout.type = .Box
+	widget.allow_children = false
 	widget.draw = image_draw
 	widget.recalculate_mp = image_recalculate_mp
 	widget.destroy = image_destroy
