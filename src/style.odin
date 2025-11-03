@@ -58,15 +58,17 @@ DEFAULT_LAYOUT_STYLE :: Layout_Style {
 }
 
 Box_Style :: struct {
-	background: Color,
-	rounding:   f32,
-	border:     Border,
+	background:       Color,
+	background_image: string,
+	rounding:         f32,
+	border:           Border,
 }
 
 DEFAULT_BOX_STYLE :: Box_Style {
-	background = TRANSPARENT,
-	rounding   = 0,
-	border     = {},
+	background       = TRANSPARENT,
+	background_image = "",
+	rounding         = 0,
+	border           = {},
 }
 
 Text_Style :: struct {

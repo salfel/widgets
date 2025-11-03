@@ -61,11 +61,7 @@ image_make :: proc(path: string, allocator := context.allocator) -> (widget: ^Wi
 
 	widget.layout.style.width = f32(image_data.image.width)
 	widget.layout.style.height = f32(image_data.image.height)
-	image_generate_texture(
-		image_data,
-		{i32(widget.layout.style.width), i32(widget.layout.style.height)},
-		allocator,
-	) or_return
+	image_data.texture = image_generate_texture(image_data.image, allocator)
 
 	image_data.program = create_program(image_cache.vertex_shader, image_cache.fragment_shader) or_return
 
@@ -99,9 +95,6 @@ image_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	gl.UseProgram(image.program)
 	gl.BindVertexArray(image_cache.vao)
 
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, image.texture)
-
 	for uniform in image.pending_uniforms {
 		switch uniform {
 		case .MP:
@@ -109,8 +102,7 @@ image_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 			gl.UniformMatrix4fv(image.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&image.mp))
 			image.pending_uniforms -= {.MP}
 		case .Tex:
-			ok := image_generate_texture(image, {i32(widget.layout.style.width), i32(widget.layout.style.height)})
-			assert(ok, "Failed to generate texture")
+			image.texture = image_generate_texture(image.image)
 
 			gl.Uniform1i(image.uniform_locations.tex, 0)
 			image.pending_uniforms -= {.Tex}
@@ -119,6 +111,9 @@ image_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 			image.pending_uniforms -= {.Opacity}
 		}
 	}
+
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, image.texture)
 
 	gl.ColorMask(true, true, true, true)
 	gl.StencilMask(0x00)
@@ -145,29 +140,27 @@ image_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	return
 }
 
-image_generate_texture :: proc(image_data: ^Image, size: [2]i32, allocator := context.allocator) -> (ok: bool = true) {
-	bitmap := bytes.buffer_to_bytes(&image_data.image.pixels)
+image_generate_texture :: proc(img: ^image.Image, allocator := context.allocator) -> (texture: u32) {
+	bitmap := bytes.buffer_to_bytes(&img.pixels)
 
 	format: i32 = gl.RGB
 
-	#partial switch image_data.image.which {
+	#partial switch img.which {
 	case .PNG:
-		metadata := image_data.image.metadata.(^image.PNG_Info)
+		metadata := img.metadata.(^image.PNG_Info)
 		format = gl.RGBA if .Alpha in metadata.header.color_type else gl.RGB
 	}
 
-	if image_data.texture != 0 do gl.DeleteTextures(1, &image_data.texture)
-
-	gl.GenTextures(1, &image_data.texture)
-	gl.BindTexture(gl.TEXTURE_2D, image_data.texture)
+	gl.GenTextures(1, &texture)
+	gl.BindTexture(gl.TEXTURE_2D, texture)
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
 		format,
-		i32(image_data.image.width),
-		i32(image_data.image.height),
+		i32(img.width),
+		i32(img.height),
 		0,
 		u32(format),
 		gl.UNSIGNED_BYTE,

@@ -33,6 +33,7 @@ main :: proc() {
 	box_style_set_background(parent, BLUE, &app_context.renderer)
 	box_style_set_margin(parent, sides_make(30), &app_context.renderer)
 	box_style_set_padding(parent, sides_make(50), &app_context.renderer)
+	box_style_set_background_image(parent, "wallpaper.jpg", &app_context.renderer)
 
 	child1 := text_make("count: 0", "font.ttf")
 	widget_register(child1, &app_context.widget_manager)
@@ -40,11 +41,12 @@ main :: proc() {
 	text_style_set_color(child1, WHITE, &app_context.renderer)
 	text_style_set_font_size(child1, 96, &app_context.renderer)
 
-	image := image_make("wallpaper.jpg")
+	image := image_make("tux.png")
 	widget_register(image, &app_context.widget_manager)
 	widget_add_child(parent, image)
-	image_style_set_width(image, 800, &app_context.renderer)
-	image_style_set_height(image, 500, &app_context.renderer)
+	image_style_set_margin(image, sides_make(50), &app_context.renderer)
+	image_style_set_width(image, 400, &app_context.renderer)
+	image_style_set_height(image, 300, &app_context.renderer)
 
 	count := 1
 

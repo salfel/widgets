@@ -4,7 +4,9 @@ out vec4 FragColor;
 in vec2 Position;
 
 uniform vec2 size;
-uniform vec4 color;
+uniform vec4 background;
+uniform sampler2D background_image;
+uniform int has_background_image;
 uniform vec4 border_color;
 uniform float border_width;
 uniform float border_radius;
@@ -56,12 +58,20 @@ void main()
         if (isBorder) {
             discard;
         }
-        FragColor = color;
+        if (has_background_image == 1) {
+            FragColor = texture(background_image, Position);
+        } else {
+            FragColor = background;
+        }
     } else {
         if (isBorder) {
             FragColor = border_color;
         } else {
-            FragColor = color;
+            if (has_background_image == 1) {
+                FragColor = texture(background_image, Position);
+            } else {
+                FragColor = background;
+            }
         }
     }
 }
