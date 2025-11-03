@@ -121,6 +121,7 @@ box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 				gl.Uniform1i(box.uniform_locations.background_image, 0)
 			}
 			gl.Uniform1i(box.uniform_locations.background_image, 0)
+			box.pending_uniforms -= {.Background_Image}
 		case .Rounding:
 			gl.Uniform1f(box.uniform_locations.border_radius, box.style.rounding)
 			box.pending_uniforms -= {.Rounding}
