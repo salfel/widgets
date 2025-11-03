@@ -35,9 +35,17 @@ main :: proc() {
 	box_style_set_padding(parent, sides_make(50), &app_context.renderer)
 	box_style_set_background_image(parent, "wallpaper.jpg", &app_context.renderer)
 
+	button := button_make()
+	widget_register(button, &app_context.widget_manager)
+	widget_add_child(parent, button)
+	box_style_set_background(button, {0.15, 0.15, 0.15, 1}, &app_context.renderer)
+	box_style_set_rounding(button, 20, &app_context.renderer)
+	box_style_set_border(button, Border{width = 10, color = {0.4, 0.4, 0.4, 1}}, &app_context.renderer)
+	box_style_set_padding(button, sides_make(32, 32, 20, 20), &app_context.renderer)
+
 	child1 := text_make("count: 0", "font.ttf")
 	widget_register(child1, &app_context.widget_manager)
-	widget_add_child(parent, child1)
+	widget_add_child(button, child1)
 	text_style_set_color(child1, WHITE, &app_context.renderer)
 	text_style_set_font_size(child1, 96, &app_context.renderer)
 
@@ -50,10 +58,10 @@ main :: proc() {
 
 	count := 1
 
-	widget_set_onclick(child1, proc(widget: ^Widget, position: [2]f32, count: rawptr, app_context: ^App_Context) {
+	button_set_onclick(button, proc(widget: ^Widget, position: [2]f32, count: rawptr, app_context: ^App_Context) {
 			count := cast(^int)count
 
-			text_set_content(widget, fmt.tprint("count: ", count^), &app_context.renderer)
+			text_set_content(widget.children[0], fmt.tprint("count: ", count^), &app_context.renderer)
 
 			count^ += 1
 		}, &count)

@@ -12,6 +12,7 @@ Widget_Type :: enum {
 	Block,
 	Text,
 	Image,
+	Button,
 }
 
 Handler :: struct($T: typeid) where intrinsics.type_is_proc(T) {
@@ -101,13 +102,6 @@ widget_get :: proc(id: WidgetId, widget_manager: ^Widget_Manager) -> (^Widget, b
 
 widget_attach_to_viewport :: proc(widget: ^Widget, widget_manager: ^Widget_Manager) {
 	widget_add_child(widget_manager.viewport, widget)
-}
-
-widget_set_onclick :: proc(widget: ^Widget, onclick: On_Click, user_ptr: rawptr) {
-	widget.on_click = {
-		handler = onclick,
-		data    = user_ptr,
-	}
 }
 
 widget_make :: proc(allocator := context.allocator) -> ^Widget {
