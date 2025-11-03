@@ -1,6 +1,7 @@
 package main
 
 import "base:intrinsics"
+import "core:fmt"
 import "core:math/linalg"
 import gl "vendor:OpenGL"
 
@@ -10,6 +11,7 @@ Widget_Type :: enum {
 	Box,
 	Block,
 	Text,
+	Image,
 }
 
 Handler :: struct($T: typeid) where intrinsics.type_is_proc(T) {
@@ -30,11 +32,13 @@ Widget :: struct {
 	data:           union {
 		Box,
 		Text,
+		Image,
 	},
 
 	// internal functions
 	draw:           proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1),
 	recalculate_mp: proc(widget: ^Widget, app_context: ^App_Context),
+	destroy:        proc(widget: ^Widget),
 
 	// handlers
 	on_click:       Handler(On_Click),
@@ -63,6 +67,11 @@ widget_manager_init :: proc(widget_manager: ^Widget_Manager, allocator := contex
 }
 
 widget_manager_destroy :: proc(widget_manager: ^Widget_Manager) {
+	for _, widget in widget_manager.widgets {
+		widget_destroy(widget)
+	}
+
+	widget_destroy(widget_manager.viewport)
 	delete(widget_manager.widgets)
 }
 
@@ -106,6 +115,14 @@ widget_make :: proc(allocator := context.allocator) -> ^Widget {
 	widget.layout = layout_make(allocator)
 
 	return widget
+}
+
+widget_destroy :: proc(widget: ^Widget) {
+	if widget.destroy != nil do widget->destroy()
+
+	delete(widget.layout.children)
+	delete(widget.children)
+	free(widget)
 }
 
 widget_contains_point :: proc(widget: ^Widget, position: [2]f32) -> bool {

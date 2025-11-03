@@ -78,3 +78,11 @@ DEFAULT_TEXT_STYLE :: Text_Style {
 	color     = BLACK,
 	font_size = 24,
 }
+
+Image_Style :: struct {
+	opacity: f32,
+}
+
+DEFAULT_IMAGE_STYLE :: Image_Style {
+	opacity = 1,
+}

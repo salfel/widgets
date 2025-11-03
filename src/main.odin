@@ -29,10 +29,9 @@ main :: proc() {
 	app_context_init(&app_context, "widgets", "widgets")
 	defer app_context_destroy(&app_context)
 
-	parent := box_make()
+	parent := block_make()
 	widget_register(parent, &app_context.widget_manager)
 	widget_attach_to_viewport(parent, &app_context.widget_manager)
-	box_style_set_width(parent, 800, &app_context.renderer)
 	box_style_set_height(parent, 700, &app_context.renderer)
 	box_style_set_rounding(parent, 10, &app_context.renderer)
 	box_style_set_border(parent, Border{width = 10, color = RED}, &app_context.renderer)
@@ -46,16 +45,11 @@ main :: proc() {
 	text_style_set_color(child1, WHITE, &app_context.renderer)
 	text_style_set_font_size(child1, 96, &app_context.renderer)
 
-	child2 := box_make()
-	widget_register(child2, &app_context.widget_manager)
-	widget_add_child(parent, child2)
-
-	box_style_set_width(child2, 200, &app_context.renderer)
-	box_style_set_height(child2, 200, &app_context.renderer)
-	box_style_set_background(child2, GREEN, &app_context.renderer)
-	box_style_set_rounding(child2, 50, &app_context.renderer)
-	box_style_set_margin(child2, sides_make(10), &app_context.renderer)
-	box_style_set_border(child2, Border{width = 10, color = RED}, &app_context.renderer)
+	image := image_make("wallpaper.jpg")
+	widget_register(image, &app_context.widget_manager)
+	widget_add_child(parent, image)
+	image_style_set_width(image, 800, &app_context.renderer)
+	image_style_set_height(image, 500, &app_context.renderer)
 
 	count := 1
 
