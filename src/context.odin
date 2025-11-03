@@ -1,7 +1,6 @@
 package main
 
 import "base:runtime"
-import "core:fmt"
 
 global_ctx: runtime.Context
 

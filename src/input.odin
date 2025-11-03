@@ -1,6 +1,7 @@
 package main
 
 import "core:container/queue"
+
 Input :: struct {
 	pointer:  struct {
 		position: [2]f32,

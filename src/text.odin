@@ -1,11 +1,8 @@
 package main
 
-import "base:runtime"
 import "core:fmt"
-import "core:math"
 import "core:math/linalg"
 import gl "vendor:OpenGL"
-import "vendor:stb/truetype"
 
 TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", string)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", string)

@@ -2,11 +2,6 @@ package main
 
 import "core:fmt"
 import "core:mem"
-import "core:os"
-import wl "lib:wayland"
-import gl "vendor:OpenGL"
-import "vendor:egl"
-import "vendor:glfw"
 
 main :: proc() {
 	when ODIN_DEBUG {

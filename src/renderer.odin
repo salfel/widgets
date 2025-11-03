@@ -1,6 +1,5 @@
 package main
 
-import "core:fmt"
 import wl "lib:wayland"
 import gl "vendor:OpenGL"
 import "vendor:egl"

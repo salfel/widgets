@@ -1,7 +1,5 @@
 package main
 
-import "base:runtime"
-import "core:fmt"
 import wl "lib:wayland"
 
 Pointer_Button :: enum {
