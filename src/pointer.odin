@@ -24,8 +24,8 @@ pointer_enter :: proc "c" (
 	surface: ^wl.surface,
 	surface_x, surface_y: wl.fixed_t,
 ) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	pointer_state := &app_context.window.wl.pointer_state
 
 	pointer_state.surface = surface
@@ -36,8 +36,8 @@ pointer_enter :: proc "c" (
 }
 
 pointer_leave :: proc "c" (data: rawptr, pointer: ^wl.pointer, serial: uint, surface: ^wl.surface) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	pointer_state := &app_context.window.wl.pointer_state
 
 	assert(pointer_state.surface == surface)
@@ -46,8 +46,8 @@ pointer_leave :: proc "c" (data: rawptr, pointer: ^wl.pointer, serial: uint, sur
 }
 
 pointer_motion :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, surface_x, surface_y: wl.fixed_t) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 
 	event_register(
 		Event{type = .Pointer_Move, data = [2]f32{f32(surface_x) / 256.0, f32(surface_y) / 256.0}},
@@ -63,9 +63,8 @@ pointer_button :: proc "c" (
 	button: uint,
 	state: wl.pointer_button_state,
 ) {
-	context = global_ctx
-
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	pointer_state := &app_context.window.wl.pointer_state
 
 	for ptr_button in Pointer_Button {

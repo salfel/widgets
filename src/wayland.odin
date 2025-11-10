@@ -27,8 +27,8 @@ registry_handle_global :: proc "c" (
 	interface: cstring,
 	version: uint,
 ) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	wl_state := &app_context.window.wl
 
 	switch interface {
@@ -66,8 +66,8 @@ xdg_surface_listener := xdg.surface_listener {
 }
 
 xdg_toplevel_configure :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel, width, height: int, states: wl.array) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 
 	size := [2]f32{f32(width), f32(height)}
 
@@ -81,8 +81,8 @@ xdg_toplevel_configure_bounds :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel
 xdg_toplevel_wm_capabilities :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel, capabilities: wl.array) {}
 
 xdg_toplevel_close :: proc "c" (data: rawptr, toplevel: ^xdg.toplevel) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 
 	event_register(Event{type = .Window_Close}, app_context)
 }
@@ -103,8 +103,8 @@ xdg_wm_base_listener := xdg.wm_base_listener {
 }
 
 wl_callback_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 
 	wl.callback_destroy(callback)
 	app_context.window.wl.callback = nil

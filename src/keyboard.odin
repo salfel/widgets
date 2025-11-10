@@ -33,8 +33,8 @@ handle_keymap :: proc "c" (
 	fd: int,
 	size: uint,
 ) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	keyboard_state := &app_context.window.wl.keyboard_state
 
 	defer os.close(cast(os.Handle)fd)
@@ -64,8 +64,8 @@ handle_enter :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, su
 handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface) {}
 
 handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key: uint, _state: wl.keyboard_key_state) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	keyboard_state := &app_context.window.wl.keyboard_state
 
 	if _state != .PRESSED {
@@ -102,8 +102,8 @@ handle_modifiers :: proc "c" (
 	mods_locked: uint,
 	group: uint,
 ) {
-	context = global_ctx
 	app_context := cast(^App_Context)data
+	context = app_context.ctx
 	keyboard_state := &app_context.window.wl.keyboard_state
 
 	xkb.state_update_mask(

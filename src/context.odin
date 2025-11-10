@@ -2,14 +2,13 @@ package main
 
 import "base:runtime"
 
-global_ctx: runtime.Context
-
 App_Context :: struct {
 	window:         Window_Context,
 	event_manager:  Event_Manager,
 	widget_manager: Widget_Manager,
 	input:          Input,
 	renderer:       Renderer,
+	ctx:            runtime.Context,
 }
 
 Window_Context :: struct {
@@ -19,7 +18,7 @@ Window_Context :: struct {
 }
 
 app_context_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
-	global_ctx = context
+	app_context.ctx = context
 
 	wl_init(app_context, app_id, title)
 	egl_init(&app_context.window)
