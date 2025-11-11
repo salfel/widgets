@@ -18,10 +18,6 @@ Border :: struct {
 	color: Color,
 }
 
-Sides :: struct {
-	left, right, top, bottom: f32,
-}
-
 sides_make :: proc {
 	sides_make_single,
 	sides_make_multiple,
@@ -35,12 +31,6 @@ sides_make_multiple :: proc(left, right, top, bottom: f32) -> Sides {
 	return Sides{left = left, right = right, top = top, bottom = bottom}
 }
 
-Layout_Style :: struct {
-	width, height:   f32,
-	padding, margin: Sides,
-	border:          Border,
-}
-
 Layout_Style_Property :: enum {
 	Width,
 	Height,
@@ -50,11 +40,10 @@ Layout_Style_Property :: enum {
 }
 
 DEFAULT_LAYOUT_STYLE :: Layout_Style {
-	width = -1,
-	height = -1,
+	size    = {Axis{0, 0}, Axis{0, 0}},
 	padding = {0, 0, 0, 0},
-	margin = {0, 0, 0, 0},
-	border = {width = 0, color = BLACK},
+	margin  = {0, 0, 0, 0},
+	border  = 0,
 }
 
 Box_Style :: struct {

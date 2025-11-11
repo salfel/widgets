@@ -24,9 +24,10 @@ main :: proc() {
 	app_context_init(&app_context, "widgets", "widgets")
 	defer app_context_destroy(&app_context)
 
-	parent := block_make()
+	parent := box_make()
 	widget_register(parent, &app_context.widget_manager)
 	widget_attach_to_viewport(parent, &app_context.widget_manager)
+	box_style_set_width(parent, 1500, &app_context.renderer)
 	box_style_set_height(parent, 700, &app_context.renderer)
 	box_style_set_rounding(parent, 10, &app_context.renderer)
 	box_style_set_border(parent, Border{width = 10, color = RED}, &app_context.renderer)

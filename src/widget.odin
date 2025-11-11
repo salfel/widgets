@@ -60,7 +60,7 @@ Widget_Manager :: struct {
 
 widget_manager_init :: proc(widget_manager: ^Widget_Manager, allocator := context.allocator) {
 	ok: bool
-	widget_manager.viewport, ok = block_make()
+	widget_manager.viewport, ok = box_make()
 	assert(ok, "Failed to create viewport")
 	widget_manager.viewport.id = 0
 
@@ -127,15 +127,15 @@ widget_destroy :: proc(widget: ^Widget) {
 
 widget_contains_point :: proc(widget: ^Widget, position: [2]f32) -> bool {
 	return(
-		position.x >= widget.layout.result.position.x &&
-		position.x <= widget.layout.result.position.x + widget.layout.result.size.x &&
-		position.y >= widget.layout.result.position.y &&
-		position.y <= widget.layout.result.position.y + widget.layout.result.size.y \
+		position.x >= widget.layout.position.x &&
+		position.x <= widget.layout.position.x + widget.layout.size.x &&
+		position.y >= widget.layout.position.y &&
+		position.y <= widget.layout.position.y + widget.layout.size.y \
 	)
 }
 
 calculate_mp :: proc(layout: Layout, app_context: ^App_Context) -> matrix[4, 4]f32 {
-	using layout.result
+	using layout
 
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
 	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})

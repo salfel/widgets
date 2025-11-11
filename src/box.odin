@@ -107,7 +107,7 @@ box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 		case .MP:
 			box.mp = calculate_mp(widget.layout, app_context)
 			gl.UniformMatrix4fv(box.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&box.mp))
-			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&widget.layout.result.size))
+			gl.Uniform2fv(box.uniform_locations.size, 1, linalg.vector_to_ptr(&widget.layout.size))
 			box.pending_uniforms -= {.MP}
 		case .Background:
 			gl.Uniform4fv(box.uniform_locations.background, 1, linalg.vector_to_ptr(&box.style.background))
@@ -198,7 +198,7 @@ box_style_set_width :: proc(widget: ^Widget, width: f32, renderer: ^Renderer, lo
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.width = width
+	widget.layout.style.size.x = axis_make(width)
 	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
@@ -212,7 +212,7 @@ box_style_set_height :: proc(widget: ^Widget, height: f32, renderer: ^Renderer, 
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.height = height
+	widget.layout.style.size.y = axis_make(height)
 	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
@@ -254,7 +254,7 @@ box_style_set_border :: proc(widget: ^Widget, border: Border, renderer: ^Rendere
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.border = border
+	widget.layout.style.border = border.width
 	box.style.border = border
 	box.pending_uniforms += {.Border, .MP}
 

@@ -60,8 +60,8 @@ image_make :: proc(path: string, allocator := context.allocator) -> (widget: ^Wi
 		image_cache_init() or_return
 	}
 
-	widget.layout.style.width = f32(image_data.image.width)
-	widget.layout.style.height = f32(image_data.image.height)
+	widget.layout.style.size.x = axis_make(f32(image_data.image.width))
+	widget.layout.style.size.y = axis_make(f32(image_data.image.height))
 	image_data.texture = image_generate_texture(image_data.image, allocator)
 
 	image_data.program = create_program(image_cache.vertex_shader, image_cache.fragment_shader) or_return
@@ -183,7 +183,7 @@ image_style_set_width :: proc(widget: ^Widget, width: f32, renderer: ^Renderer, 
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.width = width
+	widget.layout.style.size.x = axis_make(width)
 	image.pending_uniforms += {.MP, .Tex}
 
 	renderer.dirty = true
@@ -197,7 +197,7 @@ image_style_set_height :: proc(widget: ^Widget, height: f32, renderer: ^Renderer
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.height = height
+	widget.layout.style.size.y = axis_make(height)
 	image.pending_uniforms += {.MP, .Tex}
 
 	renderer.dirty = true

@@ -30,11 +30,12 @@ renderer_render :: proc(app_context: ^App_Context) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	if app_context.renderer.dirty {
+		layout_measure(&app_context.widget_manager.viewport.layout)
 		layout_compute(&app_context.widget_manager.viewport.layout, app_context.window.size.x)
 		layout_arrange(&app_context.widget_manager.viewport.layout)
 
 		for _, widget in app_context.widget_manager.widgets {
-			if widget.layout.result.dirty {
+			if widget.layout.dirty {
 				widget->recalculate_mp(app_context)
 			}
 		}

@@ -49,8 +49,8 @@ text_make :: proc(
 	text.pending_uniforms = Text_Uniforms{.Tex_MP, .Color}
 
 	size := text_generate_texture(text, allocator) or_return
-	widget.layout.style.width = f32(size.x)
-	widget.layout.style.height = f32(size.y)
+	widget.layout.style.size.x = axis_make(f32(size.x))
+	widget.layout.style.size.y = axis_make(f32(size.y))
 
 
 	if !text_cache.init {
@@ -164,8 +164,8 @@ text_style_set_font_size :: proc(
 	size := text_generate_texture(text) or_return
 	text.pending_uniforms += {.Tex_MP}
 
-	widget.layout.style.width = f32(size.x)
-	widget.layout.style.height = f32(size.y)
+	widget.layout.style.size.x = axis_make(f32(size.x))
+	widget.layout.style.size.y = axis_make(f32(size.y))
 
 	renderer.dirty = true
 
@@ -182,8 +182,8 @@ text_set_content :: proc(widget: ^Widget, content: string, renderer: ^Renderer, 
 	size := text_generate_texture(text) or_return
 	text.pending_uniforms += {.Tex_MP}
 
-	widget.layout.style.width = f32(size.x)
-	widget.layout.style.height = f32(size.y)
+	widget.layout.style.size.x = axis_make(f32(size.x))
+	widget.layout.style.size.y = axis_make(f32(size.y))
 
 	renderer.dirty = true
 
