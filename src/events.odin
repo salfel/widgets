@@ -69,6 +69,10 @@ handle_events :: proc(app_context: ^App_Context) {
 				widget->recalculate_mp(app_context)
 			}
 
+			app_context.widget_manager.viewport.layout.style.size = {
+				Layout_Constraint{min = app_context.window.size.x, preferred = app_context.window.size.x},
+				Layout_Constraint{min = app_context.window.size.y, preferred = app_context.window.size.y},
+			}
 			app_context.widget_manager.viewport->recalculate_mp(app_context)
 		case .Pointer_Move:
 			position, ok := event.data.([2]f32)
