@@ -35,10 +35,13 @@ renderer_render :: proc(app_context: ^App_Context) {
 		layout_arrange(&app_context.widget_manager.viewport.layout)
 
 		for _, widget in app_context.widget_manager.widgets {
-			if widget.layout.dirty {
-				widget->recalculate_mp(app_context)
-			}
+			widget->recalculate_mp(app_context)
 		}
+
+		for child in app_context.widget_manager.viewport.layout.children[0].children {
+			fmt.println(child.size, child.position, child.style.margin)
+		}
+		fmt.println()
 
 		app_context.renderer.dirty = false
 	}

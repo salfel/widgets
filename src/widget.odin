@@ -112,7 +112,7 @@ widget_make :: proc(allocator := context.allocator) -> ^Widget {
 		handler = nil,
 		data    = nil,
 	}
-	widget.layout = layout_make(allocator)
+	widget.layout = layout_make(allocator = allocator)
 
 	return widget
 }

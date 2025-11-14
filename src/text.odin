@@ -36,7 +36,6 @@ text_make :: proc(
 ) #optional_ok {
 	widget = widget_make(allocator)
 	widget.type = .Text
-	widget.layout.type = .Box
 	widget.allow_children = false
 	widget.draw = text_draw
 	widget.recalculate_mp = text_recalculate_mp
@@ -49,8 +48,8 @@ text_make :: proc(
 	text.pending_uniforms = Text_Uniforms{.Tex_MP, .Color}
 
 	size := text_generate_texture(text, allocator) or_return
-	widget.layout.style.size.x = axis_make(f32(size.x))
-	widget.layout.style.size.y = axis_make(f32(size.y))
+	widget.layout.style.size.x = layout_constraint_make(f32(size.x))
+	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 
 	if !text_cache.init {
@@ -164,8 +163,8 @@ text_style_set_font_size :: proc(
 	size := text_generate_texture(text) or_return
 	text.pending_uniforms += {.Tex_MP}
 
-	widget.layout.style.size.x = axis_make(f32(size.x))
-	widget.layout.style.size.y = axis_make(f32(size.y))
+	widget.layout.style.size.x = layout_constraint_make(f32(size.x))
+	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 	renderer.dirty = true
 
@@ -182,8 +181,8 @@ text_set_content :: proc(widget: ^Widget, content: string, renderer: ^Renderer, 
 	size := text_generate_texture(text) or_return
 	text.pending_uniforms += {.Tex_MP}
 
-	widget.layout.style.size.x = axis_make(f32(size.x))
-	widget.layout.style.size.y = axis_make(f32(size.y))
+	widget.layout.style.size.x = layout_constraint_make(f32(size.x))
+	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 	renderer.dirty = true
 

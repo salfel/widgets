@@ -43,7 +43,6 @@ Box_Uniforms :: bit_set[Box_Uniform]
 box_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok: bool = true) #optional_ok {
 	widget = widget_make(allocator)
 	widget.type = .Box
-	widget.layout.type = .Box
 	widget.allow_children = true
 	widget.draw = box_draw
 	widget.recalculate_mp = box_recalculate_mp
@@ -89,7 +88,6 @@ box_destroy :: proc(widget: ^Widget) {
 	}
 
 	gl.DeleteTextures(1, &box.background_texture)
-	gl.DeleteProgram(box.program)
 }
 
 
@@ -192,13 +190,39 @@ box_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	return
 }
 
+box_set_property :: proc(
+	widget: ^Widget,
+	property: Layout_Property,
+	renderer: ^Renderer,
+	loc := #caller_location,
+) -> bool {
+	widget.layout.style.properties += {property}
+
+	renderer.dirty = true
+
+	return true
+}
+
+box_unset_property :: proc(
+	widget: ^Widget,
+	property: Layout_Property,
+	renderer: ^Renderer,
+	loc := #caller_location,
+) -> bool {
+	widget.layout.style.properties -= {property}
+
+	renderer.dirty = true
+
+	return true
+}
+
 box_style_set_width :: proc(widget: ^Widget, width: f32, renderer: ^Renderer, loc := #caller_location) -> bool {
 	box, ok := (&widget.data.(Box))
 	if !ok {
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.size.x = axis_make(width)
+	widget.layout.style.size.x = layout_constraint_make(width)
 	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true
@@ -212,7 +236,7 @@ box_style_set_height :: proc(widget: ^Widget, height: f32, renderer: ^Renderer, 
 		fmt.println("invalid widget type", loc)
 		return false
 	}
-	widget.layout.style.size.y = axis_make(height)
+	widget.layout.style.size.y = layout_constraint_make(height)
 	box.pending_uniforms += {.MP}
 
 	renderer.dirty = true

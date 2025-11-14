@@ -3,73 +3,58 @@ package main
 import "core:math"
 import "core:testing"
 
-Sides :: struct {
-	left, right, top, bottom: f32,
-}
-
 Layout_Property :: enum {
 	Expand_Horizontal,
 	Expand_Vertical,
 }
 
-Axis :: struct {
+Layout_Constraint :: struct {
 	min, preferred: f32,
 }
 
-axis_make :: proc {
-	axis_make_fixed,
+layout_constraint_make :: proc {
+	layout_constraint_make_fixed,
 }
 
-axis_make_fixed :: proc(value: f32) -> Axis {
-	return Axis{min = value, preferred = value}
+layout_constraint_make_fixed :: proc(value: f32) -> Layout_Constraint {
+	return Layout_Constraint{min = value, preferred = value}
 }
 
 Layout_Style :: struct {
-	size:            [2]Axis,
+	size:            [2]Layout_Constraint,
 	padding, margin: Sides,
 	border:          f32,
 	properties:      bit_set[Layout_Property],
 }
 
-Box_Direction :: enum {
+Axis :: enum {
 	Horizontal,
 	Vertical,
 }
 
-Layout_Box :: struct {
-	direction: Box_Direction,
-}
-
-Layout_Type :: enum {
-	Box,
+axis_opposite :: proc(axis: Axis) -> Axis {
+	return .Vertical if axis == .Horizontal else .Horizontal
 }
 
 Layout :: struct {
-	style:        Layout_Style,
-	children:     [dynamic]^Layout,
-	parent:       ^Layout,
+	style:          Layout_Style,
+	children:       [dynamic]^Layout,
+	parent:         ^Layout,
+	axis:           Axis,
 
 	// internal
-	type:         Layout_Type,
-	data:         union {
-		Layout_Box,
-	},
-
-	// intermediate
-	intermediate: struct {
-		constraints: Axis,
-		size:        f32,
+	intermediate:   struct {
+		constraint: [Axis]Layout_Constraint,
+		size:       [Axis]f32,
 	},
 
 	// result
-	size:         [2]f32,
-	position:     [2]f32,
-	overflow:     bool,
-	dirty:        bool,
+	size, position: [2]f32,
+	overflow:       bool,
 }
 
-layout_make :: proc(allocator := context.allocator) -> Layout {
-	return Layout{children = make([dynamic]^Layout, allocator)}
+layout_make :: proc(axis: Axis = .Horizontal, allocator := context.allocator) -> Layout {
+	return Layout{children = make([dynamic]^Layout, allocator), axis = axis}
 }
 
 layout_destroy :: proc(layout: ^Layout) {
@@ -77,63 +62,66 @@ layout_destroy :: proc(layout: ^Layout) {
 }
 
 layout_measure :: proc(layout: ^Layout) {
-	layout.intermediate.constraints = layout.style.size.x
-
-	// TODO: use both axis
-	child_axis: [1]Axis
-
-	child_height: f32 = 0
+	child_constraints: [Axis]Layout_Constraint
 
 	for child in layout.children {
 		layout_measure(child)
 
-		child_axis.x.min +=
-			child.intermediate.constraints.min +
-			child.style.margin.left +
-			child.style.margin.right +
-			2 * child.style.border
-		child_axis.x.preferred +=
-			child.intermediate.constraints.preferred +
-			child.style.margin.left +
-			child.style.margin.right +
-			2 * child.style.border
+		// main axis
+		child_constraints[layout.axis].min +=
+			child.intermediate.constraint[layout.axis].min + sides_axis(child.style.margin, layout.axis)
+		child_constraints[layout.axis].preferred +=
+			child.intermediate.constraint[layout.axis].preferred + sides_axis(child.style.margin, layout.axis)
 
-		child_height = math.max(child_height, child.size.y + child.style.margin.top + child.style.margin.bottom)
+		// cross axis
+		child_constraints[axis_opposite(layout.axis)].min = math.max(
+			child_constraints[axis_opposite(layout.axis)].min,
+			child.intermediate.constraint[axis_opposite(layout.axis)].min +
+			sides_axis(child.style.margin, axis_opposite(layout.axis)),
+		)
+		child_constraints[axis_opposite(layout.axis)].preferred = math.max(
+			child_constraints[axis_opposite(layout.axis)].preferred,
+			child.intermediate.constraint[axis_opposite(layout.axis)].preferred +
+			sides_axis(child.style.margin, axis_opposite(layout.axis)),
+		)
 	}
 
-	layout.intermediate.constraints.min =
-		math.max(
-			layout.intermediate.constraints.min,
-			child_axis.x.min + layout.style.padding.left + layout.style.padding.right,
-		) +
-		2 * layout.style.border
+	for axis in Axis {
+		layout.intermediate.constraint[axis].min =
+			math.max(
+				child_constraints[axis].min + sides_axis(layout.style.padding, axis),
+				layout.style.size[axis].min,
+			) +
+			2 * layout.style.border
 
-	layout.intermediate.constraints.preferred =
-		math.max(
-			layout.intermediate.constraints.preferred,
-			child_axis.x.preferred + layout.style.padding.left + layout.style.padding.right,
-		) +
-		2 * layout.style.border
+		layout.intermediate.constraint[axis].preferred =
+			math.max(
+				child_constraints[axis].preferred + sides_axis(layout.style.padding, axis),
+				layout.style.size[axis].preferred,
+			) +
+			2 * layout.style.border +
+			sides_axis(layout.style.margin, axis)
 
-	layout.intermediate.size = layout.intermediate.constraints.preferred
-
-	layout.size.y =
-		math.max(
-			layout.style.size.y.preferred,
-			child_height + layout.style.padding.top + layout.style.padding.bottom,
-		) +
-		2 * layout.style.border
+		layout.intermediate.size[axis] = layout.intermediate.constraint[axis].preferred
+	}
 }
 
-layout_compute :: proc(layout: ^Layout, available: f32, allocator := context.allocator) {
-	layout.dirty = layout.size.x != available
-	layout.size.x = math.max(layout.intermediate.constraints.min, available)
+layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
+	available := available.(f32) if available != nil else layout.intermediate.size[layout.axis]
+
+	if layout.axis == .Horizontal {
+		layout.size.x = math.clamp(available, layout.intermediate.constraint[.Horizontal].min, math.F32_MAX)
+		layout.size.y = layout.intermediate.size[.Vertical]
+	} else {
+		layout.size.y = math.clamp(available, layout.intermediate.constraint[.Vertical].min, math.F32_MAX)
+		layout.size.x = layout.intermediate.size[.Horizontal]
+	}
 
 	// shrink
-	if layout.intermediate.constraints.preferred > available && len(layout.children) > 0 {
-		space_left := layout.intermediate.constraints.preferred - available
+	if layout.intermediate.constraint[layout.axis].preferred > available && len(layout.children) > 0 {
+		space_left := layout.intermediate.constraint[layout.axis].preferred - available
 
-		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, len(layout.children), allocator)
+		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, len(layout.children), context.allocator)
 		defer delete(available_children)
 		for child in layout.children {
 			append(&available_children, child)
@@ -148,67 +136,158 @@ layout_compute :: proc(layout: ^Layout, available: f32, allocator := context.all
 			}
 
 			#reverse for child, i in available_children {
-				if child.intermediate.size <= child.intermediate.constraints.min {
+				if child.intermediate.size[layout.axis] <= child.intermediate.constraint[layout.axis].min {
 					assert(
-						child.intermediate.size == child.intermediate.constraints.min,
-						"child size should never be smaller than min",
+						child.intermediate.size[layout.axis] == child.intermediate.constraint[layout.axis].min,
+						"child size should never be below minimum",
 					)
 
 					unordered_remove(&available_children, i)
+
+					continue
 				}
 
-				min_distance = math.min(min_distance, child.intermediate.size - child.intermediate.constraints.min)
+				min_distance = math.min(
+					min_distance,
+					child.intermediate.size[layout.axis] - child.intermediate.constraint[layout.axis].min,
+				)
 			}
+
+			min_distance = math.min(
+				space_left / f32(len(available_children)) if len(available_children) > 0 else 0,
+				min_distance,
+			)
 
 			space_left -= min_distance * f32(len(available_children))
 
 			for &child in available_children {
-				child.intermediate.size -= min_distance
+				child.intermediate.size[layout.axis] -= min_distance
 			}
 		}
 	}
 
 	// grow
-	if layout.intermediate.constraints.preferred < available && len(layout.children) > 0 {
-		space_left := available - layout.intermediate.constraints.preferred
+	if layout.intermediate.constraint[layout.axis].preferred < available && len(layout.children) > 0 {
+		space_left := available - layout.intermediate.constraint[layout.axis].preferred
 
 		expandable := 0
 		for child in layout.children {
-			if .Expand_Horizontal in child.style.properties do expandable += 1
+			if layout.axis == .Horizontal && .Expand_Horizontal in child.style.properties ||
+			   layout.axis == .Vertical && .Expand_Vertical in child.style.properties {
+				expandable += 1
+			}
 		}
 
-		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, expandable, allocator)
+		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, expandable, context.allocator)
 		defer delete(available_children)
 
 		for child in layout.children {
-			if .Expand_Horizontal in child.style.properties do append(&available_children, child)
+			if layout.axis == .Horizontal && .Expand_Horizontal in child.style.properties ||
+			   layout.axis == .Vertical && .Expand_Vertical in child.style.properties {
+				append(&available_children, child)
+			}
 		}
 
-		space_per_child := space_left / f32(len(available_children)) if len(available_children) > 0 else 0
+		for space_left > 0 && len(available_children) > 0 {
+			smallest, second_smallest: f32 = math.F32_MAX, math.F32_MAX
+			smallest_count := 0
 
-		for child in available_children {
-			child.intermediate.size += space_per_child
+			for child in available_children {
+				if child.intermediate.size[layout.axis] < smallest {
+					second_smallest = smallest
+					smallest = child.intermediate.size[layout.axis]
+				} else if child.intermediate.size[layout.axis] < second_smallest &&
+				   child.intermediate.size[layout.axis] > smallest {
+					second_smallest = child.intermediate.size[layout.axis]
+				}
+			}
+
+			for child in available_children {
+				if child.intermediate.size[layout.axis] == smallest do smallest_count += 1
+			}
+
+			distance := math.min(space_left / f32(smallest_count), second_smallest - smallest)
+
+			for child in available_children {
+				if child.intermediate.size[layout.axis] == smallest {
+					child.intermediate.size[layout.axis] += distance
+					space_left -= distance
+				}
+			}
 		}
 	}
 
 	for child in layout.children {
-		layout_compute(child, child.intermediate.size)
+		layout_compute(child)
 	}
 }
 
-layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {0, 0}) {
-	offset := offset + {layout.style.margin.left, layout.style.margin.top}
-
-	layout.dirty |= layout.position != offset
-	layout.position = offset
-
-	offset += {layout.style.padding.left, layout.style.padding.top} + layout.style.border
+layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
+	layout.position = offset + {layout.style.margin.left, layout.style.margin.top}
+	offset := layout.position
+	offset += {layout.style.border + layout.style.padding.left, layout.style.border + layout.style.padding.top}
 
 	for child in layout.children {
 		layout_arrange(child, offset)
 
-		offset.x += child.size.x + child.style.margin.left + child.style.margin.right
+		if layout.axis == .Horizontal {
+			offset.x += child.size.x + sides_axis(child.style.margin, .Horizontal)
+		} else {
+			offset.y += child.size.y + sides_axis(child.style.margin, .Vertical)
+		}
 	}
+}
+
+@(test)
+test_layout_measure :: proc(t: ^testing.T) {
+	parent := layout_make()
+	defer layout_destroy(&parent)
+
+	child1 := layout_make()
+	child2 := layout_make()
+	append(&parent.children, &child1, &child2)
+
+	parent.style.padding.left = 30
+
+	child1.style.size.y.preferred = 100
+	child1.style.size.x.preferred = 100
+	child1.style.padding.left = 30
+
+	child2.style.size.y.preferred = 200
+	child2.style.size.x.preferred = 50
+
+	layout_measure(&parent)
+
+	testing.expect_value(t, parent.intermediate.constraint[.Horizontal].min, 60)
+	testing.expect_value(t, parent.intermediate.constraint[.Horizontal].preferred, 180)
+	testing.expect_value(t, parent.intermediate.constraint[.Vertical].min, 0)
+	testing.expect_value(t, parent.intermediate.constraint[.Vertical].preferred, 200)
+}
+
+@(test)
+test_layout_compute :: proc(t: ^testing.T) {
+	parent := layout_make()
+	defer layout_destroy(&parent)
+
+	child1 := layout_make()
+	child2 := layout_make()
+	append(&parent.children, &child1, &child2)
+
+	parent.style.padding.left = 30
+
+	child1.style.size.y.preferred = 100
+	child1.style.size.x.preferred = 100
+	child1.style.padding.left = 30
+
+	child2.style.size.y.preferred = 200
+	child2.style.size.x.preferred = 50
+
+	layout_measure(&parent)
+	layout_compute(&parent, 300)
+
+	testing.expect_value(t, parent.size.x, 300)
+	testing.expect_value(t, child1.size.x, 100)
+	testing.expect_value(t, child2.size.x, 50)
 }
 
 @(test)
@@ -218,8 +297,7 @@ test_layout_compute_shrink :: proc(t: ^testing.T) {
 
 	child1 := layout_make()
 	child2 := layout_make()
-	append(&parent.children, &child1)
-	append(&parent.children, &child2)
+	append(&parent.children, &child1, &child2)
 
 	parent.style.padding.left = 30
 
@@ -227,46 +305,19 @@ test_layout_compute_shrink :: proc(t: ^testing.T) {
 	child1.style.size.x.min = 100
 	child1.style.padding.left = 30
 
-	child2.style.size.x.preferred = 200
-	child2.style.size.x.min = 100
-	child2.style.margin.left = 30
+	child2.style.size.x.preferred = 250
+	child2.style.margin.left = 50
 
 	layout_measure(&parent)
 	layout_compute(&parent, 300)
 
-	testing.expect_value(t, child1.size.x, 100)
-	testing.expect_value(t, child2.size.x, 100)
 	testing.expect_value(t, parent.size.x, 300)
+	testing.expect_value(t, child1.size.x, 100)
+	testing.expect_value(t, child2.size.x, 120)
 }
 
 @(test)
-test_layout_compute_overflow :: proc(t: ^testing.T) {
-	parent := layout_make()
-	defer layout_destroy(&parent)
-
-	child1 := layout_make()
-	child2 := layout_make()
-	append(&parent.children, &child1, &child2)
-
-	parent.style.padding.left = 30
-	parent.style.padding.right = 30
-
-	child1.style.size.x.preferred = 100
-	child1.style.size.x.min = 100
-	child1.style.padding.left = 30
-
-	child2.style.size.x.preferred = 200
-	child2.style.size.x.min = 100
-	child2.style.margin.left = 30
-
-	layout_measure(&parent)
-	layout_compute(&parent, 200)
-
-	testing.expect_value(t, parent.overflow, true)
-}
-
-@(test)
-test_layout_compute_expand :: proc(t: ^testing.T) {
+test_layout_compute_grow :: proc(t: ^testing.T) {
 	parent := layout_make()
 	defer layout_destroy(&parent)
 
@@ -275,23 +326,21 @@ test_layout_compute_expand :: proc(t: ^testing.T) {
 	child3 := layout_make()
 	append(&parent.children, &child1, &child2, &child3)
 
-	parent.style.padding.left = 30
-	parent.style.padding.right = 30
-
 	child1.style.size.x.preferred = 100
 	child1.style.properties += {.Expand_Horizontal}
 
 	child2.style.size.x.preferred = 200
-	child2.style.margin.left = 30
 	child2.style.properties += {.Expand_Horizontal}
 
-	child3.style.size.x.preferred = 300
+	child3.style.size.x.preferred = 250
+	child3.style.properties += {.Expand_Horizontal}
 
 	layout_measure(&parent)
-	layout_compute(&parent, 800)
+	layout_compute(&parent, 900)
 
-	testing.expect_value(t, child1.size.x, 155)
-	testing.expect_value(t, child2.size.x, 255)
+	testing.expect_value(t, parent.size.x, 900)
+	testing.expect_value(t, child1.size.x, 300)
+	testing.expect_value(t, child2.size.x, 300)
 	testing.expect_value(t, child3.size.x, 300)
 }
 
@@ -304,31 +353,32 @@ test_layout_arrange :: proc(t: ^testing.T) {
 	child2 := layout_make()
 	append(&parent.children, &child1, &child2)
 
-	parent.style.margin.left = 30
 	parent.style.padding.left = 30
+	parent.style.padding.right = 30
 	parent.style.padding.top = 10
 
-	child1.style.size.y.preferred = 100
 	child1.style.size.x.preferred = 100
+	child1.style.size.y.preferred = 200
+	child1.style.size.x.min = 100
 	child1.style.padding.left = 30
 
-	child2.style.size.y.preferred = 50
 	child2.style.size.x.preferred = 200
+	child2.style.size.y.preferred = 100
 	child2.style.margin.left = 30
+	child2.style.margin.top = 30
 
 	layout_measure(&parent)
 	layout_compute(&parent, 500)
 	layout_arrange(&parent)
 
-	testing.expect_value(t, parent.position.x, 30)
+	testing.expect_value(t, parent.position.x, 0)
 	testing.expect_value(t, parent.position.y, 0)
-	testing.expect_value(t, parent.size.y, 110)
+	testing.expect_value(t, parent.size.x, 500)
+	testing.expect_value(t, parent.size.y, 210)
 
-	testing.expect_value(t, child1.position.x, 60)
+	testing.expect_value(t, child1.position.x, 30)
 	testing.expect_value(t, child1.position.y, 10)
-	testing.expect_value(t, child1.size.y, 100)
 
-	testing.expect_value(t, child2.position.x, 190)
-	testing.expect_value(t, child2.position.y, 10)
-	testing.expect_value(t, child2.size.y, 50)
+	testing.expect_value(t, child2.position.x, 160)
+	testing.expect_value(t, child2.position.y, 40)
 }

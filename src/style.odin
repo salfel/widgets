@@ -18,17 +18,45 @@ Border :: struct {
 	color: Color,
 }
 
+Sides :: struct {
+	left, right, top, bottom: f32,
+}
+
 sides_make :: proc {
 	sides_make_single,
 	sides_make_multiple,
+	sides_make_axis,
 }
 
 sides_make_single :: proc(size: f32) -> Sides {
 	return Sides{left = size, right = size, top = size, bottom = size}
 }
 
+sides_make_axis :: proc(horizontal, vertical: f32) -> Sides {
+	return Sides{left = horizontal, right = horizontal, top = vertical, bottom = vertical}
+}
+
 sides_make_multiple :: proc(left, right, top, bottom: f32) -> Sides {
 	return Sides{left = left, right = right, top = top, bottom = bottom}
+}
+
+sides_reflect_axis :: proc(sides: Sides, axis: Axis) -> Sides {
+	if axis == .Horizontal {
+		return sides
+	}
+
+	return Sides{left = sides.top, right = sides.bottom, top = sides.left, bottom = sides.right}
+}
+
+sides_axis :: proc(sides: Sides, axis: Axis) -> f32 {
+	switch axis {
+	case .Horizontal:
+		return sides.left + sides.right
+	case .Vertical:
+		return sides.top + sides.bottom
+	}
+
+	return 0
 }
 
 Layout_Style_Property :: enum {
@@ -40,7 +68,7 @@ Layout_Style_Property :: enum {
 }
 
 DEFAULT_LAYOUT_STYLE :: Layout_Style {
-	size    = {Axis{0, 0}, Axis{0, 0}},
+	size    = {Layout_Constraint{0, 0}, Layout_Constraint{0, 0}},
 	padding = {0, 0, 0, 0},
 	margin  = {0, 0, 0, 0},
 	border  = 0,
