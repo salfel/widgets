@@ -22,7 +22,17 @@
 
           src = ./.;
 
-          nativeBuildInputs = with pkgs; [odin];
+          nativeBuildInputs = with pkgs; [
+            (odin.overrideAttrs (old: rec {
+              version = "dev-2025-11";
+              src = fetchFromGitHub {
+                owner = "odin-lang";
+                repo = "Odin";
+                tag = version;
+                hash = "sha256-Nyi8/52xexGPSnWIF8eMSMqaXFQD57dDRGl6IuZcppw=";
+              };
+            }))
+          ];
 
           buildInputs = with pkgs; [
             libGL
