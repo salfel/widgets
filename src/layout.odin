@@ -217,6 +217,20 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		}
 	}
 
+	// expand cross axis
+	for child in layout.children {
+		if layout.axis == .Horizontal && .Expand_Vertical in child.style.properties ||
+		   layout.axis == .Vertical && .Expand_Horizontal in child.style.properties {
+			child.intermediate.size[axis_opposite(layout.axis)] = math.max(
+				child.intermediate.size[axis_opposite(layout.axis)],
+				layout.intermediate.size[axis_opposite(layout.axis)] -
+				sides_axis(layout.style.padding, axis_opposite(layout.axis)) -
+				2 * layout.style.border -
+				sides_axis(child.style.margin, axis_opposite(layout.axis)),
+			)
+		}
+	}
+
 	for child in layout.children {
 		layout_compute(child)
 	}
@@ -274,6 +288,7 @@ test_layout_compute :: proc(t: ^testing.T) {
 	append(&parent.children, &child1, &child2)
 
 	parent.style.padding.left = 30
+	parent.style.padding.bottom = 30
 
 	child1.style.size.y.preferred = 100
 	child1.style.size.x.preferred = 100
@@ -288,6 +303,10 @@ test_layout_compute :: proc(t: ^testing.T) {
 	testing.expect_value(t, parent.size.x, 300)
 	testing.expect_value(t, child1.size.x, 100)
 	testing.expect_value(t, child2.size.x, 50)
+
+	testing.expect_value(t, parent.size.y, 230)
+	testing.expect_value(t, child1.size.y, 100)
+	testing.expect_value(t, child2.size.y, 200)
 }
 
 @(test)
