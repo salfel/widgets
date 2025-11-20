@@ -59,14 +59,6 @@ sides_axis :: proc(sides: Sides, axis: Axis) -> f32 {
 	return 0
 }
 
-Layout_Style_Property :: enum {
-	Width,
-	Height,
-	Padding,
-	Margin,
-	Border,
-}
-
 DEFAULT_LAYOUT_STYLE :: Layout_Style {
 	size    = {Layout_Constraint{0, 0}, Layout_Constraint{0, 0}},
 	padding = {0, 0, 0, 0},
