@@ -45,7 +45,7 @@ void main()
             float distance2 = (cornerPos.x - border_radius) * (cornerPos.x - border_radius) +
                     (cornerPos.y - border_radius) * (cornerPos.y - border_radius);
             float radius2 = border_radius * border_radius;
-            float innerRadius = border_radius - border_width;
+            float innerRadius = max(border_radius - border_width, 0);
             if (distance2 <= radius2 && distance2 >= innerRadius * innerRadius) {
                 isBorder = true;
             }

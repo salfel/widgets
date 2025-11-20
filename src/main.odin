@@ -67,7 +67,7 @@ main :: proc() {
 	widget_add_child(parent, child3)
 	box_style_set_width(child3, 300, &app_context.renderer)
 	box_style_set_background(child3, BLUE, &app_context.renderer)
-	box_style_set_rounding(child3, 20, &app_context.renderer)
+	box_style_set_rounding(child3, 5, &app_context.renderer)
 	box_style_set_border(child3, Border{width = 10, color = YELLOW}, &app_context.renderer)
 	box_set_property(child3, .Expand_Horizontal, &app_context.renderer)
 	box_set_property(child3, .Expand_Vertical, &app_context.renderer)
