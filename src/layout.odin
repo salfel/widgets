@@ -99,8 +99,7 @@ layout_measure :: proc(layout: ^Layout) {
 				child_constraints[axis].preferred + sides_axis(layout.style.padding, axis),
 				layout.style.size[axis].preferred,
 			) +
-			2 * layout.style.border +
-			sides_axis(layout.style.margin, axis)
+			2 * layout.style.border
 
 		layout.intermediate.size[axis] = layout.intermediate.constraint[axis].preferred
 	}
