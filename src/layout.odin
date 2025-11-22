@@ -309,6 +309,39 @@ test_layout_compute :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_layout_compute_cross_axis :: proc(t: ^testing.T) {
+	parent := layout_make()
+	defer layout_destroy(&parent)
+
+	child1 := layout_make()
+	child2 := layout_make()
+	append(&parent.children, &child1, &child2)
+
+	parent.style.padding.left = 30
+	parent.style.padding.bottom = 30
+
+	child1.style.size.y.preferred = 100
+	child1.style.size.x.preferred = 100
+	child1.style.padding.left = 30
+	child1.style.properties += {.Expand_Vertical}
+
+	child2.style.size.y.preferred = 150
+	child2.style.size.x.preferred = 50
+	child2.style.margin.top = 50
+
+	layout_measure(&parent)
+	layout_compute(&parent, 300)
+
+	testing.expect_value(t, parent.size.x, 300)
+	testing.expect_value(t, child1.size.x, 100)
+	testing.expect_value(t, child2.size.x, 50)
+
+	testing.expect_value(t, parent.size.y, 230)
+	testing.expect_value(t, child1.size.y, 200)
+	testing.expect_value(t, child2.size.y, 150)
+}
+
+@(test)
 test_layout_compute_shrink :: proc(t: ^testing.T) {
 	parent := layout_make()
 	defer layout_destroy(&parent)
