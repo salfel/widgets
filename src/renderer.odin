@@ -21,6 +21,12 @@ renderer_loop :: proc(app_context: ^App_Context) {
 
 	for wl.display_dispatch(app_context.window.wl.display) != -1 && !app_context.renderer.exit {
 		handle_events(app_context)
+
+		if app_context.window.wl.should_render {
+			renderer_render(app_context)
+
+			app_context.window.wl.should_render = false
+		}
 	}
 }
 

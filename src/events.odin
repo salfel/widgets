@@ -41,7 +41,7 @@ event_manager_destroy :: proc(event_manager: ^Event_Manager) {
 event_register :: proc(event: Event, app_context: ^App_Context) {
 	queue.push(&app_context.event_manager.events, event)
 
-	wl_register_callback(&app_context.window)
+	wl_register_callback(app_context)
 }
 
 handle_events :: proc(app_context: ^App_Context) {

@@ -18,6 +18,7 @@ Wayland_State :: struct {
 	},
 	pointer_state:  Pointer_State,
 	keyboard_state: Keyboard_State,
+	should_render:  bool,
 }
 
 registry_handle_global :: proc "c" (
@@ -109,7 +110,7 @@ wl_callback_done :: proc "c" (data: rawptr, callback: ^wl.callback, time: uint) 
 	wl.callback_destroy(callback)
 	app_context.window.wl.callback = nil
 
-	renderer_render(app_context)
+	app_context.window.wl.should_render = true
 
 	wl.surface_commit(app_context.window.wl.surface)
 }
@@ -118,13 +119,13 @@ wl_callback_listener := wl.callback_listener {
 	done = wl_callback_done,
 }
 
-wl_register_callback :: proc "contextless" (window_context: ^Window_Context) {
-	if window_context.wl.callback != nil do return
+wl_register_callback :: proc "contextless" (app_context: ^App_Context) {
+	if app_context.window.wl.callback != nil do return
 
-	window_context.wl.callback = wl.surface_frame(window_context.wl.surface)
-	wl.callback_add_listener(window_context.wl.callback, &wl_callback_listener, window_context)
+	app_context.window.wl.callback = wl.surface_frame(app_context.window.wl.surface)
+	wl.callback_add_listener(app_context.window.wl.callback, &wl_callback_listener, app_context)
 
-	wl.surface_commit(window_context.wl.surface)
+	wl.surface_commit(app_context.window.wl.surface)
 }
 
 wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
