@@ -4,3 +4,9 @@
 [submodule "lib/xkbcommon"]
 	path = lib/xkbcommon
 	url = git@github.com:salfel/odin-xkbcommon.git
+[submodule "lib/gtk"]
+	path = lib/gtk
+	url = git@github.com:PucklaJ/odin-gtk
+[submodule "lib/fontconfig"]
+	path = lib/fontconfig
+	url = git@github.com:salfel/odin-fontconfig.git

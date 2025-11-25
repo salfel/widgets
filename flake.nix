@@ -38,6 +38,9 @@
             libGL
             wayland
             libxkbcommon
+            pango
+            cairo
+            fontconfig.dev
           ];
 
           buildPhase = ''

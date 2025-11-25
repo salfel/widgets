@@ -8,7 +8,7 @@ uniform vec4 color;
 
 void main()
 {
-    vec4 color = vec4(color.xyz, texture(tex, Position).r * color.w);
+    vec4 color = vec4(color.xyz, texture(tex, Position).a * color.w);
 
     FragColor = color;
 }

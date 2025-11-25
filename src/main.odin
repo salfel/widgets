@@ -46,7 +46,7 @@ main :: proc() {
 	box_style_set_padding(button, sides_make(32, 32, 20, 20), &app_context.renderer)
 	box_set_property(button, .Expand_Vertical, &app_context.renderer)
 
-	child1 := text_make("count: 0", "font.ttf")
+	child1 := text_make("count: 0", "Sans")
 	widget_register(child1, &app_context.widget_manager)
 	widget_add_child(button, child1)
 	text_style_set_color(child1, WHITE, &app_context.renderer)

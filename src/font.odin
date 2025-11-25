@@ -1,93 +1,97 @@
 package main
 
-import "core:fmt"
-import "core:math"
-import "core:os"
-import "vendor:stb/truetype"
+import "core:slice"
+import "core:strings"
+import "lib:fontconfig"
+import "lib:gtk/cairo"
+import gobj "lib:gtk/glib/gobject"
+import "lib:gtk/pango"
+import "lib:gtk/pango/pangocairo"
 
 font_bitmap_make :: proc(
 	content: string,
 	font: string,
-	height: f32,
+	height: f64,
 	allocator := context.allocator,
 ) -> (
 	bitmap: []u8,
 	size: [2]i32,
 	ok := true,
 ) {
-	buffer: []u8
-	buffer, ok = os.read_entire_file_from_filename(font, allocator)
-	defer delete(buffer)
-	if !ok {
-		fmt.eprintf("Failed to load %s", font)
-		return nil, {}, false
-	}
+	content := strings.clone_to_cstring(content, allocator)
+	defer delete(content, allocator)
+	font := strings.clone_to_cstring(font, allocator)
+	defer delete(font, allocator)
 
-	info: truetype.fontinfo
-	if err := truetype.InitFont(&info, raw_data(buffer), 0); !err {
-		fmt.eprintln("Failed to init font")
-		ok = false
-	}
+	size = font_get_size(content, font, height, allocator)
 
-	scale := truetype.ScaleForPixelHeight(&info, height)
+	surface := cairo.image_surface_create(.A8, size.x, size.y)
+	defer cairo.surface_destroy(surface)
+	cr := cairo.create(surface)
+	defer cairo.destroy(cr)
 
-	ascent, descent, lineGap: i32
-	truetype.GetFontVMetrics(&info, &ascent, &descent, &lineGap)
+	cairo.set_source_rgba(cr, 0.0, 0.0, 0.0, 0.0)
+	cairo.paint(cr)
 
-	ascent = i32(math.round((f32(ascent) * scale)))
-	descent = i32(math.round((f32(descent) * scale)))
+	layout := pangocairo.create_layout(cr)
+	defer gobj.object_unref(layout)
 
-	width: i32 = 0
-	max_ax: i32 = 0
-	for char, i in content {
-		ax, lsb: i32
-		truetype.GetCodepointHMetrics(&info, char, &ax, &lsb)
+	font_desc := pango.font_description_from_string(font)
+	pango.font_description_set_absolute_size(font_desc, height * pango.SCALE)
+	pango.layout_set_font_description(layout, font_desc)
+	pango.font_description_free(font_desc)
 
-		max_ax = math.max(max_ax, ax)
+	pango.layout_set_text(layout, content, -1)
 
-		kern: i32 = 0
-		if i < len(content) - 1 {
-			kern = truetype.GetCodepointKernAdvance(&info, char, rune(content[i + 1]))
-		}
+	pango.layout_set_width(layout, size.x * pango.SCALE)
+	pango.layout_set_alignment(layout, .ALIGN_LEFT)
 
-		width += i32(math.round(f32(ax + kern) * scale))
-	}
+	cairo.set_source_rgb(cr, 1.0, 1.0, 1.0)
 
-	bitmap = make([]u8, width * (ascent - descent), allocator)
-	temp_bitmap := make([]u8, max_ax * (ascent - descent), allocator)
-	defer delete(temp_bitmap)
+	text_width, text_height: i32
+	pango.layout_get_pixel_size(layout, &text_width, &text_height)
+	y: f64 = f64(size.y - text_height) / 2
 
-	x: i32 = 0
-	for char, i in content {
-		ax, lsb: i32
-		truetype.GetCodepointHMetrics(&info, char, &ax, &lsb)
+	cairo.move_to(cr, 0, y)
+	pangocairo.show_layout(cr, layout)
 
-		cx1, cy1, cx2, cy2: i32
-		truetype.GetCodepointBitmapBox(&info, char, scale, scale, &cx1, &cy1, &cx2, &cy2)
+	cairo.surface_flush(surface)
 
-		c_width := cx2 - cx1
-		c_height := cy2 - cy1
+	cairo_data := cairo.image_surface_get_data(surface)
+	bitmap = slice.clone(slice.from_ptr(cairo_data, int(size.x * size.y * 4)))
 
-		truetype.MakeCodepointBitmap(&info, raw_data(temp_bitmap), c_width, c_height, max_ax, scale, scale, char)
+	return
+}
 
-		for gy: i32 = 0; gy < c_height; gy += 1 {
-			for gx: i32 = 0; gx < c_width; gx += 1 {
-				pixel := temp_bitmap[gy * max_ax + gx]
-				if pixel == 0 do continue
+font_get_size :: proc(content: cstring, font: cstring, height: f64, allocator := context.allocator) -> [2]i32 {
+	surface := cairo.image_surface_create(.ARGB32, 1, 1)
+	cr := cairo.create(surface)
+	defer cairo.surface_destroy(surface)
+	defer cairo.destroy(cr)
 
-				dest := &bitmap[(ascent + cy1 + gy) * width + x + i32(f32(lsb) * scale) + gx]
+	layout := pangocairo.create_layout(cr)
+	defer gobj.object_unref(layout)
 
-				dest^ = dest^ + pixel
-			}
-		}
+	font_desc := pango.font_description_from_string(font)
+	pango.font_description_set_absolute_size(font_desc, height * pango.SCALE)
+	pango.layout_set_font_description(layout, font_desc)
+	pango.font_description_free(font_desc)
 
-		x += i32(math.round(f32(ax) * scale))
+	pango.layout_set_text(layout, content, -1)
 
-		if i < len(content) - 1 {
-			kern := truetype.GetCodepointKernAdvance(&info, char, rune(content[i + 1]))
-			x += i32(math.round(f32(kern) * scale))
-		}
-	}
+	width, height: i32
+	pango.layout_get_pixel_size(layout, &width, &height)
 
-	return bitmap, {width, ascent - descent}, true
+	return {width, height}
+}
+
+
+@(init)
+fontconfig_init :: proc "contextless" () {
+	fontconfig.Init()
+}
+
+@(fini)
+fontconfig_fini :: proc "contextless" () {
+	fontconfig.Fini()
 }

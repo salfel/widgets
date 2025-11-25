@@ -104,14 +104,19 @@ text_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 
 text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (size: [2]i32, ok: bool = true) {
 	bitmap: []u8
-	bitmap, size = font_bitmap_make(text.content, text.font, text.style.font_size, allocator) or_return
+	bitmap, size = font_bitmap_make(text.content, text.font, f64(text.style.font_size), allocator) or_return
 	defer delete(bitmap)
 
 	gl.GenTextures(1, &text.texture)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RED, size.x, size.y, 0, gl.RED, gl.UNSIGNED_BYTE, raw_data(bitmap))
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.R8, size.x, size.y, 0, gl.RED, gl.UNSIGNED_BYTE, raw_data(bitmap))
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_A, gl.RED)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_R, gl.ZERO)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_G, gl.ZERO)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_B, gl.ZERO)
 
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
