@@ -58,17 +58,12 @@ void main()
         if (isBorder) {
             discard;
         }
-        if (has_background_image == 1) {
-            FragColor = texture(background_image, Position);
-        } else {
-            FragColor = background;
-        }
     } else {
         if (isBorder) {
             FragColor = border_color;
         } else {
             if (has_background_image == 1) {
-                FragColor = texture(background_image, Position);
+                FragColor = texture(background_image, Position * (size - 2 * border_width) / size - border_width / size);
             } else {
                 FragColor = background;
             }
