@@ -1,8 +1,13 @@
 package main
 
+import "core:fmt"
+import "core:os"
+import "core:sys/posix"
 import wl "lib:wayland"
 import gl "vendor:OpenGL"
 import "vendor:egl"
+
+TIMEOUT :: 5000
 
 Renderer :: struct {
 	dirty: bool, // move to layout manager
@@ -19,13 +24,42 @@ renderer_loop :: proc(app_context: ^App_Context) {
 
 	egl.SwapBuffers(app_context.window.egl.display, app_context.window.egl.surface)
 
-	for wl.display_dispatch(app_context.window.wl.display) != -1 && !app_context.renderer.exit {
-		handle_events(app_context)
+	fd := wl.display_get_fd(app_context.window.wl.display)
+	pollfds := []os.pollfd{{fd = i32(fd), events = posix.POLLIN}}
 
-		if app_context.window.wl.should_render {
-			renderer_render(app_context)
+	for !app_context.renderer.exit {
+		wl.display_dispatch_pending(app_context.window.wl.display)
 
-			app_context.window.wl.should_render = false
+		for wl.display_prepare_read(app_context.window.wl.display) == -1 {
+			wl.display_dispatch_pending(app_context.window.wl.display)
+		}
+
+		wl.display_flush(app_context.window.wl.display)
+
+		if ret, err := os.poll(pollfds, TIMEOUT); err != nil || ret < 0 {
+			if err == .EINTR {
+				wl.display_cancel_read(app_context.window.wl.display)
+				continue
+			}
+
+			fmt.eprintln("poll error:", err)
+			wl.display_cancel_read(app_context.window.wl.display)
+			break
+		}
+
+		if pollfds[0].revents & posix.POLLIN != 0 {
+			wl.display_read_events(app_context.window.wl.display)
+			wl.display_dispatch_pending(app_context.window.wl.display)
+
+			handle_events(app_context)
+
+			if app_context.window.wl.should_render {
+				renderer_render(app_context)
+
+				app_context.window.wl.should_render = false
+			}
+		} else {
+			wl.display_cancel_read(app_context.window.wl.display)
 		}
 	}
 }
