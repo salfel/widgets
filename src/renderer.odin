@@ -2,10 +2,7 @@ package main
 
 import "core:fmt"
 import "core:os"
-import "core:sync"
 import "core:sys/linux"
-import "core:thread"
-import "core:time"
 import wl "lib:wayland"
 import gl "vendor:OpenGL"
 import "vendor:egl"
@@ -15,25 +12,11 @@ TIMEOUT :: 5000
 Renderer :: struct {
 	dirty: bool, // move to layout manager
 	exit:  bool,
+	fd:    linux.Fd,
 }
 
 renderer_init :: proc(renderer: ^Renderer) {
 	renderer.dirty = true
-}
-
-thread_test :: proc(fd: linux.Fd, cond: ^sync.Cond, mutex: ^sync.Mutex) {
-	count := 0
-	for {
-		if sync.cond_wait_with_timeout(cond, mutex, time.Second) {
-			fmt.println("breaking")
-			break
-		}
-
-		count_string := fmt.tprint("count:", count)
-		linux.write(fd, transmute([]byte)count_string)
-
-		count += 1
-	}
 }
 
 renderer_loop :: proc(app_context: ^App_Context) {
@@ -42,21 +25,8 @@ renderer_loop :: proc(app_context: ^App_Context) {
 
 	egl.SwapBuffers(app_context.window.egl.display, app_context.window.egl.surface)
 
-	pipe_fds: [2]linux.Fd
-	if err := linux.pipe2(&pipe_fds, nil); err != nil {
-		fmt.println("pipe error")
-		wl.display_disconnect(app_context.window.wl.display)
-		return
-	}
-
-	cond: sync.Cond
-	mutex: sync.Mutex
-
-	th := thread.create_and_start_with_poly_data3(pipe_fds[1], &cond, &mutex, thread_test)
-	defer thread.destroy(th)
-
 	fd := wl.display_get_fd(app_context.window.wl.display)
-	pollfds := []linux.Poll_Fd{{fd = cast(linux.Fd)fd, events = {.IN}}, {fd = pipe_fds[0], events = {.IN}}}
+	pollfds := []linux.Poll_Fd{{fd = cast(linux.Fd)fd, events = {.IN}}, {fd = app_context.renderer.fd, events = {.IN}}}
 
 	for !app_context.renderer.exit {
 		wl.display_dispatch_pending(app_context.window.wl.display)
@@ -94,15 +64,12 @@ renderer_loop :: proc(app_context: ^App_Context) {
 		}
 
 		if .IN in pollfds[1].revents {
-			buffer := [1024]byte{}
-			size, _ := os.read(cast(os.Handle)pipe_fds[0], buffer[:])
+			buffer := [16]byte{}
+			size, _ := os.read(cast(os.Handle)app_context.renderer.fd, buffer[:])
 
-			fmt.println(string(buffer[:size]))
+			async_resource_manager_generate_textures(&app_context.async_resource_manager)
 		}
 	}
-
-	sync.cond_signal(&cond)
-	thread.join(th)
 }
 
 renderer_render :: proc(app_context: ^App_Context) {

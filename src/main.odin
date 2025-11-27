@@ -82,5 +82,7 @@ main :: proc() {
 			count^ += 1
 		}, &count)
 
+	request_image(&app_context.async_resource_manager, Image_Data{path = "tux.png"})
+
 	renderer_loop(&app_context)
 }
