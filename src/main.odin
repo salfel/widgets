@@ -35,7 +35,7 @@ main :: proc() {
 	box_style_set_background(parent, BLUE, &app_context.renderer)
 	box_style_set_margin(parent, sides_make(30), &app_context.renderer)
 	box_style_set_padding(parent, sides_make(50), &app_context.renderer)
-	box_style_set_background_image(parent, "wallpaper.jpg", &app_context.renderer)
+	box_style_set_background_image(parent, "wallpaper.jpg", &app_context)
 
 	button := button_make()
 	widget_register(button, &app_context.widget_manager)

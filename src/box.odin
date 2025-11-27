@@ -1,7 +1,6 @@
 package main
 
 import "core:fmt"
-import "core:image"
 import "core:math/linalg"
 import gl "vendor:OpenGL"
 
@@ -11,13 +10,13 @@ FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
 box_cache: Widget_Cache
 
 Box :: struct {
-	style:                       Box_Style,
-	background_image:            ^image.Image,
+	style:             Box_Style,
+	background_image:  ^Asset,
 
 	// OpenGL stuff
-	program, background_texture: u32,
-	mp:                          matrix[4, 4]f32,
-	uniform_locations:           struct {
+	program:           u32,
+	mp:                matrix[4, 4]f32,
+	uniform_locations: struct {
 		mp,
 		size,
 		background,
@@ -28,7 +27,7 @@ Box :: struct {
 		border_radius,
 		is_stencil: i32,
 	},
-	pending_uniforms:            Box_Uniforms,
+	pending_uniforms:  Box_Uniforms,
 }
 
 Box_Uniform :: enum {
@@ -82,12 +81,6 @@ box_destroy :: proc(widget: ^Widget) {
 		fmt.println("invalid widget type, expected Box, got:", widget.type)
 		return
 	}
-
-	if box.background_image != nil {
-		image.destroy(box.background_image)
-	}
-
-	gl.DeleteTextures(1, &box.background_texture)
 }
 
 
@@ -100,6 +93,10 @@ box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 
 	gl.UseProgram(box.program)
 
+	if asset_ready(box.background_image) {
+		box.pending_uniforms += {.Background_Image}
+	}
+
 	for uniform in box.pending_uniforms {
 		switch uniform {
 		case .MP:
@@ -111,14 +108,12 @@ box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 			gl.Uniform4fv(box.uniform_locations.background, 1, linalg.vector_to_ptr(&box.style.background))
 			box.pending_uniforms -= {.Background}
 		case .Background_Image:
-			if box.background_image == nil {
-				gl.Uniform1i(box.uniform_locations.has_background_image, 0)
-			} else {
-				box.background_texture = image_generate_texture(box.background_image)
+			if asset_ready(box.background_image) {
 				gl.Uniform1i(box.uniform_locations.has_background_image, 1)
 				gl.Uniform1i(box.uniform_locations.background_image, 0)
+			} else {
+				gl.Uniform1i(box.uniform_locations.has_background_image, 0)
 			}
-			gl.Uniform1i(box.uniform_locations.background_image, 0)
 			box.pending_uniforms -= {.Background_Image}
 		case .Rounding:
 			gl.Uniform1f(box.uniform_locations.border_radius, box.style.rounding)
@@ -130,9 +125,9 @@ box_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 		}
 	}
 
-	if box.background_image != nil {
+	if asset_ready(box.background_image) {
 		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, box.background_texture)
+		gl.BindTexture(gl.TEXTURE_2D, box.background_image.texture)
 	}
 
 	gl.Uniform1i(box.uniform_locations.is_stencil, 0)
@@ -314,7 +309,7 @@ box_style_set_rounding :: proc(widget: ^Widget, rounding: f32, renderer: ^Render
 box_style_set_background_image :: proc(
 	widget: ^Widget,
 	path: string,
-	renderer: ^Renderer,
+	app_context: ^App_Context,
 	loc := #caller_location,
 ) -> bool {
 	box, ok := (&widget.data.(Box))
@@ -323,12 +318,7 @@ box_style_set_background_image :: proc(
 		return false
 	}
 
-	err: image.Error
-	box.background_image, err = image.load_from_file(path)
-	if err != nil {
-		fmt.println("couldn't load image from file", err, ", path:", path)
-		return false
-	}
+	box.background_image = request_image(&app_context.async_resource_manager, Image_Data{path = path})
 
 	box.pending_uniforms += {.Background_Image}
 
