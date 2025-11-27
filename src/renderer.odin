@@ -51,14 +51,6 @@ renderer_loop :: proc(app_context: ^App_Context) {
 		if .IN in pollfds[0].revents {
 			wl.display_read_events(app_context.window.wl.display)
 			wl.display_dispatch_pending(app_context.window.wl.display)
-
-			handle_events(app_context)
-
-			if app_context.window.wl.should_render {
-				renderer_render(app_context)
-
-				app_context.window.wl.should_render = false
-			}
 		} else {
 			wl.display_cancel_read(app_context.window.wl.display)
 		}
@@ -68,7 +60,18 @@ renderer_loop :: proc(app_context: ^App_Context) {
 			size, _ := os.read(cast(os.Handle)app_context.renderer.fd, buffer[:])
 
 			async_resource_manager_generate_textures(&app_context.async_resource_manager)
+
+			app_context.window.wl.should_render = true
 		}
+
+		handle_events(app_context)
+
+		if app_context.window.wl.should_render {
+			renderer_render(app_context)
+
+			app_context.window.wl.should_render = false
+		}
+
 	}
 }
 

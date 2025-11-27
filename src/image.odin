@@ -15,7 +15,7 @@ IMAGE_FRAGMENT_SHADER :: #load("shaders/image/fragment.glsl", string)
 
 Image :: struct {
 	style:             Image_Style,
-	image:             ^image.Image,
+	asset:             ^Asset,
 
 	// OpenGL stuff
 	program, texture:  u32,
@@ -35,7 +35,14 @@ Image_Uniforms :: bit_set[Image_Uniform]
 
 image_cache: Widget_Cache
 
-image_make :: proc(path: string, allocator := context.allocator) -> (widget: ^Widget, ok := true) #optional_ok {
+image_make :: proc(
+	path: string,
+	app_context: ^App_Context,
+	allocator := context.allocator,
+) -> (
+	widget: ^Widget,
+	ok := true,
+) #optional_ok {
 	widget = widget_make(allocator)
 	widget.type = .Image
 	widget.allow_children = false
@@ -48,20 +55,11 @@ image_make :: proc(path: string, allocator := context.allocator) -> (widget: ^Wi
 	image_data.style = DEFAULT_IMAGE_STYLE
 	image_data.pending_uniforms = Image_Uniforms{.MP, .Tex, .Opacity}
 
-	err: image.Error
-	image_data.image, err = image.load_from_file(path)
-	if err != nil {
-		fmt.println("couldn't load image from file", err, ", path:", path)
-		return
-	}
+	image_data.asset = request_image(&app_context.async_resource_manager, Image_Data{path = path})
 
 	if !image_cache.init {
 		image_cache_init() or_return
 	}
-
-	widget.layout.style.size.x = layout_constraint_make(f32(image_data.image.width))
-	widget.layout.style.size.y = layout_constraint_make(f32(image_data.image.height))
-	image_data.texture = image_generate_texture(image_data.image, allocator)
 
 	image_data.program = create_program(image_cache.vertex_shader, image_cache.fragment_shader) or_return
 
@@ -81,8 +79,6 @@ image_destroy :: proc(widget: ^Widget) {
 
 	gl.DeleteTextures(1, &image_data.texture)
 	gl.DeleteProgram(image_data.program)
-
-	image.destroy(image_data.image)
 }
 
 image_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
@@ -90,6 +86,11 @@ image_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	if !ok {
 		fmt.println("invalid widget type, expected Text, got:", widget.type)
 		return
+	}
+
+	if asset_ready(image.asset) {
+		image.texture = image.asset.texture
+		image.pending_uniforms += {.Tex}
 	}
 
 	gl.UseProgram(image.program)
@@ -102,8 +103,6 @@ image_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 			gl.UniformMatrix4fv(image.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&image.mp))
 			image.pending_uniforms -= {.MP}
 		case .Tex:
-			image.texture = image_generate_texture(image.image)
-
 			gl.Uniform1i(image.uniform_locations.tex, 0)
 			image.pending_uniforms -= {.Tex}
 		case .Opacity:
@@ -139,42 +138,6 @@ image_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 
 	return
 }
-
-image_generate_texture :: proc(img: ^image.Image, allocator := context.allocator) -> (texture: u32) {
-	bitmap := bytes.buffer_to_bytes(&img.pixels)
-
-	format: i32 = gl.RGB
-
-	#partial switch img.which {
-	case .PNG:
-		metadata := img.metadata.(^image.PNG_Info)
-		format = gl.RGBA if .Alpha in metadata.header.color_type else gl.RGB
-	}
-
-	gl.GenTextures(1, &texture)
-	gl.BindTexture(gl.TEXTURE_2D, texture)
-	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
-
-	gl.TexImage2D(
-		gl.TEXTURE_2D,
-		0,
-		format,
-		i32(img.width),
-		i32(img.height),
-		0,
-		u32(format),
-		gl.UNSIGNED_BYTE,
-		raw_data(bitmap),
-	)
-
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-
-	return
-}
-
 
 image_style_set_width :: proc(widget: ^Widget, width: f32, renderer: ^Renderer, loc := #caller_location) -> bool {
 	image, ok := (&widget.data.(Image))

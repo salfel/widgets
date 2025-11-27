@@ -184,11 +184,17 @@ generate_texture_image :: proc(asset: ^Asset) {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+	asset.status = .Finished
 }
 
 generate_texture_text :: proc(asset: ^Asset) {}
 
 asset_ready :: proc(asset: ^Asset) -> bool {
+	if asset == nil {
+		return false
+	}
+
 	sync.guard(&asset.mutex)
 	return asset.status == .Finished
 }
