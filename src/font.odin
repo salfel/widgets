@@ -16,6 +16,7 @@ font_bitmap_make :: proc(
 ) -> (
 	bitmap: []u8,
 	size: [2]i32,
+	stride: i32,
 	min_width: i32,
 	ok := true,
 ) {
@@ -24,7 +25,7 @@ font_bitmap_make :: proc(
 	font := strings.clone_to_cstring(font, allocator)
 	defer delete(font, allocator)
 
-	size, min_width = font_get_size(content, font, height, allocator = allocator)
+	size, min_width = font_get_size(content, font, height, 100, allocator = allocator)
 
 	surface := cairo.image_surface_create(.A8, size.x, size.y)
 	defer cairo.surface_destroy(surface)
@@ -59,7 +60,20 @@ font_bitmap_make :: proc(
 	cairo.surface_flush(surface)
 
 	cairo_data := cairo.image_surface_get_data(surface)
-	bitmap = slice.clone(slice.from_ptr(cairo_data, int(size.x * size.y)))
+	stride = cairo.image_surface_get_stride(surface)
+	bmp := slice.from_ptr(cairo_data, int(stride * size.y))
+
+	if stride == size.x {
+		bitmap = slice.clone(bmp)
+	} else {
+		bitmap = make([]u8, size.x * size.y, allocator)
+		for i in 0 ..< size.y {
+			src_offset := i * stride
+			dst_offset := i * size.x
+
+			copy(bitmap[dst_offset:dst_offset + size.x], bmp[src_offset:src_offset + size.x])
+		}
+	}
 
 	return
 }
@@ -68,6 +82,7 @@ font_get_size :: proc(
 	content: cstring,
 	font: cstring,
 	font_size: f64,
+	width: i32 = -1,
 	allocator := context.allocator,
 ) -> (
 	[2]i32,
@@ -87,6 +102,8 @@ font_get_size :: proc(
 	pango.font_description_free(font_desc)
 
 	pango.layout_set_text(layout, content, -1)
+	pango.layout_set_width(layout, width * pango.SCALE if width > 0 else -1)
+	pango.layout_set_wrap(layout, .WRAP_WORD)
 
 	min_width := font_get_min_width(layout)
 

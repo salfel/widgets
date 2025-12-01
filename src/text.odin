@@ -111,12 +111,20 @@ text_generate_texture :: proc(
 	ok: bool = true,
 ) {
 	bitmap: []u8
-	bitmap, size, min_width = font_bitmap_make(text.content, text.font, f64(text.style.font_size), allocator) or_return
+	stride: i32
+	bitmap, size, stride, min_width = font_bitmap_make(
+		text.content,
+		text.font,
+		f64(text.style.font_size),
+		allocator,
+	) or_return
 	defer delete(bitmap)
 
 	gl.GenTextures(1, &text.texture)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
 	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
+	// gl.PixelStorei(gl.UNPACK_ROW_LENGTH, stride)
+	// defer gl.PixelStorei(gl.UNPACK_ROW_LENGTH, 0)
 
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.R8, size.x, size.y, 0, gl.RED, gl.UNSIGNED_BYTE, raw_data(bitmap))
 
@@ -125,8 +133,8 @@ text_generate_texture :: proc(
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_G, gl.ZERO)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_B, gl.ZERO)
 
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
