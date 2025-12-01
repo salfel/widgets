@@ -16,6 +16,7 @@ font_bitmap_make :: proc(
 ) -> (
 	bitmap: []u8,
 	size: [2]i32,
+	min_width: i32,
 	ok := true,
 ) {
 	content := strings.clone_to_cstring(content, allocator)
@@ -23,7 +24,7 @@ font_bitmap_make :: proc(
 	font := strings.clone_to_cstring(font, allocator)
 	defer delete(font, allocator)
 
-	size = font_get_size(content, font, height, allocator)
+	size, min_width = font_get_size(content, font, height, allocator = allocator)
 
 	surface := cairo.image_surface_create(.A8, size.x, size.y)
 	defer cairo.surface_destroy(surface)
@@ -50,7 +51,7 @@ font_bitmap_make :: proc(
 
 	text_width, text_height: i32
 	pango.layout_get_pixel_size(layout, &text_width, &text_height)
-	y: f64 = f64(size.y - text_height) / 2
+	y := f64(size.y - text_height) / 2
 
 	cairo.move_to(cr, 0, y)
 	pangocairo.show_layout(cr, layout)
@@ -58,13 +59,21 @@ font_bitmap_make :: proc(
 	cairo.surface_flush(surface)
 
 	cairo_data := cairo.image_surface_get_data(surface)
-	bitmap = slice.clone(slice.from_ptr(cairo_data, int(size.x * size.y * 4)))
+	bitmap = slice.clone(slice.from_ptr(cairo_data, int(size.x * size.y)))
 
 	return
 }
 
-font_get_size :: proc(content: cstring, font: cstring, height: f64, allocator := context.allocator) -> [2]i32 {
-	surface := cairo.image_surface_create(.ARGB32, 1, 1)
+font_get_size :: proc(
+	content: cstring,
+	font: cstring,
+	font_size: f64,
+	allocator := context.allocator,
+) -> (
+	[2]i32,
+	i32,
+) {
+	surface := cairo.image_surface_create(.A8, 1, 1)
 	cr := cairo.create(surface)
 	defer cairo.surface_destroy(surface)
 	defer cairo.destroy(cr)
@@ -73,16 +82,35 @@ font_get_size :: proc(content: cstring, font: cstring, height: f64, allocator :=
 	defer gobj.object_unref(layout)
 
 	font_desc := pango.font_description_from_string(font)
-	pango.font_description_set_absolute_size(font_desc, height * pango.SCALE)
+	pango.font_description_set_absolute_size(font_desc, font_size * pango.SCALE)
 	pango.layout_set_font_description(layout, font_desc)
 	pango.font_description_free(font_desc)
 
 	pango.layout_set_text(layout, content, -1)
 
+	min_width := font_get_min_width(layout)
+
 	width, height: i32
 	pango.layout_get_pixel_size(layout, &width, &height)
 
-	return {width, height}
+	return {width, height}, min_width
+}
+
+
+font_get_min_width :: proc(layout: ^pango.Layout) -> i32 {
+	org_width := pango.layout_get_width(layout)
+	org_wrap := pango.layout_get_wrap(layout)
+
+	pango.layout_set_width(layout, 0)
+	pango.layout_set_wrap(layout, .WRAP_WORD)
+
+	min_width: i32
+	pango.layout_get_pixel_size(layout, &min_width, nil)
+
+	pango.layout_set_width(layout, org_width)
+	pango.layout_set_wrap(layout, org_wrap)
+
+	return min_width
 }
 
 

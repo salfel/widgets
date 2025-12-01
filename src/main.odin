@@ -44,13 +44,12 @@ main :: proc() {
 	box_style_set_rounding(button, 20, &app_context.renderer)
 	box_style_set_border(button, Border{width = 10, color = {0.4, 0.4, 0.4, 1}}, &app_context.renderer)
 	box_style_set_padding(button, sides_make(32, 32, 20, 20), &app_context.renderer)
-	box_set_property(button, .Expand_Vertical, &app_context.renderer)
 
-	child1 := text_make("count: 0", "Sans")
+	child1 := text_make("this is a pretty long text, hope this works", "Sans")
 	widget_register(child1, &app_context.widget_manager)
 	widget_add_child(button, child1)
 	text_style_set_color(child1, WHITE, &app_context.renderer)
-	text_style_set_font_size(child1, 96, &app_context.renderer)
+	text_style_set_font_size(child1, 24, &app_context.renderer)
 
 	child2 := box_make()
 	widget_register(child2, &app_context.widget_manager)

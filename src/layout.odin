@@ -14,10 +14,15 @@ Layout_Constraint :: struct {
 
 layout_constraint_make :: proc {
 	layout_constraint_make_fixed,
+	layout_constraint_make_multiple,
 }
 
 layout_constraint_make_fixed :: proc(value: f32) -> Layout_Constraint {
 	return Layout_Constraint{min = value, preferred = value}
+}
+
+layout_constraint_make_multiple :: proc(min, preferred: f32) -> Layout_Constraint {
+	return Layout_Constraint{min = min, preferred = preferred}
 }
 
 Layout_Style :: struct {

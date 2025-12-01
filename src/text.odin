@@ -47,8 +47,8 @@ text_make :: proc(
 	text.style = DEFAULT_TEXT_STYLE
 	text.pending_uniforms = Text_Uniforms{.Tex_MP, .Color}
 
-	size := text_generate_texture(text, allocator) or_return
-	widget.layout.style.size.x = layout_constraint_make(f32(size.x))
+	size, min_width := text_generate_texture(text, allocator) or_return
+	widget.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
 	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 
@@ -102,9 +102,16 @@ text_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
-text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (size: [2]i32, ok: bool = true) {
+text_generate_texture :: proc(
+	text: ^Text,
+	allocator := context.allocator,
+) -> (
+	size: [2]i32,
+	min_width: i32,
+	ok: bool = true,
+) {
 	bitmap: []u8
-	bitmap, size = font_bitmap_make(text.content, text.font, f64(text.style.font_size), allocator) or_return
+	bitmap, size, min_width = font_bitmap_make(text.content, text.font, f64(text.style.font_size), allocator) or_return
 	defer delete(bitmap)
 
 	gl.GenTextures(1, &text.texture)
@@ -165,10 +172,10 @@ text_style_set_font_size :: proc(
 		return false
 	}
 	text.style.font_size = font_size
-	size := text_generate_texture(text) or_return
+	size, min_width := text_generate_texture(text) or_return
 	text.pending_uniforms += {.Tex_MP}
 
-	widget.layout.style.size.x = layout_constraint_make(f32(size.x))
+	widget.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
 	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 	renderer.dirty = true
@@ -183,10 +190,10 @@ text_set_content :: proc(widget: ^Widget, content: string, renderer: ^Renderer, 
 		return false
 	}
 	text.content = content
-	size := text_generate_texture(text) or_return
+	size, min_width := text_generate_texture(text) or_return
 	text.pending_uniforms += {.Tex_MP}
 
-	widget.layout.style.size.x = layout_constraint_make(f32(size.x))
+	widget.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
 	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 	renderer.dirty = true
