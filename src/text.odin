@@ -39,6 +39,7 @@ text_make :: proc(
 	widget.allow_children = false
 	widget.draw = text_draw
 	widget.recalculate_mp = text_recalculate_mp
+	widget.resize = text_resize
 	widget.data = Text{}
 
 	text := &widget.data.(Text)
@@ -47,7 +48,7 @@ text_make :: proc(
 	text.style = DEFAULT_TEXT_STYLE
 	text.pending_uniforms = Text_Uniforms{.Tex_MP, .Color}
 
-	size, min_width := text_generate_texture(text, allocator) or_return
+	size, min_width := text_generate_texture(text, allocator = allocator) or_return
 	widget.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
 	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
 
@@ -102,8 +103,21 @@ text_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	gl.UseProgram(0)
 }
 
+text_resize :: proc(widget: ^Widget) -> bool {
+	text := (&widget.data.(Text))
+
+	size, min_width := text_generate_texture(text, width = i32(widget.layout.size.x)) or_return
+	widget.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
+	widget.layout.style.size.y = layout_constraint_make(f32(size.y))
+
+	text.pending_uniforms += {.Tex_MP}
+
+	return true
+}
+
 text_generate_texture :: proc(
 	text: ^Text,
+	width: i32 = -1,
 	allocator := context.allocator,
 ) -> (
 	size: [2]i32,
@@ -116,6 +130,7 @@ text_generate_texture :: proc(
 		text.content,
 		text.font,
 		f64(text.style.font_size),
+		width,
 		allocator,
 	) or_return
 	defer delete(bitmap)
@@ -148,7 +163,6 @@ text_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 		return
 	}
 
-	text.mp = calculate_mp(widget.layout, app_context)
 	text.pending_uniforms += {.Tex_MP}
 
 	app_context.renderer.dirty = true

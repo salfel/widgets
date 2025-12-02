@@ -35,16 +35,22 @@ renderer_render :: proc(app_context: ^App_Context) {
 	gl.ClearStencil(0)
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-	if app_context.renderer.dirty {
+	for app_context.renderer.dirty {
+		app_context.renderer.dirty = false
+
 		layout_measure(&app_context.widget_manager.viewport.layout)
 		layout_compute(&app_context.widget_manager.viewport.layout, app_context.window.size.x)
 		layout_arrange(&app_context.widget_manager.viewport.layout)
 
 		for _, widget in app_context.widget_manager.widgets {
-			widget->recalculate_mp(app_context)
-		}
+			if widget.layout.dirty {
+				widget->recalculate_mp(app_context)
 
-		app_context.renderer.dirty = false
+				if widget.resize != nil && widget->resize() {
+					app_context.renderer.dirty = true
+				}
+			}
+		}
 	}
 
 	app_context.widget_manager.viewport->draw(app_context, 1)

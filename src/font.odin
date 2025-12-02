@@ -12,6 +12,7 @@ font_bitmap_make :: proc(
 	content: string,
 	font: string,
 	height: f64,
+	width: i32 = -1,
 	allocator := context.allocator,
 ) -> (
 	bitmap: []u8,
@@ -25,7 +26,7 @@ font_bitmap_make :: proc(
 	font := strings.clone_to_cstring(font, allocator)
 	defer delete(font, allocator)
 
-	size, min_width = font_get_size(content, font, height, 100, allocator = allocator)
+	size, min_width = font_get_size(content, font, height, width, allocator = allocator)
 
 	surface := cairo.image_surface_create(.A8, size.x, size.y)
 	defer cairo.surface_destroy(surface)

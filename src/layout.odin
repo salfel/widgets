@@ -56,6 +56,7 @@ Layout :: struct {
 	// result
 	size, position: [2]f32,
 	overflow:       bool,
+	dirty:          bool,
 }
 
 layout_make :: proc(axis: Axis = .Horizontal, allocator := context.allocator) -> Layout {
@@ -67,6 +68,8 @@ layout_destroy :: proc(layout: ^Layout) {
 }
 
 layout_measure :: proc(layout: ^Layout) {
+	layout.dirty = false
+
 	child_constraints: [Axis]Layout_Constraint
 
 	for child in layout.children {
@@ -112,6 +115,7 @@ layout_measure :: proc(layout: ^Layout) {
 
 layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 	available := available.(f32) if available != nil else layout.intermediate.size[layout.axis]
+	initial := layout.size
 
 	if layout.axis == .Horizontal {
 		layout.size.x = math.clamp(available, layout.intermediate.constraint[.Horizontal].min, math.F32_MAX)
@@ -238,10 +242,16 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 	for child in layout.children {
 		layout_compute(child)
 	}
+
+	if layout.size != initial {
+		layout.dirty = true
+	}
 }
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
+	initial := layout.position
 	layout.position = offset + {layout.style.margin.left, layout.style.margin.top}
+
 	offset := layout.position
 	offset += {layout.style.border + layout.style.padding.left, layout.style.border + layout.style.padding.top}
 
@@ -253,6 +263,10 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 		} else {
 			offset.y += child.size.y + sides_axis(child.style.margin, .Vertical)
 		}
+	}
+
+	if layout.position != initial {
+		layout.dirty = true
 	}
 }
 

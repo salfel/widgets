@@ -40,6 +40,7 @@ Widget :: struct {
 	// internal functions
 	draw:           proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1),
 	recalculate_mp: proc(widget: ^Widget, app_context: ^App_Context),
+	resize:         proc(widget: ^Widget) -> bool,
 	destroy:        proc(widget: ^Widget),
 
 	// handlers
