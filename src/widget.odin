@@ -106,7 +106,7 @@ widget_attach_to_viewport :: proc(widget: ^Widget, widget_manager: ^Widget_Manag
 }
 
 widget_make :: proc(allocator := context.allocator) -> ^Widget {
-	widget := new(Widget)
+	widget := new(Widget, allocator)
 
 	widget.children = make([dynamic]^Widget, allocator)
 	widget.on_click = {
