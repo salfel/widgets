@@ -26,7 +26,10 @@ font_bitmap_make :: proc(
 	font := strings.clone_to_cstring(font, allocator)
 	defer delete(font, allocator)
 
-	size, min_width = font_get_size(content, font, height, width, allocator = allocator)
+	ink_rect, log_rect: pango.Rectangle
+	ink_rect, log_rect, min_width = font_get_size(content, font, height, width, allocator = allocator)
+
+	size = {log_rect.width, log_rect.height}
 
 	surface := cairo.image_surface_create(.A8, size.x, size.y)
 	defer cairo.surface_destroy(surface)
@@ -46,16 +49,13 @@ font_bitmap_make :: proc(
 
 	pango.layout_set_text(layout, content, -1)
 
-	pango.layout_set_width(layout, size.x * pango.SCALE)
+	pango.layout_set_width(layout, log_rect.width * pango.SCALE)
 	pango.layout_set_alignment(layout, .ALIGN_LEFT)
 
 	cairo.set_source_rgb(cr, 1.0, 1.0, 1.0)
 
-	text_width, text_height: i32
-	pango.layout_get_pixel_size(layout, &text_width, &text_height)
-	y := f64(size.y - text_height) / 2
-
-	cairo.move_to(cr, 0, y)
+	cairo.move_to(cr, 0, 0)
+	cairo.translate(cr, f64(-ink_rect.x), f64(-ink_rect.y))
 	pangocairo.show_layout(cr, layout)
 
 	cairo.surface_flush(surface)
@@ -86,7 +86,8 @@ font_get_size :: proc(
 	width: i32 = -1,
 	allocator := context.allocator,
 ) -> (
-	[2]i32,
+	pango.Rectangle,
+	pango.Rectangle,
 	i32,
 ) {
 	surface := cairo.image_surface_create(.A8, 1, 1)
@@ -108,10 +109,10 @@ font_get_size :: proc(
 
 	min_width := font_get_min_width(layout)
 
-	width, height: i32
-	pango.layout_get_pixel_size(layout, &width, &height)
+	ink_rect, log_rect: pango.Rectangle
+	pango.layout_get_pixel_extents(layout, &ink_rect, &log_rect)
 
-	return {width, height}, min_width
+	return ink_rect, log_rect, min_width
 }
 
 
