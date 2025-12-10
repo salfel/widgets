@@ -30,6 +30,8 @@ Widget :: struct {
 	layout:         Layout,
 	children:       [dynamic]^Widget,
 	allow_children: bool,
+	focusable:      bool,
+	focused:        bool,
 	parent:         ^Widget,
 	data:           union {
 		Box,

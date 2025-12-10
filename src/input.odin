@@ -3,6 +3,7 @@ package main
 import "core:container/queue"
 
 Input :: struct {
+	focused:  WidgetId,
 	pointer:  struct {
 		position: [2]f32,
 		buttons:  Pointer_Buttons,
@@ -28,10 +29,26 @@ input_handle_pointer_button :: proc(button: Pointer_Button, pressed: bool, app_c
 
 	if !was_pressed || pressed do return
 
-	// handle click
-	for _, widget in app_context.widget_manager.widgets {
-		if widget_contains_point(widget, app_context.input.pointer.position) && widget.on_click.handler != nil {
-			widget.on_click.handler(widget, app_context.input.pointer.position, widget.on_click.data, app_context)
+	_handle_click(app_context.widget_manager.viewport, app_context.input.pointer.position, app_context)
+}
+
+@(private)
+_handle_click :: proc(widget: ^Widget, position: [2]f32, app_context: ^App_Context) {
+	if widget.on_click.handler != nil {
+		widget.on_click.handler(widget, position, widget.on_click.data, app_context)
+	}
+
+	if widget.focusable {
+		if old_focused, ok := app_context.widget_manager.widgets[app_context.input.focused]; ok {
+			old_focused.focused = false
+		}
+
+		app_context.input.focused = widget.id
+	}
+
+	for child in widget.children {
+		if widget_contains_point(widget, app_context.input.pointer.position) {
+			_handle_click(child, position, app_context)
 		}
 	}
 }
