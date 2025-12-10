@@ -37,6 +37,10 @@ cache_init :: proc(cache: ^Cache, vertex_shader: cstring, fragment_shader: cstri
 }
 
 cache_destroy :: proc "contextless" (cache: ^Cache) {
+	if !cache.init {
+		return
+	}
+
 	gl.DeleteBuffers(1, &cache.vbo)
 	gl.DeleteVertexArrays(1, &cache.vao)
 	gl.DeleteShader(cache.fragment_shader)
