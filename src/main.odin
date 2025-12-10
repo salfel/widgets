@@ -24,11 +24,9 @@ main :: proc() {
 	app_context_init(&app_context, "widgets", "widgets")
 	defer app_context_destroy(&app_context)
 
-	child1 := text_make("this is a pretty long text, hope this works", "Sans")
-	widget_register(child1, &app_context.widget_manager)
-	widget_attach_to_viewport(child1, &app_context.widget_manager)
-	text_style_set_color(child1, WHITE, &app_context.renderer)
-	text_style_set_font_size(child1, 24, &app_context.renderer)
+	text_field := text_field_make()
+	widget_register(text_field, &app_context.widget_manager)
+	widget_attach_to_viewport(text_field, &app_context.widget_manager)
 
 	renderer_loop(&app_context)
 }
