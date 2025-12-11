@@ -25,12 +25,10 @@ app_context_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 
 	widget_manager_init(&app_context.widget_manager)
 	event_manager_init(&app_context.event_manager)
-	input_init(&app_context.input)
 	renderer_init(&app_context.renderer)
 }
 
 app_context_destroy :: proc(app_context: ^App_Context) {
 	widget_manager_destroy(&app_context.widget_manager)
 	event_manager_destroy(&app_context.event_manager)
-	input_destroy(&app_context.input)
 }

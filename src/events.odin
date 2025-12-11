@@ -95,7 +95,7 @@ handle_events :: proc(app_context: ^App_Context) {
 			char, ok := event.data.(rune)
 			assert(ok, "Invalid data for keyboard char event.")
 
-			queue.push(&app_context.input.keyboard.chars, char)
+			input_handle_key(char, app_context)
 		}
 	}
 }

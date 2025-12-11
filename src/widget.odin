@@ -45,6 +45,7 @@ Widget :: struct {
 	draw:           proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1),
 	recalculate_mp: proc(widget: ^Widget, app_context: ^App_Context),
 	resize:         proc(widget: ^Widget) -> bool,
+	key:            proc(widget: ^Widget, key: rune, app_context: ^App_Context),
 	destroy:        proc(widget: ^Widget),
 
 	// handlers

@@ -42,11 +42,6 @@ rect_draw :: proc(rect: ^Rect) {
 
 	gl.UniformMatrix4fv(rect.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&rect.mp))
 
-	gl.ColorMask(true, true, true, true)
-	gl.StencilMask(0x00)
-	gl.StencilFunc(gl.EQUAL, 2 - 1, 0xFF)
-	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
-
 	gl.BindVertexArray(rect_cache.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 	gl.BindVertexArray(0)

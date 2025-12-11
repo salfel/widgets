@@ -1,7 +1,5 @@
 package main
 
-import "core:container/queue"
-
 Input :: struct {
 	focused:  WidgetId,
 	pointer:  struct {
@@ -9,17 +7,8 @@ Input :: struct {
 		buttons:  Pointer_Buttons,
 	},
 	keyboard: struct {
-		chars:     queue.Queue(rune),
 		modifiers: Modifiers,
 	},
-}
-
-input_init :: proc(input: ^Input, allocator := context.allocator) {
-	queue.init(&input.keyboard.chars, allocator = allocator)
-}
-
-input_destroy :: proc(input: ^Input) {
-	queue.destroy(&input.keyboard.chars)
 }
 
 input_handle_pointer_button :: proc(button: Pointer_Button, pressed: bool, app_context: ^App_Context) {
@@ -29,26 +18,42 @@ input_handle_pointer_button :: proc(button: Pointer_Button, pressed: bool, app_c
 
 	if !was_pressed || pressed do return
 
-	_handle_click(app_context.widget_manager.viewport, app_context.input.pointer.position, app_context)
+	if old_focused, ok := widget_get(app_context.input.focused, &app_context.widget_manager); ok {
+		old_focused.focused = false
+	}
+	found := _input_handle_click(app_context.widget_manager.viewport, app_context.input.pointer.position, app_context)
+	if !found {
+		app_context.input.focused = 0
+	}
 }
 
 @(private)
-_handle_click :: proc(widget: ^Widget, position: [2]f32, app_context: ^App_Context) {
+_input_handle_click :: proc(widget: ^Widget, position: [2]f32, app_context: ^App_Context) -> bool {
 	if widget.on_click.handler != nil {
 		widget.on_click.handler(widget, position, widget.on_click.data, app_context)
 	}
 
 	if widget.focusable {
-		if old_focused, ok := app_context.widget_manager.widgets[app_context.input.focused]; ok {
-			old_focused.focused = false
-		}
-
 		app_context.input.focused = widget.id
+
+		return true
 	}
 
+	found := false
 	for child in widget.children {
-		if widget_contains_point(widget, app_context.input.pointer.position) {
-			_handle_click(child, position, app_context)
+		if widget_contains_point(child, app_context.input.pointer.position) {
+			found |= _input_handle_click(child, position, app_context)
 		}
 	}
+
+	return found
+}
+
+input_handle_key :: proc(char: rune, app_context: ^App_Context) {
+	widget, ok := widget_get(app_context.input.focused, &app_context.widget_manager)
+	if !ok || widget.key == nil {
+		return
+	}
+
+	widget->key(char, app_context)
 }
