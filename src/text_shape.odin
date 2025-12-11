@@ -9,21 +9,21 @@ TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", cstring)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", cstring)
 
 Text :: struct {
-	content, font:     string,
-	color:             [4]f32,
-	font_size:         f32,
-	pref_size:         [2]i32,
-	min_width:         i32,
-	mp:                matrix[4, 4]f32,
+	content, font:           string,
+	color, background_color: Color,
+	font_size:               f32,
+	pref_size:               [2]i32,
+	min_width:               i32,
+	mp:                      matrix[4, 4]f32,
 
 	// opengl
-	program, texture:  u32,
-	uniform_locations: struct {
-		mp, tex, color: i32,
+	program, texture:        u32,
+	uniform_locations:       struct {
+		mp, tex, color, background_color: i32,
 	},
 }
 
-text_make :: proc(content, font: string, font_size: f32, color: [4]f32) -> Text {
+text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
 	text := Text {
 		content   = content,
 		font      = font,
@@ -36,9 +36,10 @@ text_make :: proc(content, font: string, font_size: f32, color: [4]f32) -> Text 
 	cache_init(&text_cache, TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
 	text.program, _ = create_program(text_cache.vertex_shader, text_cache.fragment_shader)
 	text.uniform_locations = {
-		mp    = gl.GetUniformLocation(text.program, "MP"),
-		tex   = gl.GetUniformLocation(text.program, "tex"),
-		color = gl.GetUniformLocation(text.program, "color"),
+		mp               = gl.GetUniformLocation(text.program, "MP"),
+		tex              = gl.GetUniformLocation(text.program, "tex"),
+		color            = gl.GetUniformLocation(text.program, "color"),
+		background_color = gl.GetUniformLocation(text.program, "background_color"),
 	}
 
 	return text
@@ -59,6 +60,7 @@ text_draw :: proc(text: ^Text) {
 	gl.UniformMatrix4fv(text.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&text.mp))
 	gl.Uniform1i(text.uniform_locations.tex, 0)
 	gl.Uniform4fv(text.uniform_locations.color, 1, linalg.vector_to_ptr(&text.color))
+	gl.Uniform4fv(text.uniform_locations.background_color, 1, linalg.vector_to_ptr(&text.background_color))
 
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
@@ -84,7 +86,7 @@ text_generate_texture :: proc(text: ^Text, width: i32 = -1, allocator := context
 		text.font,
 		f64(text.font_size),
 		width,
-		allocator,
+		allocator = allocator,
 	) or_return
 	defer delete(bitmap)
 

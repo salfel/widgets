@@ -65,11 +65,39 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 	text_draw(&text_field.text)
 }
 
-text_field_key :: proc(widget: ^Widget, key: rune, app_context: ^App_Context) {
+text_field_key :: proc(widget: ^Widget, key: Key, modifiers: Modifiers, app_context: ^App_Context) {
 	text_field, ok := (&widget.data.(Text_Field))
 	assert(ok, fmt.tprint("invalid widget type, expected Text_Field, got:", widget.type))
 
-	text.input_rune(&text_field.state, key)
+	#partial switch key.type {
+	case .Char:
+		if .Ctrl in modifiers {
+			switch key.char {
+			case 'a':
+				text.perform_command(&text_field.state, .Select_All)
+			case 'c':
+				text.perform_command(&text_field.state, .Copy)
+			case 'x':
+				text.perform_command(&text_field.state, .Cut)
+			case 'v':
+				text.perform_command(&text_field.state, .Paste)
+			}
+		} else {
+			text.input_rune(&text_field.state, key.char)
+		}
+	case .Backspace:
+		text.perform_command(&text_field.state, .Backspace)
+	case .Delete:
+		text.perform_command(&text_field.state, .Delete)
+	case .Left:
+		text.perform_command(&text_field.state, .Left)
+	case .Right:
+		text.perform_command(&text_field.state, .Right)
+	case .Escape:
+		app_context.input.focused = 0
+		widget.focused = false
+	}
+
 	text_set_content(&text_field.text, string(text_field.state.builder.buf[:]))
 	text_field.text.mp = calculate_mp2(
 		{f32(text_field.text.pref_size.x), f32(text_field.text.pref_size.y)},

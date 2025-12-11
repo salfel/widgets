@@ -11,6 +11,23 @@ Input :: struct {
 	},
 }
 
+Key_Type :: enum {
+	Up,
+	Down,
+	Left,
+	Right,
+	Enter,
+	Backspace,
+	Delete,
+	Char,
+	Escape,
+}
+
+Key :: struct {
+	type: Key_Type,
+	char: rune,
+}
+
 input_handle_pointer_button :: proc(button: Pointer_Button, pressed: bool, app_context: ^App_Context) {
 	was_pressed := Pointer_Buttons{button} <= app_context.input.pointer.buttons
 	if pressed do app_context.input.pointer.buttons += {button}
@@ -49,11 +66,11 @@ _input_handle_click :: proc(widget: ^Widget, position: [2]f32, app_context: ^App
 	return found
 }
 
-input_handle_key :: proc(char: rune, app_context: ^App_Context) {
+input_handle_key :: proc(char: Key, app_context: ^App_Context) {
 	widget, ok := widget_get(app_context.input.focused, &app_context.widget_manager)
 	if !ok || widget.key == nil {
 		return
 	}
 
-	widget->key(char, app_context)
+	widget->key(char, app_context.input.keyboard.modifiers, app_context)
 }

@@ -74,23 +74,48 @@ handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key:
 
 	sym := xkb.state_key_get_one_sym(keyboard_state.xkb.state, i32(key + 8))
 
-	utf8 := make([]u8, 8)
-	defer delete(utf8)
-	utf8_len := xkb.keysym_to_utf8(sym, cast(^i8)&utf8[0], i32(len(utf8)))
+	key: Key
+	switch sym {
+	case xkb.KEY_BackSpace:
+		key.type = .Backspace
+	case xkb.KEY_Delete:
+		key.type = .Delete
+	case xkb.KEY_Return:
+		key.type = .Enter
+	case xkb.KEY_Escape:
+		key.type = .Escape
+	case xkb.KEY_Left:
+		key.type = .Left
+	case xkb.KEY_Right:
+		key.type = .Right
+	case xkb.KEY_Up:
+		key.type = .Up
+	case xkb.KEY_Down:
+		key.type = .Down
+	case:
+		utf8 := make([]u8, 8)
+		defer delete(utf8)
+		utf8_len := xkb.keysym_to_utf8(sym, cast(^i8)&utf8[0], i32(len(utf8)))
 
-	if utf8_len == 0 do return
+		if utf8_len == 0 do return
 
-	reader: strings.Reader
-	char := cstring(raw_data(utf8))
-	strings.reader_init(&reader, string(char))
-	r, size, err := strings.reader_read_rune(&reader)
+		reader: strings.Reader
+		char := cstring(raw_data(utf8))
+		strings.reader_init(&reader, string(char))
+		r, size, err := strings.reader_read_rune(&reader)
+		if err != .None {
+			fmt.eprintln("Failed to read rune", err)
+			return
+		}
 
-	if err != .None {
-		fmt.eprintln("Failed to read rune", err)
-		return
+		key = Key {
+			type = .Char,
+			char = r,
+		}
 	}
 
-	event_register(Event{type = .Keyboard_Char, data = r}, app_context)
+
+	event_register(Event{type = .Keyboard_Char, data = key}, app_context)
 }
 
 handle_modifiers :: proc "c" (
