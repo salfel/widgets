@@ -1,12 +1,12 @@
-package draw
+package main
 
 import "core:math/linalg"
 import gl "vendor:OpenGL"
 
 text_cache: Cache
 
-TEXT_VERTEX_SHADER :: #load("../shaders/text/vertex.glsl", cstring)
-TEXT_FRAGMENT_SHADER :: #load("../shaders/text/fragment.glsl", cstring)
+TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", cstring)
+TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", cstring)
 
 Text :: struct {
 	content, font:     string,

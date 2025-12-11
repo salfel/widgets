@@ -1,4 +1,4 @@
-package draw
+package main
 
 import gl "vendor:OpenGL"
 

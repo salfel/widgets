@@ -1,10 +1,10 @@
-package draw
+package main
 
 import "core:math/linalg"
 import gl "vendor:OpenGL"
 
-RECT_VERTEX_SHADER :: #load("../shaders/rect/vertex.glsl", cstring)
-RECT_FRAGMENT_SHADER :: #load("../shaders/rect/fragment.glsl", cstring)
+RECT_VERTEX_SHADER :: #load("shaders/rect/vertex.glsl", cstring)
+RECT_FRAGMENT_SHADER :: #load("shaders/rect/fragment.glsl", cstring)
 
 rect_cache: Cache
 

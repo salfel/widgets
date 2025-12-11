@@ -10,8 +10,8 @@ import gl "vendor:OpenGL"
 import "core:image/jpeg"
 import "core:image/png"
 
-IMAGE_VERTEX_SHADER :: #load("shaders/image/vertex.glsl", string)
-IMAGE_FRAGMENT_SHADER :: #load("shaders/image/fragment.glsl", string)
+IMAGE_VERTEX_SHADER :: #load("shaders/image/vertex.glsl", cstring)
+IMAGE_FRAGMENT_SHADER :: #load("shaders/image/fragment.glsl", cstring)
 
 Image :: struct {
 	style:             Image_Style,
