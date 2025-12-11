@@ -9,12 +9,14 @@ TEXT_VERTEX_SHADER :: #load("shaders/text/vertex.glsl", cstring)
 TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", cstring)
 
 Text :: struct {
+	// internal
 	content, font:           string,
 	color, background_color: Color,
 	font_size:               f32,
-	pref_size:               [2]i32,
-	min_width:               i32,
+
+	// external
 	mp:                      matrix[4, 4]f32,
+	layout:                  Layout,
 
 	// opengl
 	program, texture:        u32,
@@ -79,9 +81,7 @@ text_set_content :: proc(text: ^Text, content: string) {
 }
 
 text_generate_texture :: proc(text: ^Text, width: i32 = -1, allocator := context.allocator) -> (ok: bool = true) {
-	bitmap: []u8
-	stride: i32
-	bitmap, text.pref_size, stride, text.min_width = font_bitmap_make(
+	bitmap, size, stride, min_width := font_bitmap_make(
 		text.content,
 		text.font,
 		f64(text.font_size),
@@ -89,6 +89,9 @@ text_generate_texture :: proc(text: ^Text, width: i32 = -1, allocator := context
 		allocator = allocator,
 	) or_return
 	defer delete(bitmap)
+
+	text.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
+	text.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 	gl.GenTextures(1, &text.texture)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
@@ -98,8 +101,8 @@ text_generate_texture :: proc(text: ^Text, width: i32 = -1, allocator := context
 		gl.TEXTURE_2D,
 		0,
 		gl.R8,
-		text.pref_size.x,
-		text.pref_size.y,
+		i32(text.layout.style.size.x.preferred),
+		i32(text.layout.style.size.y.preferred),
 		0,
 		gl.RED,
 		gl.UNSIGNED_BYTE,

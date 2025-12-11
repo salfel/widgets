@@ -28,11 +28,14 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	widget.layout.style.size.y = layout_constraint_make(200)
 
 	widget.data = Text_Field {
-		field = rect_make(),
+		field = rect_make({100, 0}, {0.2, 0.2, 0.2, 1.0}),
 		text  = text_make("", "Sans", 96, {1.0, 1.0, 1.0, 1.0}),
 	}
 
 	text_field := (&widget.data.(Text_Field))
+
+	append(&widget.layout.children, &text_field.field.layout)
+	append(&text_field.field.layout.children, &text_field.text.layout)
 
 	text_field.builder = strings.builder_make(context.allocator)
 	text.init(&text_field.state, context.allocator, context.allocator)
@@ -60,6 +63,9 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 	gl.StencilMask(0x00)
 	gl.StencilFunc(gl.EQUAL, 2 - 1, 0xFF)
 	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
+
+	text_field.field.mp = calculate_mp(text_field.field.layout, app_context)
+	text_field.text.mp = calculate_mp(text_field.text.layout, app_context)
 
 	rect_draw(&text_field.field)
 	text_draw(&text_field.text)
@@ -99,21 +105,10 @@ text_field_key :: proc(widget: ^Widget, key: Key, modifiers: Modifiers, app_cont
 	}
 
 	text_set_content(&text_field.text, string(text_field.state.builder.buf[:]))
-	text_field.text.mp = calculate_mp2(
-		{f32(text_field.text.pref_size.x), f32(text_field.text.pref_size.y)},
-		{0, 0},
-		app_context.window.size,
-	)
+	app_context.renderer.dirty = true
 }
 
 text_field_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	text_field, ok := (&widget.data.(Text_Field))
 	assert(ok, fmt.tprint("invalid widget type, expected Text_Field, got:", widget.type))
-
-	text_field.field.mp = calculate_mp2({200, 200}, {0, 0}, app_context.window.size)
-	text_field.text.mp = calculate_mp2(
-		{f32(text_field.text.pref_size.x), f32(text_field.text.pref_size.y)},
-		{0, 0},
-		app_context.window.size,
-	)
 }
