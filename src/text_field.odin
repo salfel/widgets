@@ -6,10 +6,12 @@ import text "core:text/edit"
 import gl "vendor:OpenGL"
 
 Text_Field :: struct {
-	state:   text.State,
-	builder: strings.Builder,
-	field:   Rect,
-	text:    Text,
+	state:         text.State,
+	builder:       strings.Builder,
+
+	// shapes
+	field, cursor: Rect,
+	text:          Text,
 }
 
 text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok := true) #optional_ok {
@@ -27,9 +29,13 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	widget.layout.style.size.x = layout_constraint_make(200)
 	widget.layout.style.size.y = layout_constraint_make(200)
 
+	font_size: f32 = 96
+	content := "中"
+
 	widget.data = Text_Field {
-		field = rect_make({100, 0}, {0.2, 0.2, 0.2, 1.0}),
-		text  = text_make("", "Sans", 96, {1.0, 1.0, 1.0, 1.0}),
+		field  = rect_make({100, 0}, {0.2, 0.2, 0.2, 1.0}),
+		text   = text_make(content, "Sans", font_size, {1.0, 1.0, 1.0, 1.0}),
+		cursor = rect_make({1, 96}, WHITE),
 	}
 
 	text_field := (&widget.data.(Text_Field))
@@ -38,8 +44,11 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	append(&text_field.field.layout.children, &text_field.text.layout)
 
 	text_field.builder = strings.builder_make(context.allocator)
+	strings.write_string(&text_field.builder, content)
+
 	text.init(&text_field.state, context.allocator, context.allocator)
 	text.begin(&text_field.state, 0, &text_field.builder)
+	text.move_to(&text_field.state, .End)
 
 	return
 }
@@ -64,11 +73,19 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 	gl.StencilFunc(gl.EQUAL, 2 - 1, 0xFF)
 	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
 
+	cursor_pos, height := font_get_cursor_pos(&text_field.text.font, i32(text_field.state.selection[0]))
+
 	text_field.field.mp = calculate_mp(text_field.field.layout, app_context)
 	text_field.text.mp = calculate_mp(text_field.text.layout, app_context)
 
+	text_field.cursor.layout.position = {f32(cursor_pos.x), f32(cursor_pos.y)}
+	text_field.cursor.layout.size.x = 1
+	text_field.cursor.layout.size.y = f32(height)
+	text_field.cursor.mp = calculate_mp(text_field.cursor.layout, app_context)
+
 	rect_draw(&text_field.field)
 	text_draw(&text_field.text)
+	rect_draw(&text_field.cursor)
 }
 
 text_field_key :: proc(widget: ^Widget, key: Key, modifiers: Modifiers, app_context: ^App_Context) {
@@ -104,7 +121,7 @@ text_field_key :: proc(widget: ^Widget, key: Key, modifiers: Modifiers, app_cont
 		widget.focused = false
 	}
 
-	text_set_content(&text_field.text, string(text_field.state.builder.buf[:]))
+	text_set_content(&text_field.text, strings.to_string(text_field.builder))
 	app_context.renderer.dirty = true
 }
 

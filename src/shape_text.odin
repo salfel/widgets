@@ -10,9 +10,10 @@ TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", cstring)
 
 Text :: struct {
 	// internal
-	content, font:           string,
+	content, font_name:      string,
 	color, background_color: Color,
 	font_size:               f32,
+	font:                    Font,
 
 	// external
 	mp:                      matrix[4, 4]f32,
@@ -28,11 +29,14 @@ Text :: struct {
 text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
 	text := Text {
 		content   = content,
-		font      = font,
+		font_name = font,
 		font_size = font_size,
 		color     = color,
 	}
 
+	text.font = font_make(content, font, f64(font_size))
+	text.layout.style.size.x = layout_constraint_make(f32(text.font.min_width), f32(text.font.size.x))
+	text.layout.style.size.y = layout_constraint_make(f32(text.font.size.y))
 	text_generate_texture(&text)
 
 	cache_init(&text_cache, TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
@@ -48,6 +52,8 @@ text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
 }
 
 text_destroy :: proc(text: ^Text) {
+	font_destroy(&text.font)
+
 	gl.DeleteTextures(1, &text.texture)
 	gl.DeleteProgram(text.program)
 }
@@ -71,27 +77,21 @@ text_draw :: proc(text: ^Text) {
 }
 
 text_set_width :: proc(text: ^Text, width: i32) {
-	text_generate_texture(text, width)
+	text_generate_texture(text)
 }
 
 text_set_content :: proc(text: ^Text, content: string) {
 	text.content = content
 
+	font_set_content(&text.font, content)
+	text.layout.style.size.x = layout_constraint_make(f32(text.font.min_width), f32(text.font.size.x))
+	text.layout.style.size.y = layout_constraint_make(f32(text.font.size.y))
 	text_generate_texture(text)
 }
 
-text_generate_texture :: proc(text: ^Text, width: i32 = -1, allocator := context.allocator) -> (ok: bool = true) {
-	bitmap, size, stride, min_width := font_bitmap_make(
-		text.content,
-		text.font,
-		f64(text.font_size),
-		width,
-		allocator = allocator,
-	) or_return
+text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (ok: bool = true) {
+	bitmap := font_get_bitmap(&text.font)
 	defer delete(bitmap)
-
-	text.layout.style.size.x = layout_constraint_make(f32(min_width), f32(size.x))
-	text.layout.style.size.y = layout_constraint_make(f32(size.y))
 
 	gl.GenTextures(1, &text.texture)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
