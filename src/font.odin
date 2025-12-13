@@ -159,9 +159,9 @@ font_get_min_width :: proc(layout: ^pango.Layout) -> i32 {
 	return min_width
 }
 
-font_get_cursor_pos :: proc(font: ^Font, offset_in: i32, allocator := context.allocator) -> ([2]i32, i32) {
+font_get_cursor_pos :: proc(font: ^Font, offset: i32, allocator := context.allocator) -> ([2]i32, i32) {
 	cursor: pango.Rectangle
-	pango.layout_get_cursor_pos(font.layout, offset_in, &cursor, nil)
+	pango.layout_get_cursor_pos(font.layout, offset, &cursor, nil)
 
 	return {cursor.x, cursor.y} / pango.SCALE, cursor.height / pango.SCALE
 }

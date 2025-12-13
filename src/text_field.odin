@@ -6,12 +6,18 @@ import text "core:text/edit"
 import gl "vendor:OpenGL"
 
 Text_Field :: struct {
-	state:         text.State,
-	builder:       strings.Builder,
+	state:          text.State,
+	builder:        strings.Builder,
 
 	// shapes
-	field, cursor: Rect,
-	text:          Text,
+	field, cursor:  Rect,
+	text:           Text,
+	pending_update: bit_set[Text_Field_Shape],
+}
+Text_Field_Shape :: enum {
+	Field,
+	Cursor,
+	Text,
 }
 
 text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok := true) #optional_ok {
@@ -26,15 +32,14 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	widget.recalculate_mp = text_field_recalculate_mp
 	widget.key = text_field_key
 
-	widget.layout.style.size.x = layout_constraint_make(200)
-	widget.layout.style.size.y = layout_constraint_make(200)
+	widget.layout.style.padding = sides_make(20)
 
 	font_size: f32 = 96
-	content := "中"
+	content := "hello world"
 
 	widget.data = Text_Field {
 		field  = rect_make({100, 0}, {0.2, 0.2, 0.2, 1.0}),
-		text   = text_make(content, "Sans", font_size, {1.0, 1.0, 1.0, 1.0}),
+		text   = text_make(content, "Sans", font_size, WHITE),
 		cursor = rect_make({1, 96}, WHITE),
 	}
 
@@ -42,6 +47,9 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 
 	append(&widget.layout.children, &text_field.field.layout)
 	append(&text_field.field.layout.children, &text_field.text.layout)
+	append(&text_field.field.layout.children, &text_field.cursor.layout)
+
+	text_field.cursor.layout.behaviour = .Absolute
 
 	text_field.builder = strings.builder_make(context.allocator)
 	strings.write_string(&text_field.builder, content)
@@ -49,6 +57,8 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	text.init(&text_field.state, context.allocator, context.allocator)
 	text.begin(&text_field.state, 0, &text_field.builder)
 	text.move_to(&text_field.state, .End)
+
+	text_field_update_cursor(text_field)
 
 	return
 }
@@ -70,18 +80,20 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 
 	gl.ColorMask(true, true, true, true)
 	gl.StencilMask(0x00)
-	gl.StencilFunc(gl.EQUAL, 2 - 1, 0xFF)
+	gl.StencilFunc(gl.EQUAL, depth - 1, 0xFF)
 	gl.StencilOp(gl.KEEP, gl.KEEP, gl.KEEP)
 
-	cursor_pos, height := font_get_cursor_pos(&text_field.text.font, i32(text_field.state.selection[0]))
-
-	text_field.field.mp = calculate_mp(text_field.field.layout, app_context)
-	text_field.text.mp = calculate_mp(text_field.text.layout, app_context)
-
-	text_field.cursor.layout.position = {f32(cursor_pos.x), f32(cursor_pos.y)}
-	text_field.cursor.layout.size.x = 1
-	text_field.cursor.layout.size.y = f32(height)
-	text_field.cursor.mp = calculate_mp(text_field.cursor.layout, app_context)
+	for shape in text_field.pending_update {
+		switch shape {
+		case .Field:
+			rect_recalculate_mp(&text_field.field, app_context)
+		case .Cursor:
+			rect_recalculate_mp(&text_field.cursor, app_context)
+		case .Text:
+			text_recalculate_mp(&text_field.text, app_context)
+		}
+	}
+	text_field.pending_update = {}
 
 	rect_draw(&text_field.field)
 	text_draw(&text_field.text)
@@ -92,40 +104,85 @@ text_field_key :: proc(widget: ^Widget, key: Key, modifiers: Modifiers, app_cont
 	text_field, ok := (&widget.data.(Text_Field))
 	assert(ok, fmt.tprint("invalid widget type, expected Text_Field, got:", widget.type))
 
+	update_cursor: bool = false
+	update_text: bool = false
+
 	#partial switch key.type {
 	case .Char:
 		if .Ctrl in modifiers {
 			switch key.char {
 			case 'a':
 				text.perform_command(&text_field.state, .Select_All)
+				update_cursor = true
+			// clipboad not implemented yet
 			case 'c':
 				text.perform_command(&text_field.state, .Copy)
 			case 'x':
 				text.perform_command(&text_field.state, .Cut)
 			case 'v':
 				text.perform_command(&text_field.state, .Paste)
+				update_text = true
+				update_cursor = true
 			}
 		} else {
 			text.input_rune(&text_field.state, key.char)
+			update_cursor = true
+			update_text = true
 		}
 	case .Backspace:
 		text.perform_command(&text_field.state, .Backspace)
+		update_cursor = true
+		update_text = true
 	case .Delete:
 		text.perform_command(&text_field.state, .Delete)
+		update_cursor = true
+		update_text = true
 	case .Left:
 		text.perform_command(&text_field.state, .Left)
+		update_cursor = true
 	case .Right:
 		text.perform_command(&text_field.state, .Right)
+		update_cursor = true
 	case .Escape:
 		app_context.input.focused = 0
 		widget.focused = false
 	}
 
-	text_set_content(&text_field.text, strings.to_string(text_field.builder))
+	if update_text {
+		text_set_content(&text_field.text, strings.to_string(text_field.builder))
+		text_field.pending_update += {.Text}
+	}
+	if update_cursor {
+		text_field_update_cursor(text_field)
+		text_field.pending_update += {.Cursor}
+	}
+
 	app_context.renderer.dirty = true
 }
 
 text_field_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	text_field, ok := (&widget.data.(Text_Field))
 	assert(ok, fmt.tprint("invalid widget type, expected Text_Field, got:", widget.type))
+
+	if text_field.field.layout.dirty {
+		text_field.pending_update += {.Field}
+	}
+
+	if text_field.text.layout.dirty {
+		text_field.pending_update += {.Text}
+	}
+
+	if text_field.cursor.layout.dirty {
+		text_field.pending_update += {.Cursor}
+	}
+}
+
+text_field_update_cursor :: proc(text_field: ^Text_Field) {
+	cursor_pos, height := font_get_cursor_pos(&text_field.text.font, i32(text_field.state.selection[0]))
+
+	text_field.cursor.layout.style.position = sides_make(f32(cursor_pos.x), 0, f32(cursor_pos.y), 0)
+	text_field.cursor.layout.style.size.x = layout_constraint_make(1)
+	text_field.cursor.layout.style.size.y = layout_constraint_make(f32(height))
+
+	return
 }

@@ -21,9 +21,15 @@ Text :: struct {
 
 	// opengl
 	program, texture:        u32,
-	uniform_locations:       struct {
-		mp, tex, color, background_color: i32,
-	},
+	uniform_locations:       [Text_Uniform]i32,
+	pending_uniforms:        bit_set[Text_Uniform],
+}
+
+Text_Uniform :: enum {
+	MP,
+	Tex,
+	Color,
+	Background_Color,
 }
 
 text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
@@ -42,11 +48,12 @@ text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
 	cache_init(&text_cache, TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
 	text.program, _ = create_program(text_cache.vertex_shader, text_cache.fragment_shader)
 	text.uniform_locations = {
-		mp               = gl.GetUniformLocation(text.program, "MP"),
-		tex              = gl.GetUniformLocation(text.program, "tex"),
-		color            = gl.GetUniformLocation(text.program, "color"),
-		background_color = gl.GetUniformLocation(text.program, "background_color"),
+		.MP               = gl.GetUniformLocation(text.program, "MP"),
+		.Tex              = gl.GetUniformLocation(text.program, "tex"),
+		.Color            = gl.GetUniformLocation(text.program, "color"),
+		.Background_Color = gl.GetUniformLocation(text.program, "background_color"),
 	}
+	text.pending_uniforms = {.MP, .Tex, .Color, .Background_Color}
 
 	return text
 }
@@ -65,10 +72,19 @@ text_draw :: proc(text: ^Text) {
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
 
-	gl.UniformMatrix4fv(text.uniform_locations.mp, 1, false, linalg.matrix_to_ptr(&text.mp))
-	gl.Uniform1i(text.uniform_locations.tex, 0)
-	gl.Uniform4fv(text.uniform_locations.color, 1, linalg.vector_to_ptr(&text.color))
-	gl.Uniform4fv(text.uniform_locations.background_color, 1, linalg.vector_to_ptr(&text.background_color))
+	for uniform in text.pending_uniforms {
+		switch uniform {
+		case .MP:
+			gl.UniformMatrix4fv(text.uniform_locations[.MP], 1, false, linalg.matrix_to_ptr(&text.mp))
+		case .Tex:
+			gl.Uniform1i(text.uniform_locations[.Tex], 0)
+		case .Color:
+			gl.Uniform4fv(text.uniform_locations[.Color], 1, linalg.vector_to_ptr(&text.color))
+		case .Background_Color:
+			gl.Uniform4fv(text.uniform_locations[.Background_Color], 1, linalg.vector_to_ptr(&text.background_color))
+		}
+		text.pending_uniforms = {}
+	}
 
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
@@ -124,6 +140,11 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (o
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
 	return
+}
+
+text_recalculate_mp :: proc(text: ^Text, app_context: ^App_Context) {
+	text.mp = calculate_mp(text.layout, app_context)
+	text.pending_uniforms += {.MP}
 }
 
 @(fini)

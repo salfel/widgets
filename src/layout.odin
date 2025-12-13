@@ -8,6 +8,11 @@ Layout_Property :: enum {
 	Expand_Vertical,
 }
 
+Layout_Behaviour :: enum {
+	Static,
+	Absolute,
+}
+
 Layout_Constraint :: struct {
 	min, preferred: f32,
 }
@@ -29,6 +34,7 @@ Layout_Style :: struct {
 	size:            [2]Layout_Constraint,
 	padding, margin: Sides,
 	border:          f32,
+	position:        Sides,
 	properties:      bit_set[Layout_Property],
 }
 
@@ -46,6 +52,7 @@ Layout :: struct {
 	children:       [dynamic]^Layout,
 	parent:         ^Layout,
 	axis:           Axis,
+	behaviour:      Layout_Behaviour,
 
 	// internal
 	intermediate:   struct {
@@ -74,6 +81,10 @@ layout_measure :: proc(layout: ^Layout) {
 
 	for child in layout.children {
 		layout_measure(child)
+
+		if layout.behaviour == .Absolute {
+			continue
+		}
 
 		// main axis
 		child_constraints[layout.axis].min +=
@@ -132,6 +143,9 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, len(layout.children), context.allocator)
 		defer delete(available_children)
 		for child in layout.children {
+			if child.behaviour == .Absolute {
+				continue
+			}
 			append(&available_children, child)
 		}
 
@@ -180,6 +194,9 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 
 		expandable := 0
 		for child in layout.children {
+			if child.behaviour == .Absolute {
+				continue
+			}
 			if layout.axis == .Horizontal && .Expand_Horizontal in child.style.properties ||
 			   layout.axis == .Vertical && .Expand_Vertical in child.style.properties {
 				expandable += 1
@@ -250,13 +267,20 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 	initial := layout.position
-	layout.position = offset + {layout.style.margin.left, layout.style.margin.top}
+	layout.position =
+		offset +
+		({layout.style.margin.left, layout.style.margin.top} if layout.behaviour == .Static else {layout.style.position.left, layout.style.position.top})
 
 	offset := layout.position
 	offset += {layout.style.border + layout.style.padding.left, layout.style.border + layout.style.padding.top}
+	initial_offset := offset
 
 	for child in layout.children {
-		layout_arrange(child, offset)
+		if child.behaviour == .Absolute {
+			layout_arrange(child, initial_offset)
+		} else {
+			layout_arrange(child, offset)
+		}
 
 		if layout.axis == .Horizontal {
 			offset.x += child.size.x + sides_axis(child.style.margin, .Horizontal)
