@@ -36,7 +36,7 @@ registry_handle_global :: proc "c" (
 	case wl.compositor_interface.name:
 		wl_state.compositor = cast(^wl.compositor)wl.registry_bind(registry, name, &wl.compositor_interface, 4)
 	case wl.seat_interface.name:
-		wl_state.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 1)
+		wl_state.seat = cast(^wl.seat)wl.registry_bind(registry, name, &wl.seat_interface, 9)
 		keyboard := wl.seat_get_keyboard(wl_state.seat)
 		pointer := wl.seat_get_pointer(wl_state.seat)
 		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, app_context)
