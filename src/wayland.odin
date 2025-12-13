@@ -130,6 +130,7 @@ wl_register_callback :: proc "contextless" (app_context: ^App_Context) {
 
 wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 	wl_state := &app_context.window.wl
+	keyboard_state_init(&wl_state.keyboard_state)
 
 	wl_state.display = wl.display_connect(nil)
 
@@ -157,4 +158,8 @@ wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 
 	wl_state.callback = wl.surface_frame(wl_state.surface)
 	wl.callback_add_listener(wl_state.callback, &wl_callback_listener, app_context)
+}
+
+wl_destroy :: proc(wl_state: ^Wayland_State) {
+	keyboard_state_destroy(&wl_state.keyboard_state)
 }

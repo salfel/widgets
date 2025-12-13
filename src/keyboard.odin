@@ -5,6 +5,7 @@ import "core:fmt"
 import vmem "core:mem/virtual"
 import "core:os"
 import "core:strings"
+import "core:time"
 import wl "lib:wayland"
 import xkb "lib:xkbcommon"
 
@@ -18,12 +19,34 @@ Modifier :: enum {
 Modifiers :: bit_set[Modifier]
 
 Keyboard_State :: struct {
-	xkb:         struct {
+	mod_indices:  [Modifier]u32,
+	pressed_keys: map[i32]^Repeat_Data,
+	repeat:       struct {
+		delay, interval: time.Duration,
+	},
+	xkb:          struct {
 		ctx:    ^xkb.ctx,
 		keymap: ^xkb.keymap,
 		state:  ^xkb.state,
 	},
-	mod_indices: [Modifier]u32,
+}
+
+Repeat_Data :: struct {
+	app_context: ^App_Context,
+	key:         Key,
+	timer_id:    Timer_Id,
+}
+
+keyboard_state_init :: proc(keyboard_state: ^Keyboard_State, allocator := context.allocator) {
+	keyboard_state.pressed_keys = make(map[i32]^Repeat_Data, allocator)
+}
+
+keyboard_state_destroy :: proc(keyboard_state: ^Keyboard_State) {
+	for _, repeat_data in keyboard_state.pressed_keys {
+		timer_stop(&repeat_data.app_context.timer, repeat_data.timer_id)
+		free(repeat_data)
+	}
+	delete(keyboard_state.pressed_keys)
 }
 
 handle_keymap :: proc "c" (
@@ -46,7 +69,8 @@ handle_keymap :: proc "c" (
 	}
 
 	keymap_string := strings.clone_to_cstring(string(map_shm))
-	defer {vmem.release(raw_data(map_shm), uint(len(map_shm)))
+	defer {
+		vmem.release(raw_data(map_shm), uint(len(map_shm)))
 		delete(keymap_string)
 	}
 
@@ -63,14 +87,10 @@ handle_keymap :: proc "c" (
 handle_enter :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface, keys: wl.array) {}
 handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface) {}
 
-handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key: uint, _state: wl.keyboard_key_state) {
+handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, _time, key: uint, state: wl.keyboard_key_state) {
 	app_context := cast(^App_Context)data
 	context = app_context.ctx
 	keyboard_state := &app_context.window.wl.keyboard_state
-
-	if _state != .PRESSED {
-		return
-	}
 
 	sym := xkb.state_key_get_one_sym(keyboard_state.xkb.state, i32(key + 8))
 
@@ -114,8 +134,36 @@ handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, time, key:
 		}
 	}
 
+	key_repeat_handler :: proc(data: rawptr) {
+		repeat_data := cast(^Repeat_Data)data
 
-	event_register(Event{type = .Keyboard_Char, data = key}, app_context)
+		event_register(Event{type = .Keyboard_Char, data = repeat_data.key}, repeat_data.app_context)
+	}
+
+	if state == .PRESSED {
+		repeat_data := new(Repeat_Data)
+		repeat_data.app_context = app_context
+		repeat_data.key = key
+		repeat_data.timer_id = timer_set_interval(
+			&app_context.timer,
+			key_repeat_handler,
+			repeat_data,
+			keyboard_state.repeat.interval,
+			keyboard_state.repeat.delay,
+		)
+
+		keyboard_state.pressed_keys[sym] = repeat_data
+		event_register(Event{type = .Keyboard_Char, data = repeat_data.key}, repeat_data.app_context)
+	} else if state == .RELEASED {
+		repeat_data, ok := keyboard_state.pressed_keys[sym]
+		if ok {
+			ok := timer_stop(&app_context.timer, repeat_data.timer_id)
+			assert(ok)
+
+			free(keyboard_state.pressed_keys[sym])
+			delete_key(&keyboard_state.pressed_keys, sym)
+		}
+	}
 }
 
 handle_modifiers :: proc "c" (
@@ -157,7 +205,13 @@ handle_modifiers :: proc "c" (
 	}
 }
 
-handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {}
+handle_repeat_info :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, rate: int, delay: int) {
+	app_context := cast(^App_Context)data
+	keyboard_state := &app_context.window.wl.keyboard_state
+
+	keyboard_state.repeat.delay = time.Duration(delay) * time.Millisecond
+	keyboard_state.repeat.interval = time.Second / time.Duration(rate)
+}
 
 wl_keyboard_listener := wl.keyboard_listener {
 	keymap      = handle_keymap,
