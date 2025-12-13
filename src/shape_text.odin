@@ -77,6 +77,10 @@ text_draw :: proc(text: ^Text) {
 }
 
 text_set_width :: proc(text: ^Text, width: i32) {
+	font_set_width(&text.font, width)
+
+	text.layout.style.size.x = layout_constraint_make(f32(text.font.min_width), f32(text.font.size.x))
+	text.layout.style.size.y = layout_constraint_make(f32(text.font.size.y))
 	text_generate_texture(text)
 }
 
