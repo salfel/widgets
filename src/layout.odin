@@ -82,7 +82,7 @@ layout_measure :: proc(layout: ^Layout) {
 	for child in layout.children {
 		layout_measure(child)
 
-		if layout.behaviour == .Absolute {
+		if child.behaviour == .Absolute {
 			continue
 		}
 
