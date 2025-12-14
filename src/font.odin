@@ -20,10 +20,7 @@ Font :: struct {
 	// external
 	size:               [2]i32,
 	min_width:          i32,
-	ink_rect:           struct {
-		size:     [2]i32,
-		position: [2]i32,
-	},
+	ink_rect:           Bounds(i32),
 	stride:             i32,
 }
 
