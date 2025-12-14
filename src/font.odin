@@ -1,7 +1,6 @@
 package main
 
 import "base:runtime"
-import "core:slice"
 import "core:strings"
 import "lib:fontconfig"
 import "lib:gtk/cairo"
@@ -14,7 +13,6 @@ Font :: struct {
 	layout:             ^pango.Layout,
 	surface:            ^cairo.surface_t,
 	cr:                 ^cairo.context_t,
-	ink_rect:           pango.Rectangle,
 	content, font_name: cstring,
 	font_size:          f64,
 	allocator:          runtime.Allocator,
@@ -22,6 +20,11 @@ Font :: struct {
 	// external
 	size:               [2]i32,
 	min_width:          i32,
+	ink_rect:           struct {
+		size:     [2]i32,
+		position: [2]i32,
+	},
+	stride:             i32,
 }
 
 font_make :: proc(content, font_name: string, font_size: f64, allocator := context.allocator) -> (font: Font) {
@@ -67,7 +70,7 @@ font_set_width :: proc(font: ^Font, width: i32) {
 }
 
 font_create_surface :: proc(font: ^Font) {
-	font.surface = cairo.image_surface_create(.A8, font.size.x, font.size.y)
+	font.surface = cairo.image_surface_create(.A8, font.ink_rect.size.x, font.ink_rect.size.y)
 	font.cr = cairo.create(font.surface)
 
 	cairo.set_source_rgba(font.cr, 0.0, 0.0, 0.0, 0.0)
@@ -86,34 +89,19 @@ font_create_surface :: proc(font: ^Font) {
 	pango.layout_set_alignment(font.layout, .ALIGN_LEFT)
 }
 
-font_get_bitmap :: proc(font: ^Font, allocator := context.allocator) -> []u8 {
+font_get_bitmap :: proc(font: ^Font, allocator := context.allocator) -> ^u8 {
 	cairo.set_source_rgb(font.cr, 1.0, 1.0, 1.0)
 
+	cairo.translate(font.cr, f64(-font.ink_rect.position.x), f64(-font.ink_rect.position.y))
 	cairo.move_to(font.cr, 0, 0)
-	cairo.translate(font.cr, f64(-font.ink_rect.x), f64(-font.ink_rect.y))
 	pangocairo.show_layout(font.cr, font.layout)
 
 	cairo.surface_flush(font.surface)
 
 	cairo_data := cairo.image_surface_get_data(font.surface)
-	stride := cairo.image_surface_get_stride(font.surface)
-	bmp := slice.from_ptr(cairo_data, int(stride * font.size.y))
+	font.stride = cairo.image_surface_get_stride(font.surface)
 
-	bitmap: []u8
-
-	if stride == font.size.x {
-		bitmap = slice.clone(bmp)
-	} else {
-		bitmap = make([]u8, font.size.x * font.size.y, allocator)
-		for i in 0 ..< font.size.y {
-			src_offset := i * stride
-			dst_offset := i * font.size.x
-
-			copy(bitmap[dst_offset:dst_offset + font.size.x], bmp[src_offset:src_offset + font.size.x])
-		}
-	}
-
-	return bitmap
+	return cairo_data
 }
 
 font_calc_rect :: proc(font: ^Font, width: i32 = -1, allocator := context.allocator) {
@@ -136,10 +124,14 @@ font_calc_rect :: proc(font: ^Font, width: i32 = -1, allocator := context.alloca
 
 	font.min_width = font_get_min_width(layout)
 
-	log_rect: pango.Rectangle
-	pango.layout_get_pixel_extents(layout, &font.ink_rect, &log_rect)
+	ink_rect, log_rect: pango.Rectangle
+	pango.layout_get_pixel_extents(layout, &ink_rect, &log_rect)
 
 	font.size = {log_rect.width, log_rect.height}
+	font.ink_rect = {
+		size     = {ink_rect.width, ink_rect.height},
+		position = {ink_rect.x, ink_rect.y},
+	}
 }
 
 

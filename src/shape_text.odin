@@ -111,22 +111,21 @@ text_set_content :: proc(text: ^Text, content: string) {
 
 text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (ok: bool = true) {
 	bitmap := font_get_bitmap(&text.font)
-	defer delete(bitmap)
 
 	gl.GenTextures(1, &text.texture)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
-	gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1)
+	gl.PixelStorei(gl.UNPACK_ROW_LENGTH, text.font.stride)
 
 	gl.TexImage2D(
 		gl.TEXTURE_2D,
 		0,
 		gl.R8,
-		i32(text.layout.style.size.x.preferred),
-		i32(text.layout.style.size.y.preferred),
+		i32(text.font.ink_rect.size.x),
+		i32(text.font.ink_rect.size.y),
 		0,
 		gl.RED,
 		gl.UNSIGNED_BYTE,
-		raw_data(bitmap),
+		bitmap,
 	)
 
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_SWIZZLE_A, gl.RED)
@@ -143,7 +142,10 @@ text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (o
 }
 
 text_recalculate_mp :: proc(text: ^Text, app_context: ^App_Context) {
-	text.mp = calculate_mp(text.layout, app_context)
+	copy := text.layout
+	copy.position += convert_vec(text.font.ink_rect.position, f32)
+	copy.size = convert_vec(text.font.ink_rect.size, f32)
+	text.mp = calculate_mp(copy, app_context)
 	text.pending_uniforms += {.MP}
 }
 
