@@ -56,13 +56,19 @@ Layout :: struct {
 
 	// internal
 	intermediate:   struct {
-		constraint: [Axis]Layout_Constraint,
-		size:       [Axis]f32,
+		child_constraints: [Axis]Layout_Constraint,
+		constraint:        [Axis]Layout_Constraint,
+		size:              [Axis]f32,
 	},
 
 	// result
 	size, position: [2]f32,
-	overflow:       bool,
+	scroll:         struct {
+		position:  [Axis]f32,
+		distance:  [Axis]f32,
+		stick_end: bool,
+		overflow:  bool,
+	},
 	dirty:          bool,
 }
 
@@ -77,7 +83,7 @@ layout_destroy :: proc(layout: ^Layout) {
 layout_measure :: proc(layout: ^Layout) {
 	layout.dirty = false
 
-	child_constraints: [Axis]Layout_Constraint
+	layout.intermediate.child_constraints = [Axis]Layout_Constraint{}
 
 	for child in layout.children {
 		layout_measure(child)
@@ -87,19 +93,19 @@ layout_measure :: proc(layout: ^Layout) {
 		}
 
 		// main axis
-		child_constraints[layout.axis].min +=
+		layout.intermediate.child_constraints[layout.axis].min +=
 			child.intermediate.constraint[layout.axis].min + sides_axis(child.style.margin, layout.axis)
-		child_constraints[layout.axis].preferred +=
+		layout.intermediate.child_constraints[layout.axis].preferred +=
 			child.intermediate.constraint[layout.axis].preferred + sides_axis(child.style.margin, layout.axis)
 
 		// cross axis
-		child_constraints[axis_opposite(layout.axis)].min = math.max(
-			child_constraints[axis_opposite(layout.axis)].min,
+		layout.intermediate.child_constraints[axis_opposite(layout.axis)].min = math.max(
+			layout.intermediate.child_constraints[axis_opposite(layout.axis)].min,
 			child.intermediate.constraint[axis_opposite(layout.axis)].min +
 			sides_axis(child.style.margin, axis_opposite(layout.axis)),
 		)
-		child_constraints[axis_opposite(layout.axis)].preferred = math.max(
-			child_constraints[axis_opposite(layout.axis)].preferred,
+		layout.intermediate.child_constraints[axis_opposite(layout.axis)].preferred = math.max(
+			layout.intermediate.child_constraints[axis_opposite(layout.axis)].preferred,
 			child.intermediate.constraint[axis_opposite(layout.axis)].preferred +
 			sides_axis(child.style.margin, axis_opposite(layout.axis)),
 		)
@@ -110,7 +116,9 @@ layout_measure :: proc(layout: ^Layout) {
 			layout.intermediate.constraint[axis].min = layout.style.size[axis].min + 2 * layout.style.border
 		} else {
 			layout.intermediate.constraint[axis].min =
-				child_constraints[axis].min + sides_axis(layout.style.padding, axis) + 2 * layout.style.border
+				layout.intermediate.child_constraints[axis].min +
+				sides_axis(layout.style.padding, axis) +
+				2 * layout.style.border
 		}
 
 		if layout.style.size[axis].preferred > 0 {
@@ -118,7 +126,9 @@ layout_measure :: proc(layout: ^Layout) {
 				layout.style.size[axis].preferred + 2 * layout.style.border
 		} else {
 			layout.intermediate.constraint[axis].preferred =
-				child_constraints[axis].preferred + sides_axis(layout.style.padding, axis) + 2 * layout.style.border
+				layout.intermediate.child_constraints[axis].preferred +
+				sides_axis(layout.style.padding, axis) +
+				2 * layout.style.border
 		}
 
 		layout.intermediate.size[axis] = layout.intermediate.constraint[axis].preferred
@@ -126,7 +136,8 @@ layout_measure :: proc(layout: ^Layout) {
 }
 
 layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
-	available := available.(f32) if available != nil else layout.intermediate.size[layout.axis]
+	available :=
+		available.(f32) if available != nil else layout.intermediate.size[layout.axis] - sides_axis(layout.style.padding, layout.axis)
 	initial := layout.size
 
 	if layout.axis == .Horizontal {
@@ -136,10 +147,11 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		layout.size.y = math.clamp(available, layout.intermediate.constraint[.Vertical].min, math.F32_MAX)
 		layout.size.x = layout.intermediate.size[.Horizontal]
 	}
+	layout.scroll.overflow = false
 
 	// shrink
-	if layout.intermediate.constraint[layout.axis].preferred > available && len(layout.children) > 0 {
-		space_left := layout.intermediate.constraint[layout.axis].preferred - available
+	if layout.intermediate.child_constraints[layout.axis].preferred > available && len(layout.children) > 0 {
+		space_left := layout.intermediate.child_constraints[layout.axis].preferred - available
 
 		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, len(layout.children), context.allocator)
 		defer delete(available_children)
@@ -154,7 +166,9 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 			min_distance: f32 = math.F32_MAX
 
 			if len(available_children) == 0 {
-				layout.overflow = true
+				layout.scroll.overflow = true
+				layout.scroll.distance = {}
+				layout.scroll.distance[layout.axis] = space_left
 				break
 			}
 
@@ -189,8 +203,9 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		}
 	}
 
+
 	// grow
-	if layout.intermediate.constraint[layout.axis].preferred < available && len(layout.children) > 0 {
+	if layout.intermediate.child_constraints[layout.axis].preferred < available && len(layout.children) > 0 {
 		space_left := available - layout.intermediate.constraint[layout.axis].preferred
 
 		expandable := 0
@@ -264,6 +279,11 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 	if layout.size != initial {
 		layout.dirty = true
 	}
+
+	if !layout.scroll.overflow {
+		layout.scroll.position = {}
+		layout.scroll.distance = {}
+	}
 }
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
@@ -274,6 +294,12 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 
 	offset := layout.position
 	offset += {layout.style.border + layout.style.padding.left, layout.style.border + layout.style.padding.top}
+	if layout.scroll.overflow {
+		if layout.scroll.stick_end {
+			layout.scroll.position = layout.scroll.distance
+		}
+		offset -= {layout.scroll.position[.Horizontal], layout.scroll.position[.Vertical]}
+	}
 	initial_offset := offset
 
 	for child in layout.children {

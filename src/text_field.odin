@@ -34,11 +34,11 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 
 	widget.layout.style.padding = sides_make(20)
 
-	font_size: f32 = 96
-	content := "hello world"
+	font_size: f32 = 48
+	content := "helloworld"
 
 	widget.data = Text_Field {
-		field  = rect_make({100, 0}, {0.2, 0.2, 0.2, 1.0}),
+		field  = rect_make({600, 0}, {0.2, 0.2, 0.2, 1.0}),
 		text   = text_make(content, "Sans", font_size, WHITE),
 		cursor = rect_make({1, 96}, WHITE),
 	}
@@ -50,6 +50,7 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	append(&text_field.field.layout.children, &text_field.cursor.layout)
 
 	text_field.cursor.layout.behaviour = .Absolute
+	text_field.field.layout.scroll.stick_end = true
 
 	text_field.builder = strings.builder_make(context.allocator)
 	strings.write_string(&text_field.builder, content)
@@ -96,7 +97,15 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 	text_field.pending_update = {}
 
 	rect_draw(&text_field.field)
+	gl.Enable(gl.SCISSOR_TEST)
+	gl.Scissor(
+		i32(text_field.field.layout.position.x),
+		i32(app_context.window.size.y - text_field.field.layout.position.y - text_field.field.layout.size.y),
+		i32(text_field.field.layout.size.x),
+		i32(text_field.field.layout.size.y),
+	)
 	text_draw(&text_field.text)
+	gl.Disable(gl.SCISSOR_TEST)
 	rect_draw(&text_field.cursor)
 }
 
