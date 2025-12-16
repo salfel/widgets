@@ -106,19 +106,20 @@ layout_measure :: proc(layout: ^Layout) {
 	}
 
 	for axis in Axis {
-		layout.intermediate.constraint[axis].min =
-			math.max(
-				child_constraints[axis].min + sides_axis(layout.style.padding, axis),
-				layout.style.size[axis].min,
-			) +
-			2 * layout.style.border
+		if layout.style.size[axis].min > 0 {
+			layout.intermediate.constraint[axis].min = layout.style.size[axis].min + 2 * layout.style.border
+		} else {
+			layout.intermediate.constraint[axis].min =
+				child_constraints[axis].min + sides_axis(layout.style.padding, axis) + 2 * layout.style.border
+		}
 
-		layout.intermediate.constraint[axis].preferred =
-			math.max(
-				child_constraints[axis].preferred + sides_axis(layout.style.padding, axis),
-				layout.style.size[axis].preferred,
-			) +
-			2 * layout.style.border
+		if layout.style.size[axis].preferred > 0 {
+			layout.intermediate.constraint[axis].preferred =
+				layout.style.size[axis].preferred + 2 * layout.style.border
+		} else {
+			layout.intermediate.constraint[axis].preferred =
+				child_constraints[axis].preferred + sides_axis(layout.style.padding, axis) + 2 * layout.style.border
+		}
 
 		layout.intermediate.size[axis] = layout.intermediate.constraint[axis].preferred
 	}
