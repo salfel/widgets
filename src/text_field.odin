@@ -54,6 +54,8 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 		layout.scroll.position = layout.scroll.distance
 	}
 
+	text_set_wrap(&text_field.text, .WRAP_NONE)
+
 	text_field.builder = strings.builder_make(context.allocator)
 	strings.write_string(&text_field.builder, content)
 

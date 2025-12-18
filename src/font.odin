@@ -22,13 +22,17 @@ Font :: struct {
 	min_width:          i32,
 	ink_rect:           Bounds(i32),
 	stride:             i32,
+	wrap:               Wrap,
 }
+
+Wrap :: pango.WrapMode
 
 font_make :: proc(content, font_name: string, font_size: f64, allocator := context.allocator) -> (font: Font) {
 	font.allocator = allocator
 	font.content = strings.clone_to_cstring(content, allocator)
 	font.font_name = strings.clone_to_cstring(font_name, allocator)
 	font.font_size = font_size
+	font.wrap = .WRAP_WORD
 
 	font_calc_rect(&font)
 	font_create_surface(&font)
@@ -63,6 +67,17 @@ font_set_width :: proc(font: ^Font, width: i32) {
 	gobj.object_unref(font.layout)
 
 	font_calc_rect(font, width)
+	font_create_surface(font)
+}
+
+font_set_wrap :: proc(font: ^Font, wrap: Wrap) {
+	cairo.destroy(font.cr)
+	cairo.surface_destroy(font.surface)
+	gobj.object_unref(font.layout)
+
+	font.wrap = wrap
+
+	font_calc_rect(font)
 	font_create_surface(font)
 }
 
@@ -117,7 +132,7 @@ font_calc_rect :: proc(font: ^Font, width: i32 = -1, allocator := context.alloca
 
 	pango.layout_set_text(layout, font.content, -1)
 	pango.layout_set_width(layout, width * pango.SCALE if width > 0 else -1)
-	pango.layout_set_wrap(layout, .WRAP_WORD)
+	pango.layout_set_wrap(layout, font.wrap)
 
 	font.min_width = font_get_min_width(layout)
 
@@ -137,13 +152,11 @@ font_get_min_width :: proc(layout: ^pango.Layout) -> i32 {
 	org_wrap := pango.layout_get_wrap(layout)
 
 	pango.layout_set_width(layout, 0)
-	pango.layout_set_wrap(layout, .WRAP_WORD)
 
 	min_width: i32
 	pango.layout_get_pixel_size(layout, &min_width, nil)
 
 	pango.layout_set_width(layout, org_width)
-	pango.layout_set_wrap(layout, org_wrap)
 
 	return min_width
 }

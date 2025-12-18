@@ -14,6 +14,7 @@ Text :: struct {
 	color, background_color: Color,
 	font_size:               f32,
 	font:                    Font,
+	wrap:                    bool,
 
 	// external
 	mp:                      matrix[4, 4]f32,
@@ -38,11 +39,11 @@ text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
 		font_name = font,
 		font_size = font_size,
 		color     = color,
+		wrap      = true,
 	}
 
 	text.font = font_make(content, font, f64(font_size))
-	text.layout.style.size.x = layout_constraint_make(f32(text.font.min_width), f32(text.font.size.x))
-	text.layout.style.size.y = layout_constraint_make(f32(text.font.size.y))
+	text_update_layout(&text)
 	text_generate_texture(&text)
 
 	cache_init(&text_cache, TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
@@ -95,8 +96,7 @@ text_draw :: proc(text: ^Text) {
 text_set_width :: proc(text: ^Text, width: i32) {
 	font_set_width(&text.font, width)
 
-	text.layout.style.size.x = layout_constraint_make(f32(text.font.min_width), f32(text.font.size.x))
-	text.layout.style.size.y = layout_constraint_make(f32(text.font.size.y))
+	text_update_layout(text)
 	text_generate_texture(text)
 }
 
@@ -104,9 +104,19 @@ text_set_content :: proc(text: ^Text, content: string) {
 	text.content = content
 
 	font_set_content(&text.font, content)
+	text_update_layout(text)
+	text_generate_texture(text)
+}
+
+text_set_wrap :: proc(text: ^Text, wrap: Wrap) {
+	font_set_wrap(&text.font, wrap)
+
+	text_update_layout(text)
+}
+
+text_update_layout :: proc(text: ^Text) {
 	text.layout.style.size.x = layout_constraint_make(f32(text.font.min_width), f32(text.font.size.x))
 	text.layout.style.size.y = layout_constraint_make(f32(text.font.size.y))
-	text_generate_texture(text)
 }
 
 text_generate_texture :: proc(text: ^Text, allocator := context.allocator) -> (ok: bool = true) {
