@@ -50,7 +50,9 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	append(&text_field.field.layout.children, &text_field.cursor.layout)
 
 	text_field.cursor.layout.behaviour = .Absolute
-	text_field.field.layout.scroll.stick_end = true
+	text_field.field.layout.on_compute.handler = proc(layout: ^Layout, data: rawptr) {
+		layout.scroll.position = layout.scroll.distance
+	}
 
 	text_field.builder = strings.builder_make(context.allocator)
 	strings.write_string(&text_field.builder, content)

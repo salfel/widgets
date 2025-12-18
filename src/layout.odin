@@ -54,6 +54,11 @@ Layout :: struct {
 	axis:           Axis,
 	behaviour:      Layout_Behaviour,
 
+	// handler(internal)
+	on_measure:     Handler(proc(layout: ^Layout, data: rawptr)),
+	on_compute:     Handler(proc(layout: ^Layout, data: rawptr)),
+	on_arrange:     Handler(proc(layout: ^Layout, data: rawptr)),
+
 	// internal
 	intermediate:   struct {
 		child_constraints: [Axis]Layout_Constraint,
@@ -64,10 +69,9 @@ Layout :: struct {
 	// result
 	size, position: [2]f32,
 	scroll:         struct {
-		position:  [Axis]f32,
-		distance:  [Axis]f32,
-		stick_end: bool,
-		overflow:  bool,
+		position: [Axis]f32,
+		distance: [Axis]f32,
+		overflow: bool,
 	},
 	dirty:          bool,
 }
@@ -132,6 +136,10 @@ layout_measure :: proc(layout: ^Layout) {
 		}
 
 		layout.intermediate.size[axis] = layout.intermediate.constraint[axis].preferred
+	}
+
+	if layout.on_measure.handler != nil {
+		layout.on_measure.handler(layout, layout.on_measure.data)
 	}
 }
 
@@ -284,6 +292,10 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		layout.scroll.position = {}
 		layout.scroll.distance = {}
 	}
+
+	if layout.on_compute.handler != nil {
+		layout.on_compute.handler(layout, layout.on_compute.data)
+	}
 }
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
@@ -295,9 +307,6 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 	offset := layout.position
 	offset += {layout.style.border + layout.style.padding.left, layout.style.border + layout.style.padding.top}
 	if layout.scroll.overflow {
-		if layout.scroll.stick_end {
-			layout.scroll.position = layout.scroll.distance
-		}
 		offset -= {layout.scroll.position[.Horizontal], layout.scroll.position[.Vertical]}
 	}
 	initial_offset := offset
