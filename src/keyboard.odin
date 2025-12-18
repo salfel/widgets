@@ -85,7 +85,16 @@ handle_keymap :: proc "c" (
 }
 
 handle_enter :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface, keys: wl.array) {}
-handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface) {}
+handle_leave :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial: uint, surface: ^wl.surface) {
+	app_context := cast(^App_Context)data
+	keyboard_state := &app_context.window.wl.keyboard_state
+	context = app_context.ctx
+
+	for _, repeat_data in keyboard_state.pressed_keys {
+		timer_stop(&repeat_data.app_context.timer, repeat_data.timer_id)
+		free(repeat_data)
+	}
+}
 
 handle_key :: proc "c" (data: rawptr, keyboard: ^wl.keyboard, serial, _time, key: uint, state: wl.keyboard_key_state) {
 	app_context := cast(^App_Context)data
