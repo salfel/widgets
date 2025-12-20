@@ -6,18 +6,19 @@ import text "core:text/edit"
 import gl "vendor:OpenGL"
 
 Text_Field :: struct {
-	state:          text.State,
-	builder:        strings.Builder,
+	state:                    text.State,
+	builder:                  strings.Builder,
 
 	// shapes
-	field, cursor:  Rect,
-	text:           Text,
-	pending_update: bit_set[Text_Field_Shape],
+	field, cursor, selection: Rect,
+	text:                     Text,
+	pending_update:           bit_set[Text_Field_Shape],
 }
 Text_Field_Shape :: enum {
 	Field,
 	Cursor,
 	Text,
+	Selection,
 }
 
 text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok := true) #optional_ok {
@@ -38,9 +39,10 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	content := "helloworld"
 
 	widget.data = Text_Field {
-		field  = rect_make({600, 0}, {0.2, 0.2, 0.2, 1.0}),
-		text   = text_make(content, "Sans", font_size, WHITE),
-		cursor = rect_make({1, 96}, WHITE),
+		field     = rect_make({600, 0}, {0.2, 0.2, 0.2, 1.0}),
+		text      = text_make(content, "Sans", font_size, WHITE),
+		cursor    = rect_make({1, 96}, WHITE),
+		selection = rect_make({0, 0}, BLUE),
 	}
 
 	text_field := (&widget.data.(Text_Field))
@@ -48,8 +50,11 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	append(&widget.layout.children, &text_field.field.layout)
 	append(&text_field.field.layout.children, &text_field.text.layout)
 	append(&text_field.field.layout.children, &text_field.cursor.layout)
+	append(&text_field.field.layout.children, &text_field.selection.layout)
 
 	text_field.cursor.layout.behaviour = .Absolute
+	text_field.selection.layout.behaviour = .Absolute
+
 	text_field.cursor.layout.on_compute = {
 		data = text_field,
 		handler = proc(layout: ^Layout, data: rawptr) {
@@ -109,6 +114,8 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 			rect_recalculate_mp(&text_field.cursor, app_context)
 		case .Text:
 			text_recalculate_mp(&text_field.text, app_context)
+		case .Selection:
+			rect_recalculate_mp(&text_field.selection, app_context)
 		}
 	}
 	text_field.pending_update = {}
@@ -121,6 +128,7 @@ text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 =
 		i32(text_field.field.layout.size.x),
 		i32(text_field.field.layout.size.y),
 	)
+	rect_draw(&text_field.selection)
 	text_draw(&text_field.text)
 	gl.Disable(gl.SCISSOR_TEST)
 	rect_draw(&text_field.cursor)
@@ -204,11 +212,32 @@ text_field_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 }
 
 text_field_update_cursor :: proc(text_field: ^Text_Field) {
-	cursor_pos, height := font_get_cursor_pos(&text_field.text.font, i32(text_field.state.selection[0]))
+	start, end := text_field.state.selection[1], text_field.state.selection[0]
 
-	text_field.cursor.layout.style.position = sides_make(f32(cursor_pos.x), 0, f32(cursor_pos.y), 0)
-	text_field.cursor.layout.style.size.x = layout_constraint_make(1)
-	text_field.cursor.layout.style.size.y = layout_constraint_make(f32(height))
+	if start == end {
+		cursor_pos, height := font_get_cursor_pos(&text_field.text.font, i32(start))
 
-	return
+		text_field.cursor.layout.style.position = sides_make(f32(cursor_pos.x), 0, f32(cursor_pos.y), 0)
+		text_field.cursor.layout.style.size.x = layout_constraint_make(1)
+		text_field.cursor.layout.style.size.y = layout_constraint_make(f32(height))
+
+		text_field.selection.layout.style.size = {layout_constraint_make(0), layout_constraint_make(0)}
+
+		text_field.pending_update += {.Selection}
+
+		return
+	}
+
+	text_field.cursor.layout.style.size = {layout_constraint_make(0), layout_constraint_make(0)}
+
+	start_pos, height := font_get_cursor_pos(&text_field.text.font, i32(start))
+	end_pos, _ := font_get_cursor_pos(&text_field.text.font, i32(end))
+
+	text_field.selection.layout.style.position = sides_make(f32(start_pos.x), 0, f32(start_pos.y), 0)
+	text_field.selection.layout.style.size = {
+		layout_constraint_make(f32(end_pos.x - start_pos.x)),
+		layout_constraint_make(f32(height)),
+	}
+
+	text_field.pending_update += {.Selection}
 }
