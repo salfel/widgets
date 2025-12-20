@@ -328,6 +328,10 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 	if layout.position != initial {
 		layout.dirty = true
 	}
+
+	if layout.on_arrange.handler != nil {
+		layout.on_arrange.handler(layout, layout.on_arrange.data)
+	}
 }
 
 @(test)

@@ -50,8 +50,21 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	append(&text_field.field.layout.children, &text_field.cursor.layout)
 
 	text_field.cursor.layout.behaviour = .Absolute
-	text_field.field.layout.on_compute.handler = proc(layout: ^Layout, data: rawptr) {
-		layout.scroll.position = layout.scroll.distance
+	text_field.cursor.layout.on_compute = {
+		data = text_field,
+		handler = proc(layout: ^Layout, data: rawptr) {
+			text_field := cast(^Text_Field)data
+
+			diff := text_field.cursor.layout.style.position.left - text_field.field.layout.scroll.position[.Horizontal]
+
+			if diff > text_field.field.layout.size.x {
+				text_field.field.layout.scroll.position[.Horizontal] += diff - text_field.field.layout.size.x
+				text_field.pending_update += {.Text}
+			} else if diff < 0 {
+				text_field.field.layout.scroll.position[.Horizontal] += diff
+				text_field.pending_update += {.Text}
+			}
+		},
 	}
 
 	text_set_wrap(&text_field.text, .WRAP_NONE)
