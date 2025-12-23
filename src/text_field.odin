@@ -81,6 +81,19 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	text.begin(&text_field.state, 0, &text_field.builder)
 	text.move_to(&text_field.state, .End)
 
+	text_field.state.set_clipboard = proc(user_data: rawptr, text: string) -> (ok: bool) {
+		app_context := cast(^App_Context)user_data
+
+		clipboard_copy(text, app_context)
+		return true
+	}
+
+	text_field.state.get_clipboard = proc(user_data: rawptr) -> (text: string, ok: bool) {
+		app_context := cast(^App_Context)user_data
+
+		return clipboard_paste(app_context), true
+	}
+
 	text_field_update_cursor(text_field)
 
 	return
@@ -100,6 +113,11 @@ text_field_destroy :: proc(widget: ^Widget) {
 text_field_draw :: proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1) {
 	text_field, ok := (&widget.data.(Text_Field))
 	assert(ok, fmt.tprint("invalid widget type, expected Text_Field, got:", widget.type))
+
+	// temporary
+	if text_field.state.clipboard_user_data == nil {
+		text_field.state.clipboard_user_data = app_context
+	}
 
 	gl.ColorMask(true, true, true, true)
 	gl.StencilMask(0x00)
@@ -153,6 +171,8 @@ text_field_key :: proc(widget: ^Widget, key: Key, modifiers: Modifiers, app_cont
 				text.perform_command(&text_field.state, .Copy)
 			case 'x':
 				text.perform_command(&text_field.state, .Cut)
+				update_text = true
+				update_cursor = true
 			case 'v':
 				text.perform_command(&text_field.state, .Paste)
 				update_text = true

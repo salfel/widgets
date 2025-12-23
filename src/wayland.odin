@@ -3,22 +3,24 @@ package main
 import "core:fmt"
 import wl "lib:wayland"
 import "lib:wayland/xdg"
+import "wl_custom"
 
 Wayland_State :: struct {
-	display:        ^wl.display,
-	compositor:     ^wl.compositor,
-	registry:       ^wl.registry,
-	seat:           ^wl.seat,
-	surface:        ^wl.surface,
-	callback:       ^wl.callback,
-	xdg:            struct {
+	display:         ^wl.display,
+	compositor:      ^wl.compositor,
+	registry:        ^wl.registry,
+	seat:            ^wl.seat,
+	surface:         ^wl.surface,
+	callback:        ^wl.callback,
+	xdg:             struct {
 		wm_base:  ^xdg.wm_base,
 		surface:  ^xdg.surface,
 		toplevel: ^xdg.toplevel,
 	},
-	pointer_state:  Pointer_State,
-	keyboard_state: Keyboard_State,
-	should_render:  bool,
+	pointer_state:   Pointer_State,
+	keyboard_state:  Keyboard_State,
+	clipboard_state: Clipboard_State,
+	should_render:   bool,
 }
 
 registry_handle_global :: proc "c" (
@@ -42,8 +44,15 @@ registry_handle_global :: proc "c" (
 		wl.keyboard_add_listener(keyboard, &wl_keyboard_listener, app_context)
 		wl.pointer_add_listener(pointer, &wl_pointer_listener, app_context)
 	case xdg.wm_base_interface.name:
-		wl_state.xdg.wm_base = cast(^xdg.wm_base)wl.registry_bind(registry, name, &xdg.wm_base_interface, 7)
+		wl_state.xdg.wm_base = cast(^xdg.wm_base)wl.registry_bind(registry, name, &xdg.wm_base_interface, 6)
 		xdg.wm_base_add_listener(wl_state.xdg.wm_base, &xdg_wm_base_listener, nil)
+	case wl_custom.data_control_manager_v1_interface.name:
+		wl_state.clipboard_state.control_manager = cast(^wl_custom.data_control_manager_v1)wl.registry_bind(
+			registry,
+			name,
+			&wl_custom.data_control_manager_v1_interface,
+			1,
+		)
 	}
 }
 
@@ -130,7 +139,6 @@ wl_register_callback :: proc "contextless" (app_context: ^App_Context) {
 
 wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 	wl_state := &app_context.window.wl
-	keyboard_state_init(&wl_state.keyboard_state)
 
 	wl_state.display = wl.display_connect(nil)
 
@@ -142,6 +150,9 @@ wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 	wl_state.registry = wl.display_get_registry(wl_state.display)
 	wl.registry_add_listener(wl_state.registry, &registry_listener, app_context)
 	wl.display_roundtrip(wl_state.display)
+
+	keyboard_state_init(&wl_state.keyboard_state)
+	clipboard_init(&wl_state.clipboard_state, wl_state.seat)
 
 	wl_state.surface = wl.compositor_create_surface(wl_state.compositor)
 
