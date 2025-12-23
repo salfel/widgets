@@ -88,6 +88,7 @@ renderer_loop :: proc(app_context: ^App_Context) {
 			app_context.window.wl.should_render = false
 		}
 
+		free_all(context.temp_allocator)
 	}
 }
 
