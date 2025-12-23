@@ -1,6 +1,5 @@
 #+build linux
 package wl_custom
-
 @(private)
 ext_data_control_v1_types := []^interface {
 	nil,
@@ -176,7 +175,8 @@ data_control_device_v1_listener :: struct {
 	data_offer:        proc "c" (
 		data: rawptr,
 		data_control_device_v1: ^data_control_device_v1,
-	) -> ^data_control_offer_v1,
+		id_: ^data_control_offer_v1,
+	),
 
 	/* The selection event is sent out to notify the client of a new
         ext_data_control_offer for the selection for this device. The
