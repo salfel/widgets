@@ -33,8 +33,6 @@ clipboard_init :: proc(clipboard_state: ^Clipboard_State, seat: ^wl.seat, alloca
 		&clipboard_control_device_listener,
 		clipboard_state,
 	)
-
-	posix.signal(.SIGPIPE, cast(proc "c" (_: posix.Signal))posix.SIG_IGN)
 }
 
 clipboard_destroy :: proc(clipboard_state: ^Clipboard_State) {
@@ -63,8 +61,16 @@ clipboard_control_source_send :: proc "c" (
 
 	switch mime {
 	case "text/plain;charset=utf-8", "text/plain":
+		new_action, old_action: posix.sigaction_t
+		new_action.sa_handler = cast(proc "c" (_: posix.Signal))posix.SIG_IGN
+		posix.sigemptyset(&new_action.sa_mask)
+
+		posix.sigaction(.SIGPIPE, &new_action, &old_action)
+
 		os.write(os.Handle(fd), transmute([]u8)text)
 		os.close(os.Handle(fd))
+
+		posix.sigaction(.SIGPIPE, &old_action, nil)
 	case:
 		fmt.eprintln("unsupported mime type", mime)
 	}
