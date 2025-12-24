@@ -17,7 +17,7 @@ Clipboard_State :: struct {
 	control_source:  ^wl_custom.data_control_source_v1,
 	control_offer:   ^wl_custom.data_control_offer_v1,
 	seat:            ^wl.seat,
-	data:            string,
+	data:            Maybe(string),
 }
 
 clipboard_init :: proc(clipboard_state: ^Clipboard_State, seat: ^wl.seat, allocator := context.allocator) {
@@ -37,6 +37,12 @@ clipboard_init :: proc(clipboard_state: ^Clipboard_State, seat: ^wl.seat, alloca
 	posix.signal(.SIGPIPE, cast(proc "c" (_: posix.Signal))posix.SIG_IGN)
 }
 
+clipboard_destroy :: proc(clipboard_state: ^Clipboard_State) {
+	if text, ok := clipboard_state.data.(string); ok {
+		delete(text)
+	}
+}
+
 // Copy
 clipboard_control_source_listener := wl_custom.data_control_source_v1_listener {
 	send      = clipboard_control_source_send,
@@ -52,9 +58,12 @@ clipboard_control_source_send :: proc "c" (
 	app_context := cast(^App_Context)data
 	context = app_context.ctx
 
+	text, ok := app_context.window.wl.clipboard_state.data.(string)
+	assert(ok, "Expected string to be non-nil")
+
 	switch mime {
 	case "text/plain;charset=utf-8", "text/plain":
-		os.write(os.Handle(fd), transmute([]u8)app_context.window.wl.clipboard_state.data)
+		os.write(os.Handle(fd), transmute([]u8)text)
 		os.close(os.Handle(fd))
 	case:
 		fmt.eprintln("unsupported mime type", mime)
@@ -124,7 +133,10 @@ clipboard_control_offer_offer :: proc "c" (data: rawptr, offer: ^wl_custom.data_
 }
 
 clipboard_copy :: proc(text: string, app_context: ^App_Context) {
-	app_context.window.wl.clipboard_state.data = text
+	if text, ok := app_context.window.wl.clipboard_state.data.(string); ok {
+		delete(text)
+	}
+	app_context.window.wl.clipboard_state.data = strings.clone(text)
 
 	app_context.window.wl.clipboard_state.control_source = wl_custom.data_control_manager_v1_create_data_source(
 		app_context.window.wl.clipboard_state.control_manager,

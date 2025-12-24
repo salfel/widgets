@@ -173,4 +173,5 @@ wl_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 
 wl_destroy :: proc(wl_state: ^Wayland_State) {
 	keyboard_state_destroy(&wl_state.keyboard_state)
+	clipboard_destroy(&wl_state.clipboard_state)
 }
