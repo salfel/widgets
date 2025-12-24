@@ -56,11 +56,11 @@ clipboard_control_source_send :: proc "c" (
 	app_context := cast(^App_Context)data
 	context = app_context.ctx
 
-	text, ok := app_context.window.wl.clipboard_state.data.(string)
-	assert(ok, "Expected string to be non-nil")
-
 	switch mime {
 	case "text/plain;charset=utf-8", "text/plain":
+		text, ok := app_context.window.wl.clipboard_state.data.(string)
+		assert(ok, "Expected string to be non-nil")
+
 		new_action, old_action: posix.sigaction_t
 		new_action.sa_handler = cast(proc "c" (_: posix.Signal))posix.SIG_IGN
 		posix.sigemptyset(&new_action.sa_mask)
