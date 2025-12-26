@@ -38,11 +38,23 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	font_size: f32 = 48
 	content := "helloworld"
 
+	field_style := rect_style_init()
+	rect_style_set_size(field_style, [2]f32{600, 0})
+	rect_style_set_background_color(field_style, Color{0.2, 0.2, 0.2, 1.0})
+
+	cursor_style := rect_style_init()
+	rect_style_set_size(cursor_style, [2]f32{1, 96})
+	rect_style_set_background_color(cursor_style, WHITE)
+
+	selection_style := rect_style_init()
+	rect_style_set_size(selection_style, [2]f32{0, 0})
+	rect_style_set_background_color(selection_style, BLUE)
+
 	widget.data = Text_Field {
-		field     = rect_make({600, 0}, {0.2, 0.2, 0.2, 1.0}),
+		field     = rect_make(field_style),
 		text      = text_make(content, "Sans", font_size, WHITE),
-		cursor    = rect_make({1, 96}, WHITE),
-		selection = rect_make({0, 0}, BLUE),
+		cursor    = rect_make(cursor_style),
+		selection = rect_make(selection_style),
 	}
 
 	text_field := (&widget.data.(Text_Field))

@@ -12,7 +12,7 @@ Rect :: struct {
 	// internal
 	mp:                matrix[4, 4]f32,
 	layout:            Layout,
-	color:             Color,
+	style_id:          Style_Id,
 
 	// opengl
 	program:           u32,
@@ -22,25 +22,24 @@ Rect :: struct {
 
 Rect_Uniform :: enum {
 	MP,
-	Color,
+	Background_Color,
 }
 
-rect_make :: proc(size: [2]f32, color: Color) -> Rect {
+rect_make :: proc(style_id: Style_Id) -> Rect {
 	cache_init(&rect_cache, RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
 
-	rect := Rect{}
+	rect := Rect {
+		style_id = style_id,
+	}
 
 	rect.program, _ = create_program(rect_cache.vertex_shader, rect_cache.fragment_shader)
 
-	rect.layout.style.size.x = layout_constraint_make(size.x)
-	rect.layout.style.size.y = layout_constraint_make(size.y)
-
 	rect.uniform_locations = {
-		.MP    = gl.GetUniformLocation(rect.program, "MP"),
-		.Color = gl.GetUniformLocation(rect.program, "color"),
+		.MP               = gl.GetUniformLocation(rect.program, "MP"),
+		.Background_Color = gl.GetUniformLocation(rect.program, "color"),
 	}
 
-	rect.color = color
+	rect_apply_style(&rect)
 
 	return rect
 }
@@ -53,8 +52,22 @@ rect_destroy :: proc(rect: ^Rect) {
 rect_draw :: proc(rect: ^Rect) {
 	gl.UseProgram(rect.program)
 
-	gl.UniformMatrix4fv(rect.uniform_locations[.MP], 1, false, linalg.matrix_to_ptr(&rect.mp))
-	gl.Uniform4fv(rect.uniform_locations[.Color], 1, linalg.vector_to_ptr(&rect.color))
+	for uniform in rect.pending_uniforms {
+		switch uniform {
+		case .MP:
+			gl.UniformMatrix4fv(rect.uniform_locations[.MP], 1, false, linalg.matrix_to_ptr(&rect.mp))
+		case .Background_Color:
+			rect_style, ok := style_manager_rect_style_get(rect.style_id)
+			assert(ok, "style not found")
+
+			gl.Uniform4fv(
+				rect.uniform_locations[.Background_Color],
+				1,
+				linalg.vector_to_ptr(&rect_style.background_color),
+			)
+		}
+		rect.pending_uniforms = {}
+	}
 
 	gl.BindVertexArray(rect_cache.vao)
 	gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
@@ -66,6 +79,22 @@ rect_draw :: proc(rect: ^Rect) {
 rect_recalculate_mp :: proc(rect: ^Rect, app_context: ^App_Context) {
 	rect.mp = calculate_mp(rect.layout, app_context)
 	rect.pending_uniforms += {.MP}
+}
+
+rect_apply_style :: proc(rect: ^Rect) {
+	rect_style, ok := style_manager_rect_style_get(rect.style_id)
+	assert(ok, "style not found")
+
+	for property in rect_style.rect_changed_properties {
+		switch property {
+		case .Size:
+			rect.layout.style.size.x = layout_constraint_make(rect_style.size.x)
+			rect.layout.style.size.y = layout_constraint_make(rect_style.size.y)
+			rect.pending_uniforms += {.MP}
+		case .Background_Color:
+			rect.pending_uniforms += {.Background_Color}
+		}
+	}
 }
 
 @(fini)
