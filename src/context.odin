@@ -28,6 +28,8 @@ app_context_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 	event_manager_init(&app_context.event_manager)
 	timer_init(&app_context.timer)
 	renderer_init(&app_context.renderer)
+
+	style_manager_init()
 }
 
 app_context_destroy :: proc(app_context: ^App_Context) {
@@ -36,4 +38,6 @@ app_context_destroy :: proc(app_context: ^App_Context) {
 	widget_manager_destroy(&app_context.widget_manager)
 	event_manager_destroy(&app_context.event_manager)
 	timer_destroy(&app_context.timer)
+
+	style_manager_destroy()
 }

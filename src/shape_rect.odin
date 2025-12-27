@@ -12,7 +12,7 @@ Rect :: struct {
 	// internal
 	mp:                matrix[4, 4]f32,
 	layout:            Layout,
-	style_id:          Style_Id,
+	style_id:          Rect_Style_Id,
 
 	// opengl
 	program:           u32,
@@ -25,7 +25,7 @@ Rect_Uniform :: enum {
 	Background_Color,
 }
 
-rect_make :: proc(style_id: Style_Id) -> Rect {
+rect_make :: proc(style_id: Rect_Style_Id) -> Rect {
 	cache_init(&rect_cache, RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
 
 	rect := Rect {
@@ -57,7 +57,7 @@ rect_draw :: proc(rect: ^Rect) {
 		case .MP:
 			gl.UniformMatrix4fv(rect.uniform_locations[.MP], 1, false, linalg.matrix_to_ptr(&rect.mp))
 		case .Background_Color:
-			rect_style, ok := style_manager_rect_style_get(rect.style_id)
+			rect_style, ok := style_get(rect.style_id)
 			assert(ok, "style not found")
 
 			gl.Uniform4fv(
@@ -82,14 +82,16 @@ rect_recalculate_mp :: proc(rect: ^Rect, app_context: ^App_Context) {
 }
 
 rect_apply_style :: proc(rect: ^Rect) {
-	rect_style, ok := style_manager_rect_style_get(rect.style_id)
+	rect_style, ok := style_get(rect.style_id)
 	assert(ok, "style not found")
 
-	for property in rect_style.rect_changed_properties {
+	for property in rect_style.changed_properties {
 		switch property {
-		case .Size:
-			rect.layout.style.size.x = layout_constraint_make(rect_style.size.x)
-			rect.layout.style.size.y = layout_constraint_make(rect_style.size.y)
+		case .Width:
+			rect.layout.style.size.x = layout_constraint_make(rect_style.width)
+			rect.pending_uniforms += {.MP}
+		case .Height:
+			rect.layout.style.size.y = layout_constraint_make(rect_style.height)
 			rect.pending_uniforms += {.MP}
 		case .Background_Color:
 			rect.pending_uniforms += {.Background_Color}

@@ -39,16 +39,19 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 	content := "helloworld"
 
 	field_style := rect_style_init()
-	rect_style_set_size(field_style, [2]f32{600, 0})
-	rect_style_set_background_color(field_style, Color{0.2, 0.2, 0.2, 1.0})
+	style_set_width(field_style, 600)
+	style_set_height(field_style, 0)
+	style_set_background_color(field_style, Color{0.2, 0.2, 0.2, 1.0})
 
 	cursor_style := rect_style_init()
-	rect_style_set_size(cursor_style, [2]f32{1, 96})
-	rect_style_set_background_color(cursor_style, WHITE)
+	style_set_width(cursor_style, 1)
+	style_set_height(cursor_style, 96)
+	style_set_background_color(cursor_style, WHITE)
 
 	selection_style := rect_style_init()
-	rect_style_set_size(selection_style, [2]f32{0, 0})
-	rect_style_set_background_color(selection_style, BLUE)
+	style_set_width(selection_style, 0)
+	style_set_height(selection_style, 0)
+	style_set_background_color(selection_style, BLUE)
 
 	widget.data = Text_Field {
 		field     = rect_make(field_style),

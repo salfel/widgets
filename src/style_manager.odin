@@ -1,104 +1,91 @@
 package main
 
-import "core:slice"
-
-Style_Id :: distinct int
-
 Style_Type :: enum {
 	Rect,
 }
 
-Style_Handle :: struct {
-	id:   Style_Id,
-	type: Style_Type,
-}
-
 Style_Manager :: struct {
-	rect_styles: [dynamic]Style_Entry(Rect_Style),
+	rect_styles: map[Rect_Style_Id]Rect_Style,
+	current_id:  uint, // we're using only one id counter as it is not expected that it will ever overflow
 }
 g_style_manager: Style_Manager
 
-Style_Entry :: struct(T: typeid) {
-	data: T,
-	id:   Style_Id,
+style_manager_init :: proc(allocator := context.allocator) {
+	g_style_manager.rect_styles = make(map[Rect_Style_Id]Rect_Style, allocator)
 }
 
-Sizable_Style :: struct {
-	size: [2]f32,
+style_manager_destroy :: proc() {
+	delete(g_style_manager.rect_styles)
 }
 
+Rect_Style_Id :: distinct uint
 Rect_Style :: struct {
-	using sizable:           Sizable_Style,
-	background_color:        Color,
-	rect_changed_properties: bit_set[Rect_Property],
+	width, height:      f32,
+	background_color:   Color,
+	changed_properties: bit_set[Rect_Property],
 }
-
+DEFAULT_RECT_STYLE :: Rect_Style {
+	width              = 0,
+	height             = 0,
+	background_color   = Color{0, 0, 0, 0},
+	changed_properties = {.Width, .Height, .Background_Color},
+}
 Rect_Property :: enum {
-	Size,
+	Width,
+	Height,
 	Background_Color,
 }
 
-DEFAULT_RECT_STYLE := Rect_Style {
-	size                    = [2]f32{0, 0},
-	background_color        = Color{0, 0, 0, 0},
-	rect_changed_properties = {.Size, .Background_Color},
-}
+rect_style_init :: proc() -> Rect_Style_Id {
+	id := Rect_Style_Id(g_style_manager.current_id)
+	g_style_manager.rect_styles[id] = DEFAULT_RECT_STYLE
 
-rect_style_init :: proc() -> Style_Id {
-	id := slice.last(g_style_manager.rect_styles[:]).id + 1 if len(g_style_manager.rect_styles) > 0 else 0
-	append(&g_style_manager.rect_styles, Style_Entry(Rect_Style){DEFAULT_RECT_STYLE, id})
+	g_style_manager.current_id += 1
 
 	return id
 }
 
-rect_style_destroy :: proc(style_id: Style_Id) {
-	index, ok := style_manager_rect_style_index(style_id)
+rect_style_set_width :: proc(handle: Rect_Style_Id, width: f32) -> bool {
+	style := style_get(handle) or_return
+	style.width = width
+	style.changed_properties += {.Width}
 
-	if ok {
-		ordered_remove(&g_style_manager.rect_styles, index)
-	}
+	return true
 }
 
-rect_style_set_background_color :: proc(style_id: Style_Id, color: Color) {
-	rect_style, ok := style_manager_rect_style_get(style_id)
+rect_style_set_height :: proc(handle: Rect_Style_Id, height: f32) -> bool {
+	style := style_get(handle) or_return
+	style.height = height
+	style.changed_properties += {.Height}
 
-	if !ok || rect_style.background_color == color {
-		return
-	}
-
-	rect_style.background_color = color
-	rect_style.rect_changed_properties += {.Background_Color}
+	return true
 }
 
-rect_style_set_size :: proc(style_id: Style_Id, size: [2]f32) {
-	rect_style, ok := style_manager_rect_style_get(style_id)
+rect_style_set_background_color :: proc(handle: Rect_Style_Id, background: Color) -> bool {
+	style := style_get(handle) or_return
+	style.background_color = background
+	style.changed_properties += {.Background_Color}
 
-	if !ok || rect_style.size == size {
-		return
-	}
-
-	rect_style.size = size
-	rect_style.rect_changed_properties += {.Size}
+	return true
 }
 
-style_manager_rect_style_index :: proc(style_id: Style_Id) -> (int, bool) {
-	return slice.binary_search_by(
-		g_style_manager.rect_styles[:],
-		Style_Entry(Rect_Style){id = style_id},
-		proc(a, b: Style_Entry(Rect_Style)) -> slice.Ordering {
-			if a.id < b.id {
-				return .Less
-			} else if a.id > b.id {
-				return .Greater
-			} else {
-				return .Equal
-			}
-		},
-	)
+style_set_width :: proc {
+	rect_style_set_width,
 }
 
-style_manager_rect_style_get :: proc(style_id: Style_Id) -> (rect_style: ^Rect_Style, ok: bool) {
-	index := style_manager_rect_style_index(style_id) or_return
+style_set_height :: proc {
+	rect_style_set_height,
+}
 
-	return &g_style_manager.rect_styles[index].data, true
+style_set_background_color :: proc {
+	rect_style_set_background_color,
+}
+
+style_get :: proc {
+	style_get_rect,
+}
+
+@(private)
+style_get_rect :: proc(handle: Rect_Style_Id) -> (^Rect_Style, bool) {
+	return &g_style_manager.rect_styles[handle]
 }
