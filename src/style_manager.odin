@@ -143,6 +143,7 @@ Text_Style :: struct {
 	using style_observer:    Style_Observer,
 	font_size:               f32,
 	color, background_color: Color,
+	wrap:                    Wrap,
 	changed_properties:      bit_set[Text_Property],
 }
 DEFAULT_TEXT_STYLE_ID :: Text_Style_Id(0)
@@ -150,12 +151,14 @@ DEFAULT_TEXT_STYLE :: Text_Style {
 	font_size          = 16,
 	color              = WHITE,
 	background_color   = TRANSPARENT,
-	changed_properties = {.Font_Size, .Color, .Background_Color},
+	wrap               = .WRAP_WORD,
+	changed_properties = {.Font_Size, .Color, .Background_Color, .Wrap},
 }
 Text_Property :: enum {
 	Font_Size,
 	Color,
 	Background_Color,
+	Wrap,
 }
 
 text_style_init :: proc() -> Text_Style_Id {
@@ -215,6 +218,16 @@ style_set_color :: proc(handle: $T, color: Color) -> bool where intrinsics.type_
 	style := style_get(handle) or_return
 	style.color = color
 	style.changed_properties += {.Color}
+	style_observer_notify(style, handle)
+	style.changed_properties = {}
+
+	return true
+}
+
+style_set_wrap :: proc(handle: $T, wrap: Wrap) -> bool where intrinsics.type_is_variant_of(Style_Id, T) {
+	style := style_get(handle) or_return
+	style.wrap = wrap
+	style.changed_properties += {.Wrap}
 	style_observer_notify(style, handle)
 	style.changed_properties = {}
 

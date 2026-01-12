@@ -13,7 +13,6 @@ Text :: struct {
 	style_id:           Text_Style_Id,
 	content, font_name: string,
 	font:               Font,
-	wrap:               bool,
 
 	// external
 	mp:                 matrix[4, 4]f32,
@@ -35,7 +34,6 @@ Text_Uniform :: enum {
 text_init :: proc(text: ^Text, content, font: string, style: Text_Style_Id = 0) {
 	text.content = content
 	text.font_name = font
-	text.wrap = true
 
 	text.style_id = style
 	style_subscribe(style, text_changed_style, text)
@@ -127,15 +125,24 @@ text_changed_style :: proc(data: rawptr, initial: bool) {
 	for property in changed_properties {
 		switch property {
 		case .Font_Size:
-			font_set_size(&text.font, f64(style.font_size))
-			text_update_layout(text)
-			text_generate_texture(text)
-			text.pending_uniforms += {.Tex}
+			ok := font_set_size(&text.font, f64(style.font_size))
+			if ok {
+				text_update_layout(text)
+				text_generate_texture(text)
+				text.pending_uniforms += {.Tex}
+			}
 		// TODO: set renderer dirty
 		case .Color:
 			text.pending_uniforms += {.Color}
 		case .Background_Color:
 			text.pending_uniforms += {.Background_Color}
+		case .Wrap:
+			ok := font_set_wrap(&text.font, style.wrap)
+			if ok {
+				text_update_layout(text)
+				text_generate_texture(text)
+				text.pending_uniforms += {.Tex}
+			}
 		}
 	}
 }

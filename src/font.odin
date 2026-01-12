@@ -61,7 +61,11 @@ font_set_content :: proc(font: ^Font, content: string) {
 	font_create_surface(font)
 }
 
-font_set_size :: proc(font: ^Font, font_size: f64) {
+font_set_size :: proc(font: ^Font, font_size: f64) -> bool {
+	if font.font_size == font_size {
+		return false
+	}
+
 	cairo.destroy(font.cr)
 	cairo.surface_destroy(font.surface)
 	gobj.object_unref(font.layout)
@@ -70,18 +74,30 @@ font_set_size :: proc(font: ^Font, font_size: f64) {
 
 	font_calc_rect(font)
 	font_create_surface(font)
+
+	return true
 }
 
-font_set_width :: proc(font: ^Font, width: i32) {
+font_set_width :: proc(font: ^Font, width: i32) -> bool {
+	if font.size.x == width {
+		return false
+	}
+
 	cairo.destroy(font.cr)
 	cairo.surface_destroy(font.surface)
 	gobj.object_unref(font.layout)
 
 	font_calc_rect(font, width)
 	font_create_surface(font)
+
+	return true
 }
 
-font_set_wrap :: proc(font: ^Font, wrap: Wrap) {
+font_set_wrap :: proc(font: ^Font, wrap: Wrap) -> bool {
+	if font.wrap == wrap {
+		return false
+	}
+
 	cairo.destroy(font.cr)
 	cairo.surface_destroy(font.surface)
 	gobj.object_unref(font.layout)
@@ -90,6 +106,8 @@ font_set_wrap :: proc(font: ^Font, wrap: Wrap) {
 
 	font_calc_rect(font)
 	font_create_surface(font)
+
+	return true
 }
 
 font_create_surface :: proc(font: ^Font) {
