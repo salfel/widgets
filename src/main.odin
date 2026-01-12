@@ -24,7 +24,10 @@ main :: proc() {
 	app_context_init(&app_context, "widgets", "widgets")
 	defer app_context_destroy(&app_context)
 
-	text_field := text_field_make()
+	text_field_style := text_field_style_init()
+	style_set_font_size(text_field_style, 48)
+
+	text_field := text_field_make(text_field_style)
 	widget_register(text_field, &app_context.widget_manager)
 	widget_attach_to_viewport(text_field, &app_context.widget_manager)
 

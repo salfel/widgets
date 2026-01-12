@@ -6,11 +6,14 @@ import text "core:text/edit"
 import gl "vendor:OpenGL"
 
 Text_Field :: struct {
+	style:                    Text_Field_Style_Id,
+
+	// text state
 	state:                    text.State,
 	builder:                  strings.Builder,
 
 	// shapes
-	field, cursor, selection: Rect,
+	field, cursor, selection: Rect, // TODO: maybe inline those in text_field
 	text:                     Text,
 	pending_update:           bit_set[Text_Field_Shape],
 }
@@ -21,7 +24,13 @@ Text_Field_Shape :: enum {
 	Selection,
 }
 
-text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok := true) #optional_ok {
+text_field_make :: proc(
+	style: Text_Field_Style_Id = 0,
+	allocator := context.allocator,
+) -> (
+	widget: ^Widget,
+	ok := true,
+) #optional_ok {
 	widget = widget_make(allocator)
 	widget.type = .Text_Field
 
@@ -35,32 +44,35 @@ text_field_make :: proc(allocator := context.allocator) -> (widget: ^Widget, ok 
 
 	widget.layout.style.padding = sides_make(20)
 
-	font_size: f32 = 48
 	content := "helloworld"
+
+	widget.data = Text_Field{}
+	text_field := (&widget.data.(Text_Field))
+
+	text_field.style = style
+	style_subscribe(style, text_field_style_changed, text_field)
+
+	style := style_get(style) or_return
+
+	text_field.text = text_make(content, "Sans", style.font_size, WHITE)
 
 	field_style := rect_style_init()
 	style_set_width(field_style, 600)
 	style_set_height(field_style, 0)
-	style_set_background_color(field_style, Color{0.2, 0.2, 0.2, 1.0})
+	style_set_background_color(field_style, style.background_color)
+	rect_init(&text_field.field, field_style)
 
 	cursor_style := rect_style_init()
 	style_set_width(cursor_style, 1)
 	style_set_height(cursor_style, 96)
 	style_set_background_color(cursor_style, WHITE)
+	rect_init(&text_field.cursor, cursor_style)
 
 	selection_style := rect_style_init()
 	style_set_width(selection_style, 0)
 	style_set_height(selection_style, 0)
 	style_set_background_color(selection_style, BLUE)
-
-	widget.data = Text_Field {
-		field     = rect_make(field_style),
-		text      = text_make(content, "Sans", font_size, WHITE),
-		cursor    = rect_make(cursor_style),
-		selection = rect_make(selection_style),
-	}
-
-	text_field := (&widget.data.(Text_Field))
+	rect_init(&text_field.selection, selection_style)
 
 	append(&widget.layout.children, &text_field.field.layout)
 	append(&text_field.field.layout.children, &text_field.text.layout)
@@ -244,6 +256,22 @@ text_field_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	if text_field.cursor.layout.dirty {
 		text_field.pending_update += {.Cursor}
 	}
+}
+
+text_field_style_changed :: proc(data: rawptr) {
+	text_field := cast(^Text_Field)data
+	style, ok := style_get(text_field.style)
+
+	for property in style.changed_properties {
+		switch property {
+		case .Font_Size:
+		// TODO
+		case .Background_Color:
+			style_set_background_color(text_field.field.style_id, style.background_color)
+		}
+	}
+
+	// TODO: register wl callback
 }
 
 text_field_update_cursor :: proc(text_field: ^Text_Field) {

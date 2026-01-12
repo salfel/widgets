@@ -25,12 +25,13 @@ Rect_Uniform :: enum {
 	Background_Color,
 }
 
-rect_make :: proc(style_id: Rect_Style_Id) -> Rect {
+rect_init :: proc(rect: ^Rect, style_id: Rect_Style_Id) {
 	cache_init(&rect_cache, RECT_VERTEX_SHADER, RECT_FRAGMENT_SHADER)
 
-	rect := Rect {
-		style_id = style_id,
-	}
+	rect.style_id = style_id
+	style_subscribe(style_id, rect_style_changed, rect)
+
+	rect_style_changed(rect)
 
 	rect.program, _ = create_program(rect_cache.vertex_shader, rect_cache.fragment_shader)
 
@@ -38,10 +39,7 @@ rect_make :: proc(style_id: Rect_Style_Id) -> Rect {
 		.MP               = gl.GetUniformLocation(rect.program, "MP"),
 		.Background_Color = gl.GetUniformLocation(rect.program, "color"),
 	}
-
-	rect_apply_style(&rect)
-
-	return rect
+	rect.pending_uniforms = {.MP, .Background_Color}
 }
 
 rect_destroy :: proc(rect: ^Rect) {
@@ -81,7 +79,9 @@ rect_recalculate_mp :: proc(rect: ^Rect, app_context: ^App_Context) {
 	rect.pending_uniforms += {.MP}
 }
 
-rect_apply_style :: proc(rect: ^Rect) {
+rect_style_changed :: proc(data: rawptr) {
+	rect := cast(^Rect)data
+
 	rect_style, ok := style_get(rect.style_id)
 	assert(ok, "style not found")
 
@@ -89,10 +89,8 @@ rect_apply_style :: proc(rect: ^Rect) {
 		switch property {
 		case .Width:
 			rect.layout.style.size.x = layout_constraint_make(rect_style.width)
-			rect.pending_uniforms += {.MP}
 		case .Height:
 			rect.layout.style.size.y = layout_constraint_make(rect_style.height)
-			rect.pending_uniforms += {.MP}
 		case .Background_Color:
 			rect.pending_uniforms += {.Background_Color}
 		}
