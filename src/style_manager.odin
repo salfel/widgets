@@ -211,6 +211,16 @@ style_set_font_size :: proc(handle: $T, font_size: f32) -> bool where intrinsics
 	return true
 }
 
+style_set_color :: proc(handle: $T, color: Color) -> bool where intrinsics.type_is_variant_of(Style_Id, T) {
+	style := style_get(handle) or_return
+	style.color = color
+	style.changed_properties += {.Color}
+	style_observer_notify(style, handle)
+	style.changed_properties = {}
+
+	return true
+}
+
 style_get :: proc {
 	style_get_rect,
 	style_get_text,
