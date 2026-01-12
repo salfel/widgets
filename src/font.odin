@@ -61,6 +61,17 @@ font_set_content :: proc(font: ^Font, content: string) {
 	font_create_surface(font)
 }
 
+font_set_size :: proc(font: ^Font, font_size: f64) {
+	cairo.destroy(font.cr)
+	cairo.surface_destroy(font.surface)
+	gobj.object_unref(font.layout)
+
+	font.font_size = font_size
+
+	font_calc_rect(font)
+	font_create_surface(font)
+}
+
 font_set_width :: proc(font: ^Font, width: i32) {
 	cairo.destroy(font.cr)
 	cairo.surface_destroy(font.surface)

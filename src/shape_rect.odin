@@ -31,7 +31,7 @@ rect_init :: proc(rect: ^Rect, style_id: Rect_Style_Id) {
 	rect.style_id = style_id
 	style_subscribe(style_id, rect_style_changed, rect)
 
-	rect_style_changed(rect)
+	rect_style_changed(rect, true)
 
 	rect.program, _ = create_program(rect_cache.vertex_shader, rect_cache.fragment_shader)
 
@@ -79,18 +79,20 @@ rect_recalculate_mp :: proc(rect: ^Rect, app_context: ^App_Context) {
 	rect.pending_uniforms += {.MP}
 }
 
-rect_style_changed :: proc(data: rawptr) {
+rect_style_changed :: proc(data: rawptr, initial: bool) {
 	rect := cast(^Rect)data
 
-	rect_style, ok := style_get(rect.style_id)
+	style, ok := style_get(rect.style_id)
 	assert(ok, "style not found")
 
-	for property in rect_style.changed_properties {
+	changed_properties := DEFAULT_RECT_STYLE.changed_properties if initial else style.changed_properties
+
+	for property in changed_properties {
 		switch property {
 		case .Width:
-			rect.layout.style.size.x = layout_constraint_make(rect_style.width)
+			rect.layout.style.size.x = layout_constraint_make(style.width)
 		case .Height:
-			rect.layout.style.size.y = layout_constraint_make(rect_style.height)
+			rect.layout.style.size.y = layout_constraint_make(style.height)
 		case .Background_Color:
 			rect.pending_uniforms += {.Background_Color}
 		}

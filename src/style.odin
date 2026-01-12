@@ -80,16 +80,16 @@ DEFAULT_BOX_STYLE :: Box_Style {
 	border           = {},
 }
 
-Text_Style :: struct {
-	font_size: f32,
-	color:     Color,
-}
-
-DEFAULT_TEXT_STYLE :: Text_Style {
-	color     = BLACK,
-	font_size = 24,
-}
-
+// Text_Style :: struct {
+// 	font_size: f32,
+// 	color:     Color,
+// }
+//
+// DEFAULT_TEXT_STYLE :: Text_Style {
+// 	color     = BLACK,
+// 	font_size = 24,
+// }
+//
 Image_Style :: struct {
 	opacity: f32,
 }

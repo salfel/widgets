@@ -10,20 +10,19 @@ TEXT_FRAGMENT_SHADER :: #load("shaders/text/fragment.glsl", cstring)
 
 Text :: struct {
 	// internal
-	content, font_name:      string,
-	color, background_color: Color,
-	font_size:               f32,
-	font:                    Font,
-	wrap:                    bool,
+	style_id:           Text_Style_Id,
+	content, font_name: string,
+	font:               Font,
+	wrap:               bool,
 
 	// external
-	mp:                      matrix[4, 4]f32,
-	layout:                  Layout,
+	mp:                 matrix[4, 4]f32,
+	layout:             Layout,
 
 	// opengl
-	program, texture:        u32,
-	uniform_locations:       [Text_Uniform]i32,
-	pending_uniforms:        bit_set[Text_Uniform],
+	program, texture:   u32,
+	uniform_locations:  [Text_Uniform]i32,
+	pending_uniforms:   bit_set[Text_Uniform],
 }
 
 Text_Uniform :: enum {
@@ -33,18 +32,20 @@ Text_Uniform :: enum {
 	Background_Color,
 }
 
-text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
-	text := Text {
-		content   = content,
-		font_name = font,
-		font_size = font_size,
-		color     = color,
-		wrap      = true,
-	}
+text_init :: proc(text: ^Text, content, font: string, style: Text_Style_Id = 0) {
+	text.content = content
+	text.font_name = font
+	text.wrap = true
 
-	text.font = font_make(content, font, f64(font_size))
-	text_update_layout(&text)
-	text_generate_texture(&text)
+	text.style_id = style
+	style_subscribe(style, text_changed_style, text)
+
+	style, ok := style_get(style)
+	assert(ok, "style not found")
+
+	text.font = font_make(content, font, f64(style.font_size))
+
+	text_changed_style(text, true)
 
 	cache_init(&text_cache, TEXT_VERTEX_SHADER, TEXT_FRAGMENT_SHADER)
 	text.program, _ = create_program(text_cache.vertex_shader, text_cache.fragment_shader)
@@ -55,8 +56,6 @@ text_make :: proc(content, font: string, font_size: f32, color: Color) -> Text {
 		.Background_Color = gl.GetUniformLocation(text.program, "background_color"),
 	}
 	text.pending_uniforms = {.MP, .Tex, .Color, .Background_Color}
-
-	return text
 }
 
 text_destroy :: proc(text: ^Text) {
@@ -73,6 +72,9 @@ text_draw :: proc(text: ^Text) {
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, text.texture)
 
+	style, ok := style_get(text.style_id)
+	assert(ok, "style not found")
+
 	for uniform in text.pending_uniforms {
 		switch uniform {
 		case .MP:
@@ -80,9 +82,9 @@ text_draw :: proc(text: ^Text) {
 		case .Tex:
 			gl.Uniform1i(text.uniform_locations[.Tex], 0)
 		case .Color:
-			gl.Uniform4fv(text.uniform_locations[.Color], 1, linalg.vector_to_ptr(&text.color))
+			gl.Uniform4fv(text.uniform_locations[.Color], 1, linalg.vector_to_ptr(&style.color))
 		case .Background_Color:
-			gl.Uniform4fv(text.uniform_locations[.Background_Color], 1, linalg.vector_to_ptr(&text.background_color))
+			gl.Uniform4fv(text.uniform_locations[.Background_Color], 1, linalg.vector_to_ptr(&style.background_color))
 		}
 		text.pending_uniforms = {}
 	}
@@ -112,6 +114,30 @@ text_set_wrap :: proc(text: ^Text, wrap: Wrap) {
 	font_set_wrap(&text.font, wrap)
 
 	text_update_layout(text)
+	text_generate_texture(text)
+}
+
+text_changed_style :: proc(data: rawptr, initial: bool) {
+	text := cast(^Text)data
+	style, ok := style_get(text.style_id)
+	assert(ok, "style not found")
+
+	changed_properties := DEFAULT_TEXT_STYLE.changed_properties if initial else style.changed_properties
+
+	for property in changed_properties {
+		switch property {
+		case .Font_Size:
+			font_set_size(&text.font, f64(style.font_size))
+			text_update_layout(text)
+			text_generate_texture(text)
+			text.pending_uniforms += {.Tex}
+		// TODO: set renderer dirty
+		case .Color:
+			text.pending_uniforms += {.Color}
+		case .Background_Color:
+			text.pending_uniforms += {.Background_Color}
+		}
+	}
 }
 
 text_update_layout :: proc(text: ^Text) {

@@ -5,6 +5,7 @@ import "base:intrinsics"
 Style_Manager :: struct {
 	rect_styles:       map[Rect_Style_Id]Rect_Style,
 	text_field_styles: map[Text_Field_Style_Id]Text_Field_Style,
+	text_styles:       map[Text_Style_Id]Text_Style,
 	current_id:        uint, // we're using only one id counter as it is not expected that it will ever overflow
 }
 g_style_manager: Style_Manager
@@ -15,6 +16,9 @@ style_manager_init :: proc(allocator := context.allocator) {
 
 	g_style_manager.text_field_styles = make(map[Text_Field_Style_Id]Text_Field_Style, allocator)
 	g_style_manager.text_field_styles[0] = DEFAULT_TEXT_FIELD_STYLE
+
+	g_style_manager.text_styles = make(map[Text_Style_Id]Text_Style, allocator)
+	g_style_manager.text_styles[0] = DEFAULT_TEXT_STYLE
 
 	g_style_manager.current_id = 1
 }
@@ -28,11 +32,16 @@ style_manager_destroy :: proc() {
 		style_observer_destroy(&style.style_observer)
 	}
 
+	for _, &style in g_style_manager.text_styles {
+		style_observer_destroy(&style.style_observer)
+	}
+
 	delete(g_style_manager.rect_styles)
 	delete(g_style_manager.text_field_styles)
+	delete(g_style_manager.text_styles)
 }
 
-Style_Listener :: proc(data: rawptr)
+Style_Listener :: proc(data: rawptr, initial: bool)
 
 Style_Observer :: struct {
 	listeners: [dynamic]Handler(Style_Listener),
@@ -48,7 +57,7 @@ style_observer_destroy :: proc(style_observer: ^Style_Observer) {
 
 style_observer_notify :: proc(style_observer: ^Style_Observer, style_id: Style_Id) {
 	for listener in style_observer.listeners {
-		listener.handler(listener.data)
+		listener.handler(listener.data, false)
 	}
 }
 
@@ -68,6 +77,7 @@ style_subscribe :: proc(
 Style_Id :: union {
 	Rect_Style_Id,
 	Text_Field_Style_Id,
+	Text_Style_Id,
 }
 
 Rect_Style_Id :: distinct uint
@@ -109,8 +119,9 @@ Text_Field_Style :: struct {
 }
 DEFAULT_TEXT_FIELD_ID :: Text_Field_Style_Id(0)
 DEFAULT_TEXT_FIELD_STYLE :: Text_Field_Style {
-	font_size        = 16,
-	background_color = Color{0.2, 0.2, 0.2, 1.0},
+	font_size          = 16,
+	background_color   = Color{0.2, 0.2, 0.2, 1.0},
+	changed_properties = {.Font_Size, .Background_Color},
 }
 Text_Field_Property :: enum {
 	Font_Size,
@@ -127,11 +138,42 @@ text_field_style_init :: proc() -> Text_Field_Style_Id {
 	return id
 }
 
+Text_Style_Id :: distinct uint
+Text_Style :: struct {
+	using style_observer:    Style_Observer,
+	font_size:               f32,
+	color, background_color: Color,
+	changed_properties:      bit_set[Text_Property],
+}
+DEFAULT_TEXT_STYLE_ID :: Text_Style_Id(0)
+DEFAULT_TEXT_STYLE :: Text_Style {
+	font_size          = 16,
+	color              = WHITE,
+	background_color   = TRANSPARENT,
+	changed_properties = {.Font_Size, .Color, .Background_Color},
+}
+Text_Property :: enum {
+	Font_Size,
+	Color,
+	Background_Color,
+}
+
+text_style_init :: proc() -> Text_Style_Id {
+	id := Text_Style_Id(g_style_manager.current_id)
+	g_style_manager.text_styles[id] = DEFAULT_TEXT_STYLE
+	style_observer_init(&g_style_manager.text_styles[id])
+
+	g_style_manager.current_id += 1
+
+	return id
+}
+
 style_set_width :: proc(handle: $T, width: f32) -> bool where intrinsics.type_is_variant_of(Style_Id, T) {
 	style := style_get(handle) or_return
 	style.width = width
 	style.changed_properties += {.Width}
 	style_observer_notify(style, handle)
+	style.changed_properties = {}
 
 	return true
 }
@@ -141,6 +183,7 @@ style_set_height :: proc(handle: $T, height: f32) -> bool where intrinsics.type_
 	style.height = height
 	style.changed_properties += {.Height}
 	style_observer_notify(style, handle)
+	style.changed_properties = {}
 
 	return true
 }
@@ -153,6 +196,7 @@ style_set_background_color :: proc(
 	style.background_color = background
 	style.changed_properties += {.Background_Color}
 	style_observer_notify(style, handle)
+	style.changed_properties = {}
 
 	return true
 }
@@ -162,18 +206,25 @@ style_set_font_size :: proc(handle: $T, font_size: f32) -> bool where intrinsics
 	style.font_size = font_size
 	style.changed_properties += {.Font_Size}
 	style_observer_notify(style, handle)
+	style.changed_properties = {}
 
 	return true
 }
 
 style_get :: proc {
 	style_get_rect,
+	style_get_text,
 	style_get_text_field,
 }
 
 @(private)
 style_get_rect :: proc(handle: Rect_Style_Id) -> (^Rect_Style, bool) {
 	return &g_style_manager.rect_styles[handle]
+}
+
+@(private)
+style_get_text :: proc(handle: Text_Style_Id) -> (^Text_Style, bool) {
+	return &g_style_manager.text_styles[handle]
 }
 
 @(private)

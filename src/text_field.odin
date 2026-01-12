@@ -54,7 +54,9 @@ text_field_make :: proc(
 
 	style := style_get(style) or_return
 
-	text_field.text = text_make(content, "Sans", style.font_size, WHITE)
+	text_style := text_style_init()
+	style_set_font_size(text_style, style.font_size)
+	text_init(&text_field.text, content, "Sans", text_style)
 
 	field_style := rect_style_init()
 	style_set_width(field_style, 600)
@@ -258,14 +260,17 @@ text_field_recalculate_mp :: proc(widget: ^Widget, app_context: ^App_Context) {
 	}
 }
 
-text_field_style_changed :: proc(data: rawptr) {
+text_field_style_changed :: proc(data: rawptr, initial: bool) {
 	text_field := cast(^Text_Field)data
 	style, ok := style_get(text_field.style)
+	assert(ok, "style not found")
 
-	for property in style.changed_properties {
+	changed_properties := DEFAULT_TEXT_FIELD_STYLE.changed_properties if initial else style.changed_properties
+
+	for property in changed_properties {
 		switch property {
 		case .Font_Size:
-		// TODO
+			style_set_font_size(text_field.text.style_id, style.font_size)
 		case .Background_Color:
 			style_set_background_color(text_field.field.style_id, style.background_color)
 		}
