@@ -7,6 +7,7 @@ App_Context :: struct {
 	event_manager:  Event_Manager,
 	widget_manager: Widget_Manager,
 	input:          Input,
+	timer:          Timer,
 	renderer:       Renderer,
 	ctx:            runtime.Context,
 }
@@ -25,12 +26,18 @@ app_context_init :: proc(app_context: ^App_Context, title, app_id: cstring) {
 
 	widget_manager_init(&app_context.widget_manager)
 	event_manager_init(&app_context.event_manager)
-	input_init(&app_context.input)
+	timer_init(&app_context.timer)
 	renderer_init(&app_context.renderer)
+
+	style_manager_init()
 }
 
 app_context_destroy :: proc(app_context: ^App_Context) {
+	wl_destroy(&app_context.window.wl)
+
 	widget_manager_destroy(&app_context.widget_manager)
 	event_manager_destroy(&app_context.event_manager)
-	input_destroy(&app_context.input)
+	timer_destroy(&app_context.timer)
+
+	style_manager_destroy()
 }

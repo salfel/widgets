@@ -8,6 +8,11 @@ Layout_Property :: enum {
 	Expand_Vertical,
 }
 
+Layout_Behaviour :: enum {
+	Static,
+	Absolute,
+}
+
 Layout_Constraint :: struct {
 	min, preferred: f32,
 }
@@ -29,6 +34,7 @@ Layout_Style :: struct {
 	size:            [2]Layout_Constraint,
 	padding, margin: Sides,
 	border:          f32,
+	position:        Sides,
 	properties:      bit_set[Layout_Property],
 }
 
@@ -46,16 +52,27 @@ Layout :: struct {
 	children:       [dynamic]^Layout,
 	parent:         ^Layout,
 	axis:           Axis,
+	behaviour:      Layout_Behaviour,
+
+	// handler(internal)
+	on_measure:     Handler(proc(layout: ^Layout, data: rawptr)),
+	on_compute:     Handler(proc(layout: ^Layout, data: rawptr)),
+	on_arrange:     Handler(proc(layout: ^Layout, data: rawptr)),
 
 	// internal
 	intermediate:   struct {
-		constraint: [Axis]Layout_Constraint,
-		size:       [Axis]f32,
+		child_constraints: [Axis]Layout_Constraint,
+		constraint:        [Axis]Layout_Constraint,
+		size:              [Axis]f32,
 	},
 
 	// result
 	size, position: [2]f32,
-	overflow:       bool,
+	scroll:         struct {
+		position: [Axis]f32,
+		distance: [Axis]f32,
+		overflow: bool,
+	},
 	dirty:          bool,
 }
 
@@ -70,51 +87,65 @@ layout_destroy :: proc(layout: ^Layout) {
 layout_measure :: proc(layout: ^Layout) {
 	layout.dirty = false
 
-	child_constraints: [Axis]Layout_Constraint
+	layout.intermediate.child_constraints = [Axis]Layout_Constraint{}
 
 	for child in layout.children {
 		layout_measure(child)
 
+		if child.behaviour == .Absolute {
+			continue
+		}
+
 		// main axis
-		child_constraints[layout.axis].min +=
+		layout.intermediate.child_constraints[layout.axis].min +=
 			child.intermediate.constraint[layout.axis].min + sides_axis(child.style.margin, layout.axis)
-		child_constraints[layout.axis].preferred +=
+		layout.intermediate.child_constraints[layout.axis].preferred +=
 			child.intermediate.constraint[layout.axis].preferred + sides_axis(child.style.margin, layout.axis)
 
 		// cross axis
-		child_constraints[axis_opposite(layout.axis)].min = math.max(
-			child_constraints[axis_opposite(layout.axis)].min,
+		layout.intermediate.child_constraints[axis_opposite(layout.axis)].min = math.max(
+			layout.intermediate.child_constraints[axis_opposite(layout.axis)].min,
 			child.intermediate.constraint[axis_opposite(layout.axis)].min +
 			sides_axis(child.style.margin, axis_opposite(layout.axis)),
 		)
-		child_constraints[axis_opposite(layout.axis)].preferred = math.max(
-			child_constraints[axis_opposite(layout.axis)].preferred,
+		layout.intermediate.child_constraints[axis_opposite(layout.axis)].preferred = math.max(
+			layout.intermediate.child_constraints[axis_opposite(layout.axis)].preferred,
 			child.intermediate.constraint[axis_opposite(layout.axis)].preferred +
 			sides_axis(child.style.margin, axis_opposite(layout.axis)),
 		)
 	}
 
 	for axis in Axis {
-		layout.intermediate.constraint[axis].min =
-			math.max(
-				child_constraints[axis].min + sides_axis(layout.style.padding, axis),
-				layout.style.size[axis].min,
-			) +
-			2 * layout.style.border
+		if layout.style.size[axis].min > 0 {
+			layout.intermediate.constraint[axis].min = layout.style.size[axis].min + 2 * layout.style.border
+		} else {
+			layout.intermediate.constraint[axis].min =
+				layout.intermediate.child_constraints[axis].min +
+				sides_axis(layout.style.padding, axis) +
+				2 * layout.style.border
+		}
 
-		layout.intermediate.constraint[axis].preferred =
-			math.max(
-				child_constraints[axis].preferred + sides_axis(layout.style.padding, axis),
-				layout.style.size[axis].preferred,
-			) +
-			2 * layout.style.border
+		if layout.style.size[axis].preferred > 0 {
+			layout.intermediate.constraint[axis].preferred =
+				layout.style.size[axis].preferred + 2 * layout.style.border
+		} else {
+			layout.intermediate.constraint[axis].preferred =
+				layout.intermediate.child_constraints[axis].preferred +
+				sides_axis(layout.style.padding, axis) +
+				2 * layout.style.border
+		}
 
 		layout.intermediate.size[axis] = layout.intermediate.constraint[axis].preferred
+	}
+
+	if layout.on_measure.handler != nil {
+		layout.on_measure.handler(layout, layout.on_measure.data)
 	}
 }
 
 layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
-	available := available.(f32) if available != nil else layout.intermediate.size[layout.axis]
+	available :=
+		available.(f32) if available != nil else layout.intermediate.size[layout.axis] - sides_axis(layout.style.padding, layout.axis)
 	initial := layout.size
 
 	if layout.axis == .Horizontal {
@@ -124,14 +155,18 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		layout.size.y = math.clamp(available, layout.intermediate.constraint[.Vertical].min, math.F32_MAX)
 		layout.size.x = layout.intermediate.size[.Horizontal]
 	}
+	layout.scroll.overflow = false
 
 	// shrink
-	if layout.intermediate.constraint[layout.axis].preferred > available && len(layout.children) > 0 {
-		space_left := layout.intermediate.constraint[layout.axis].preferred - available
+	if layout.intermediate.child_constraints[layout.axis].preferred > available && len(layout.children) > 0 {
+		space_left := layout.intermediate.child_constraints[layout.axis].preferred - available
 
 		available_children := make_dynamic_array_len_cap([dynamic]^Layout, 0, len(layout.children), context.allocator)
 		defer delete(available_children)
 		for child in layout.children {
+			if child.behaviour == .Absolute {
+				continue
+			}
 			append(&available_children, child)
 		}
 
@@ -139,7 +174,9 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 			min_distance: f32 = math.F32_MAX
 
 			if len(available_children) == 0 {
-				layout.overflow = true
+				layout.scroll.overflow = true
+				layout.scroll.distance = {}
+				layout.scroll.distance[layout.axis] = space_left
 				break
 			}
 
@@ -174,12 +211,16 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 		}
 	}
 
+
 	// grow
-	if layout.intermediate.constraint[layout.axis].preferred < available && len(layout.children) > 0 {
+	if layout.intermediate.child_constraints[layout.axis].preferred < available && len(layout.children) > 0 {
 		space_left := available - layout.intermediate.constraint[layout.axis].preferred
 
 		expandable := 0
 		for child in layout.children {
+			if child.behaviour == .Absolute {
+				continue
+			}
 			if layout.axis == .Horizontal && .Expand_Horizontal in child.style.properties ||
 			   layout.axis == .Vertical && .Expand_Vertical in child.style.properties {
 				expandable += 1
@@ -246,17 +287,36 @@ layout_compute :: proc(layout: ^Layout, available: Maybe(f32) = nil) {
 	if layout.size != initial {
 		layout.dirty = true
 	}
+
+	if !layout.scroll.overflow {
+		layout.scroll.position = {}
+		layout.scroll.distance = {}
+	}
+
+	if layout.on_compute.handler != nil {
+		layout.on_compute.handler(layout, layout.on_compute.data)
+	}
 }
 
 layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 	initial := layout.position
-	layout.position = offset + {layout.style.margin.left, layout.style.margin.top}
+	layout.position =
+		offset +
+		({layout.style.margin.left, layout.style.margin.top} if layout.behaviour == .Static else {layout.style.position.left, layout.style.position.top})
 
 	offset := layout.position
 	offset += {layout.style.border + layout.style.padding.left, layout.style.border + layout.style.padding.top}
+	if layout.scroll.overflow {
+		offset -= {layout.scroll.position[.Horizontal], layout.scroll.position[.Vertical]}
+	}
+	initial_offset := offset
 
 	for child in layout.children {
-		layout_arrange(child, offset)
+		if child.behaviour == .Absolute {
+			layout_arrange(child, initial_offset)
+		} else {
+			layout_arrange(child, offset)
+		}
 
 		if layout.axis == .Horizontal {
 			offset.x += child.size.x + sides_axis(child.style.margin, .Horizontal)
@@ -267,6 +327,10 @@ layout_arrange :: proc(layout: ^Layout, offset: [2]f32 = {}) {
 
 	if layout.position != initial {
 		layout.dirty = true
+	}
+
+	if layout.on_arrange.handler != nil {
+		layout.on_arrange.handler(layout, layout.on_arrange.data)
 	}
 }
 

@@ -13,6 +13,7 @@ Widget_Type :: enum {
 	Text,
 	Image,
 	Button,
+	Text_Field,
 }
 
 Handler :: struct($T: typeid) where intrinsics.type_is_proc(T) {
@@ -30,17 +31,21 @@ Widget :: struct {
 	layout:         Layout,
 	children:       [dynamic]^Widget,
 	allow_children: bool,
+	focusable:      bool,
+	focused:        bool,
 	parent:         ^Widget,
 	data:           union {
 		Box,
 		Text,
 		Image,
+		Text_Field,
 	},
 
 	// internal functions
 	draw:           proc(widget: ^Widget, app_context: ^App_Context, depth: i32 = 1),
 	recalculate_mp: proc(widget: ^Widget, app_context: ^App_Context),
 	resize:         proc(widget: ^Widget) -> bool,
+	key:            proc(widget: ^Widget, key: Key, modifier: Modifiers, app_context: ^App_Context),
 	destroy:        proc(widget: ^Widget),
 
 	// handlers
@@ -141,6 +146,14 @@ calculate_mp :: proc(layout: Layout, app_context: ^App_Context) -> matrix[4, 4]f
 	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
 	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
 	projection := linalg.matrix_ortho3d_f32(0, app_context.window.size.x, app_context.window.size.y, 0, 0, 1)
+
+	return projection * translation * scale
+}
+
+calculate_mp2 :: proc(size: [2]f32, position: [2]f32, window_size: [2]f32) -> matrix[4, 4]f32 {
+	scale := linalg.matrix4_scale_f32({size.x, size.y, 1})
+	translation := linalg.matrix4_translate_f32({position.x, position.y, 0})
+	projection := linalg.matrix_ortho3d_f32(0, window_size.x, window_size.y, 0, 0, 1)
 
 	return projection * translation * scale
 }

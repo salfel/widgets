@@ -6,9 +6,8 @@ import "core:testing"
 import gl "vendor:OpenGL"
 
 
-compile_shader :: proc(type: u32, source: string, allocator := context.allocator) -> (u32, bool) {
-	source := strings.clone_to_cstring(source, allocator)
-	defer delete(source)
+compile_shader :: proc(type: u32, source: cstring, allocator := context.allocator) -> (u32, bool) {
+	source := source
 
 	shader := gl.CreateShader(type)
 	gl.ShaderSource(shader, 1, &source, nil)
@@ -71,11 +70,11 @@ test_program_creation :: proc(t: ^testing.T) {
 	app_context_init(&app_context, "widgets", "widgets")
 	defer app_context_destroy(&app_context)
 
-	vertex_shader, success := compile_shader(gl.VERTEX_SHADER, string(VERTEX_SHADER))
+	vertex_shader, success := compile_shader(gl.VERTEX_SHADER, VERTEX_SHADER)
 	testing.expect(t, success)
 
 	fragment_shader: u32
-	fragment_shader, success = compile_shader(gl.FRAGMENT_SHADER, string(FRAGMENT_SHADER))
+	fragment_shader, success = compile_shader(gl.FRAGMENT_SHADER, FRAGMENT_SHADER)
 	testing.expect(t, success)
 
 	program: u32

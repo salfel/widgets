@@ -5,8 +5,8 @@ import "core:image"
 import "core:math/linalg"
 import gl "vendor:OpenGL"
 
-VERTEX_SHADER :: #load("shaders/vertex.glsl", string)
-FRAGMENT_SHADER :: #load("shaders/fragment.glsl", string)
+VERTEX_SHADER :: #load("shaders/vertex.glsl", cstring)
+FRAGMENT_SHADER :: #load("shaders/fragment.glsl", cstring)
 
 box_cache: Widget_Cache
 

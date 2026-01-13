@@ -14,7 +14,7 @@ Event :: struct {
 		[2]f32,
 		Pointer_Button,
 		Modifier,
-		rune,
+		Key,
 	},
 }
 
@@ -92,10 +92,10 @@ handle_events :: proc(app_context: ^App_Context) {
 
 			app_context.input.keyboard.modifiers -= {modifier}
 		case .Keyboard_Char:
-			char, ok := event.data.(rune)
+			key, ok := event.data.(Key)
 			assert(ok, "Invalid data for keyboard char event.")
 
-			queue.push(&app_context.input.keyboard.chars, char)
+			input_handle_key(key, app_context)
 		}
 	}
 }

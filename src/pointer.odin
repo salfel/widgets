@@ -79,11 +79,28 @@ pointer_button :: proc "c" (
 }
 
 pointer_axis :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, axis: wl.pointer_axis, value: wl.fixed_t) {}
+pointer_frame :: proc "c" (data: rawptr, pointer: ^wl.pointer) {}
+pointer_axis_source :: proc "c" (data: rawptr, pointer: ^wl.pointer, axis_source: wl.pointer_axis_source) {}
+pointer_axis_stop :: proc "c" (data: rawptr, pointer: ^wl.pointer, time: uint, axis: wl.pointer_axis) {}
+pointer_axis_discrete :: proc "c" (data: rawptr, pointer: ^wl.pointer, axis: wl.pointer_axis, discrete: int) {}
+pointer_axis_value120 :: proc "c" (data: rawptr, pointer: ^wl.pointer, axis: wl.pointer_axis, value120: int) {}
+pointer_axis_relative_direction :: proc "c" (
+	data: rawptr,
+	pointer: ^wl.pointer,
+	axis: wl.pointer_axis,
+	direction: wl.pointer_axis_relative_direction,
+) {}
 
 wl_pointer_listener := wl.pointer_listener {
-	enter  = pointer_enter,
-	leave  = pointer_leave,
-	motion = pointer_motion,
-	button = pointer_button,
-	axis   = pointer_axis,
+	enter                   = pointer_enter,
+	leave                   = pointer_leave,
+	motion                  = pointer_motion,
+	button                  = pointer_button,
+	axis                    = pointer_axis,
+	frame                   = pointer_frame,
+	axis_source             = pointer_axis_source,
+	axis_stop               = pointer_axis_stop,
+	axis_discrete           = pointer_axis_discrete,
+	axis_value120           = pointer_axis_value120,
+	axis_relative_direction = pointer_axis_relative_direction,
 }

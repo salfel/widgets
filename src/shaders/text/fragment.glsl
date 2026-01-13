@@ -5,10 +5,11 @@ in vec2 Position;
 
 uniform sampler2D tex;
 uniform vec4 color;
+uniform vec4 background_color;
 
 void main()
 {
-    vec4 color = vec4(color.xyz, texture(tex, Position).a * color.w);
+    vec4 color = vec4(color.rgb, texture(tex, Position).a * color.a);
 
-    FragColor = color;
+    FragColor = mix(background_color, color, color.a);
 }
