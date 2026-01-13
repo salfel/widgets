@@ -41,13 +41,13 @@ timer_set_interval :: proc(
 		data    = data,
 	}
 
-	timer_data.fd, _ = timerfd_create(.MONOTONIC, {.NONBLOCK})
+	timer_data.fd, _ = linux.timerfd_create(.MONOTONIC, {.NONBLOCK})
 	interval_spec := durtation_to_timespec(interval)
 	itimerspec := linux.ITimer_Spec {
 		interval = interval_spec,
 		value    = durtation_to_timespec(delay) if delay != -1 else interval_spec,
 	}
-	timerfd_settime(timer_data.fd, nil, &itimerspec, nil)
+	linux.timerfd_settime(timer_data.fd, nil, &itimerspec, nil)
 
 	timer.current_id += 1
 
@@ -60,7 +60,7 @@ timer_stop :: proc(timer: ^Timer, id: Timer_Id) -> bool {
 	for fd_data, i in timer.fds {
 		if fd_data.id == id {
 			itimerspec := linux.ITimer_Spec{}
-			timerfd_settime(fd_data.fd, nil, &itimerspec, nil)
+			linux.timerfd_settime(fd_data.fd, nil, &itimerspec, nil)
 
 			unordered_remove(&timer.fds, i)
 
@@ -77,37 +77,4 @@ durtation_to_timespec :: proc(duration: time.Duration) -> linux.Time_Spec {
 		time_sec = cast(uint)(duration / time.Second),
 		time_nsec = cast(uint)(duration % time.Second),
 	}
-}
-
-
-@(private)
-errno_unwrap2 :: #force_inline proc "contextless" (ret: $P, $T: typeid) -> (T, linux.Errno) {
-	if ret < 0 {
-		default_value: T
-		return default_value, linux.Errno(-ret)
-	} else {
-		return T(ret), linux.Errno(.NONE)
-	}
-}
-
-timerfd_create :: proc(clock_id: linux.Clock_Id, flags: linux.Open_Flags) -> (linux.Fd, linux.Errno) {
-	ret := cast(linux.Fd)linux.syscall(linux.SYS_timerfd_create, clock_id, transmute(u32)flags)
-	return errno_unwrap2(ret, linux.Fd)
-}
-
-@(private)
-timerfd_settime :: proc(
-	fd: linux.Fd,
-	flags: linux.ITimer_Flags,
-	new_value: ^linux.ITimer_Spec,
-	old_value: ^linux.ITimer_Spec,
-) -> linux.Errno {
-	ret := linux.syscall(linux.SYS_timerfd_settime, fd, transmute(u32)flags, new_value, old_value)
-	return linux.Errno(-ret)
-}
-
-@(private)
-timerfd_gettime :: proc(fd: linux.Fd, curr_value: ^linux.ITimer_Spec) -> linux.Errno {
-	ret := linux.syscall(linux.SYS_timerfd_gettime, fd, curr_value)
-	return linux.Errno(-ret)
 }

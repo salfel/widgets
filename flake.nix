@@ -23,7 +23,15 @@
           src = ./.;
 
           nativeBuildInputs = with pkgs; [
-            odin
+            (odin.overrideAttrs (old: rec {
+              version = "dev-2026-01";
+              src = fetchFromGitHub {
+                owner = "odin-lang";
+                repo = "Odin";
+                tag = version;
+                hash = "sha256-YvaEe69YSS/iQeCRyNQrslaY5ZgDW45y0rjb04eYpcw=";
+              };
+            }))
           ];
 
           buildInputs = with pkgs; [
